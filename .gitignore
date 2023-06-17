@@ -1,0 +1,7 @@
+.vscode
+src/test
+data/*.ini
+
+*.sqlite3
+
+*.dump
