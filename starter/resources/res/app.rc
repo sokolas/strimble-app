@@ -1,0 +1,15 @@
+icon ICON "bug.ico"
+1 24 app.manifest
+1 VERSIONINFO
+{
+    BLOCK "StringFileInfo"
+    {
+        BLOCK "040904E4"
+        {
+            VALUE "FileDescription",  "Strimble App"
+            VALUE "LegalCopyright",   ""
+            VALUE "LegalTrademarks",  ""
+            VALUE "OriginalFilename", "strimble.exe"
+        }
+    }
+}

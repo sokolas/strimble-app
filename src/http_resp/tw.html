@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+    <!-- twitch authentication universal response -->
+<body><h2></h2><p></p>
+<script>
+    let hash = location.hash ? location.hash : (location.search ? location.search : "");
+    let d = {};
+    decodeURIComponent(hash.substr(1)).split('&').forEach(p => {let a = p.split('='); d[a[0]] = a[1]});
+    if (d && d.access_token) { document.getElementsByTagName('h2')[0].textContent = 'Success'; document.getElementsByTagName('p')[0].textContent = 'close the window' }
+    else if (d && d.error) { document.getElementsByTagName('h2')[0].textContent = 'Error: ' + d.error_description.replaceAll('+',' '); document.getElementsByTagName('p')[0].textContent = 'please try again' }
+    else { document.getElementsByTagName('h2')[0].textContent = 'Something went wrong'; document.getElementsByTagName('p')[0].textContent = 'please try again' }
+</script>
+</body>
+</html>
