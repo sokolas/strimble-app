@@ -496,6 +496,8 @@ function main()
 
     -- rest of init
     frame:Connect(wx.wxEVT_CLOSE_WINDOW, function(event)
+        local rect = frame:GetRect()
+        SaveToCfg("window", {x = rect:GetLeft(), y = rect:GetTop(), w = rect:GetWidth(), h = rect:GetHeight()})
         Log("closing")
         xpcall(NetworkManager.closeAll, function(err) print(err) end)
         wxTimers.stopAll()
@@ -513,5 +515,6 @@ function main()
         wx.wxPostEvent(frame, wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, Gui.twitch.connectBtn:GetId()))
     end
     -- collectgarbage("collect")
+    
     frame:Show(true)
 end

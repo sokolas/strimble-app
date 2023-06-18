@@ -125,12 +125,23 @@ require("src/stuff/db_helper")  -- adds global Db
 DataDb = Sqlite.open("data/data.sqlite3")
 AppConfig = wx.wxFileConfig("", "", wx.wxGetCwd() .. "\\data\\strimble.ini", "", wx.wxCONFIG_USE_LOCAL_FILE)
 
+function CopyTable(data)
+    local result = {}
+    for k, v in pairs(data) do
+        result[k] = v
+    end
+    return result
+end
 
-function SaveToCfg(path, t)
+function SaveToCfg(path, t, name)
     local currentPath = AppConfig:GetPath()
     AppConfig:SetPath("/" .. path)
-    for k, v in pairs(t) do
-        AppConfig:Write(k, v)
+    if type(t) == "table" then
+        for k, v in pairs(t) do
+            AppConfig:Write(k, v)
+        end
+    else
+        AppConfig:Write(name, t)
     end
     AppConfig:SetPath(currentPath)
     AppConfig:Flush()

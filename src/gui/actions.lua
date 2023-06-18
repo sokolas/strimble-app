@@ -1,7 +1,7 @@
 local dialogHelper = require("src/gui/dialog_helper")
 local iconsHelper = require("src/gui/icons")
 local json = require("json")
-local dataHelper = require("src/gui/data_helper")
+local dataHelper = require("src.stuff.data_helper")
 
 local actionsListCtrl = nil
 local stepsListCtrl = nil
@@ -54,6 +54,7 @@ local function findItemById(ctrl, id)
                 end
                 child = ctrl:GetNextSibling(child)
             end
+            item = ctrl:GetNextSibling(item)
         end
     end
 end
@@ -62,9 +63,24 @@ local function findGroup(name)
     for k, v in pairs(_M.actionsData) do
         if v.isGroup and v.name and v.name == name then
             Log(name, "found", k)
-            return findItemById(actionsListCtrl, k), v
+            local item = findItemById(actionsListCtrl, k)
+            Log("item found", item)
+            return item, v
         end
     end
+end
+
+local function findOrCreateGroup(group, rootActionItem)
+    if not group or group == "" then
+        group = "Default"
+    end
+    local groupItem, groupTreeItem = findGroup(group)
+    Log("group find result for", group, groupItem, groupTreeItem)
+    if not groupItem then
+        groupItem, groupTreeItem = _M.addActionGroup(group, rootActionItem)
+        Log("group create result for", group, groupItem, groupTreeItem)
+    end
+    return groupItem, groupTreeItem
 end
 
 function _M.addAction(groupGuiItem, data)
@@ -135,11 +151,29 @@ local function updateActionItem(item, result)
     treeItem.data = result
     treeItem.name = result.name
 
-    -- update UI
-    actionsListCtrl:SetItemText(item, 0, result.name)
-    actionsListCtrl:SetItemText(item, 1, (result.enabled and "Yes" or "No"))
-    actionsListCtrl:SetItemText(item, 2, result.description or "")
-    actionsListCtrl:SetItemText(item, 3, result.queue or "")
+    local parent = actionsListCtrl:GetItemParent(item)
+    local groupItem, _ = findOrCreateGroup(result.group, actionsListCtrl:GetRootItem())
+
+    if parent:GetValue() == groupItem:GetValue() then
+        -- update UI
+        actionsListCtrl:SetItemText(item, 0, result.name)
+        actionsListCtrl:SetItemText(item, 1, (result.enabled and "Yes" or "No"))
+        actionsListCtrl:SetItemText(item, 2, result.description or "")
+        actionsListCtrl:SetItemText(item, 3, result.queue or "")
+    else
+        local newItem = actionsListCtrl:AppendItem(groupItem, result.name, iconsHelper.pages.actions, iconsHelper.pages.actions)
+        -- update UI
+        actionsListCtrl:SetItemText(newItem, 0, result.name)
+        actionsListCtrl:SetItemText(newItem, 1, (result.enabled and "Yes" or "No"))
+        actionsListCtrl:SetItemText(newItem, 2, result.description or "")
+        actionsListCtrl:SetItemText(newItem, 3, result.queue or "")
+
+        _M.actionsData[newItem:GetValue()] = treeItem
+        _M.actionsData[item:GetValue()] = nil
+        actionsListCtrl:DeleteItem(item)
+        
+        actionsListCtrl:Select(newItem)
+    end
 
     -- persist
     Log(treeItem.dbId, treeItem.data.name, "updating")
@@ -158,13 +192,25 @@ function _M.addActionGroup(name, rootActionItem)
         icon = iconsHelper.pages.actions, -- for children
         -- canDeleteChildren = true,
         add = function(id, data)
-            local m, result = Gui.dialogs.ActionDialog.executeModal("Add action", data)
+            local groups = {}
+            for k, v in pairs(_M.actionsData) do
+                if v.isGroup then
+                    table.insert(groups, v.name)
+                end
+            end
+            local m, result = Gui.dialogs.ActionDialog.executeModal("Add action", data, {group = function(c) c:Set(groups) end})
             if m == wx.wxID_OK then
                 return result
             end
         end,
         childEdit = function(id, data)
-            local m, result = Gui.dialogs.ActionDialog.executeModal("Edit action", data, nil, {id = id})
+            local groups = {}
+            for k, v in pairs(_M.actionsData) do
+                if v.isGroup then
+                    table.insert(groups, v.name)
+                end
+            end
+            local m, result = Gui.dialogs.ActionDialog.executeModal("Edit action", data, {group = function(c) c:Set(groups) end}, {id = id})
             if m == wx.wxID_OK then
                 return result
             end
@@ -202,7 +248,8 @@ function _M.init()
             {
                 name = "group",
                 label = "Group",
-                type = "combo"
+                type = "combo",
+                value = "Default"
             },
             {
                 name = "description",
@@ -213,7 +260,6 @@ function _M.init()
                 name = "queue",
                 label = "Queue",
                 type = "combo",
-                choices = groupNames,
                 value = "Default"
             },
             {
@@ -230,13 +276,13 @@ function _M.init()
                 if context and context.id then
                     for i, v in pairs(_M.actionsData) do
                         if i ~= context.id and not v.isGroup and v.name == data.name then
-                            return false, "Name mush be unique"
+                            return false, "Name must be unique"
                         end
                     end
                 else
                     for i, v in pairs(_M.actionsData) do
                         if not v.isGroup and v.name == data.name then
-                            return false, "Name mush be unique"
+                            return false, "Name must be unique"
                         end
                     end
                 end
@@ -342,7 +388,8 @@ function _M.init()
             if not result then
                 Log("'Add item' error")
             else
-                _M.addAction(e:GetItem(), result)
+                local groupGuiItem, groupTreeItem = findOrCreateGroup(result.group, rootActionItem)
+                _M.addAction(groupGuiItem, result)
             end
         elseif menuSelection == actionEditItem:GetId() then   -- edit item TODO move to a function
             local result = treeItem.edit(i, treeItem.data)
@@ -437,15 +484,7 @@ function _M.load()
         local result = json.decode(row.data)
         result.dbId = row.id
         local group = result.group
-        if not group or group == "" then
-            group = "Default"
-        end
-        local groupItem, groupTreeItem = findGroup(group)
-        Log("group find result for", group, groupItem, groupTreeItem)
-        if not groupItem then
-            groupItem, groupTreeItem = _M.addActionGroup(group, rootActionItem)
-            Log("group create result for", group, groupItem, groupTreeItem)
-        end
+        local groupItem = findOrCreateGroup(group, rootActionItem)
         _M.addAction(groupItem, result)
         -- if not actionsListCtrl:IsExpanded(groupItem) then
             -- actionsListCtrl:Expand(groupItem)

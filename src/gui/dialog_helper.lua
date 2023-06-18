@@ -253,6 +253,12 @@ _M.loadMainWindow = function()
     local xmlResource = nil
     xmlResource = wx.wxXmlResource()
     xmlResource:InitAllHandlers()
+    local x = ReadFromCfg("window", "x", -1)
+    local y = ReadFromCfg("window", "y", -1)
+    local w = ReadFromCfg("window", "w", -1)
+    local h = ReadFromCfg("window", "h", -1)
+    local pos = wx.wxPoint(x, y)
+    local size = wx.wxSize(w, h)
 
     xmlResource:Load("src/StrimbleUI.xrc")
     local frame = wx.wxFrame()
@@ -271,6 +277,8 @@ _M.loadMainWindow = function()
     icon:delete()
 
     frame:SetSizer(wx.NULL)
+    frame:SetPosition(pos)
+    frame:SetSize(size)
     return xmlResource, frame
 end
 

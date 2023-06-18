@@ -2,7 +2,7 @@ local dialogHelper = require("src/gui/dialog_helper")
 local iconsHelper = require("src/gui/icons")
 local json = require("json")
 local commands = require("src/stuff/commands")
-local dataHelper = require("src/gui/data_helper")
+local dataHelper = require("src.stuff.data_helper")
 
 local triggerListCtrl = nil
 local commandWhere = commands.commandsWhere
@@ -135,14 +135,6 @@ local function toggleItem(item, enabled)
     updateItemInDb(treeItem)
 end
 
-local function copyData(data)
-    local result = {}
-    for k, v in pairs(data) do
-        result[k] = v
-    end
-    return result
-end
-
 -- creates
 --      gui.triggers.triggersList
 --      gui.dialogs.CommandDialog
@@ -251,7 +243,7 @@ local function init()
         add = function(id, data)
             local actionIds, actionNames = dataHelper.getActionData()
             local init = {action = function(c) c:Set(actionNames) end}
-            local dlgData = copyData(data)
+            local dlgData = CopyTable(data)
             dlgData.action = nil
             for i = 1, #actionIds do
                 if actionIds[i] == data.action then
@@ -275,7 +267,7 @@ local function init()
         childEdit = function(id, data)
             local actionIds, actionNames = dataHelper.getActionData()
             local init = {action = function(c) c:Set(actionNames) end}
-            local dlgData = copyData(data)
+            local dlgData = CopyTable(data)
             dlgData.action = nil
             for i = 1, #actionIds do
                 if actionIds[i] == data.action then
@@ -306,10 +298,6 @@ local function init()
         }
     }
     triggerListCtrl:SetItemText(twitchCmds, 1, "+") -- TODO make this dependent on canAddChildren
-
-    local function fillActions(c, names)
-        
-    end
 
     -- adding and editing events
     triggerListCtrl:Connect(wx.wxEVT_TREELIST_ITEM_CONTEXT_MENU, function(e) -- right click
