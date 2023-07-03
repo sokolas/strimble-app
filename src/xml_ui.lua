@@ -390,14 +390,27 @@ function main()
     
     Twitch.setMessageListener(function(message)
         if Gui.twitch.showChat:GetValue() then
+            --[[if message.tags and #message.tags then
+                for k, v in pairs(message.tags) do
+                    twitchWnd.appendTwitchMessage(string.format("%s=%s", k, v))
+                end
+            end]]
             twitchWnd.appendTwitchMessage(string.format("%s/%s: %s", message.channel, message.user, message.text))
         end
-        local triggered = triggersHelper.checkTrigger("twitch_privmsg", {channel = message.channel, user = message.user, text = message.text})
-        if triggered then
+        local tags = message.tags or {}
+        local user = {
+            id = tags["user-id"],
+            displayName = tags["display-name"],
+            name = message.user,
+            subscriber = tags["subscriber"] == "1",
+            mod = tags["mod"] == "1"
+        }
+        local triggered = triggersHelper.onTrigger("twitch_privmsg", {channel = message.channel, user = user, text = message.text})
+        --[[if triggered then
             for i, v in ipairs(triggered) do
                 twitchWnd.appendTwitchMessage(string.format("%d %s triggered with '%s'!", v.id, v.name, v.text))
             end
-        end
+        end]]
     end)
     
     Twitch.setStateListener(function(oldState, newState)

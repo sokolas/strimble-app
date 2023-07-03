@@ -479,16 +479,30 @@ function _M.load()
         end
         item = actionsListCtrl:GetNextSibling(item)
     end
+    local rows = {}
 
     for row in Db:nrows("SELECT * FROM actions") do
-        local result = json.decode(row.data)
-        result.dbId = row.id
-        local group = result.group
+        row.result = json.decode(row.data)
+        table.insert(rows, row)
+    end
+    table.sort(rows, function(r1, r2)
+        if r1.result.order == nil then
+            return true
+        elseif r2.result.order == nil then
+            return false
+        else
+            return r1.result.order < r2.result.order
+        end
+    end)
+
+    for i, row in pairs(rows) do
+        row.result.dbId = row.id
+        local group = row.result.group
         local groupItem = findOrCreateGroup(group, rootActionItem)
-        _M.addAction(groupItem, result)
+        _M.addAction(groupItem, row.result)
         -- if not actionsListCtrl:IsExpanded(groupItem) then
             -- actionsListCtrl:Expand(groupItem)
-        -- end
+        -- end    
     end
 
     dataHelper.setActions(_M.actionsData)

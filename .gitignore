@@ -1,6 +1,7 @@
 .vscode
 src/test
 data/*.ini
+data/lockfile.lfs
 
 *.sqlite3
 

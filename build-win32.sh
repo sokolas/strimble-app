@@ -434,7 +434,7 @@ if [ $BUILD_ZBSTUDIO ]; then
 fi
 
 # http://lua.sqlite.org/index.cgi/zip/lsqlite3_fsl09y.zip?uuid=fsl_9y
-# gcc -Os -static-libgcc  -Dluaopen_lsqlite3=luaopen_lsqlite3complete -shared -s -I /home/user/deps/include/luajit-2.1 -L /home/user/untitled-bot/bin -llua51 -o lsqlite3.dll sqlite3.c lsqlite3.c 
+# gcc -Os -static-libgcc  -Dluaopen_lsqlite3=luaopen_lsqlite3complete -shared -s -I /home/user/deps/include/luajit-2.1 -L /home/user/untitled-bot/bin -llua51 -o lsqlite3complete.dll sqlite3.c lsqlite3.c 
 # gcc -Os -static-libgcc -shared -s -I /home/user/deps/include/luajit-2.1 -L /home/user/deps/lib -llua51 lutf8lib.c -o lutf8.dll
 
 [ -d "$BIN_DIR/clibs" ] || mkdir -p "$BIN_DIR/clibs" || { echo "Error: cannot create directory $BIN_DIR/clibs"; exit 1; }

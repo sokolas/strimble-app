@@ -3,6 +3,7 @@ local iconsHelper = require("src/gui/icons")
 local json = require("json")
 local commands = require("src/stuff/commands")
 local dataHelper = require("src.stuff.data_helper")
+local ctxHelper = require("src.stuff.action_context")
 
 local triggerListCtrl = nil
 local commandWhere = commands.commandsWhere
@@ -400,11 +401,30 @@ end
 _M.export = function()  -- to json
 end
 
-_M.checkTrigger = function(type, data)
+_M.onTrigger = function(type, data)
     -- TODO construct a context here with fields from data, trigger, etc
     if type == "twitch_privmsg" then    -- assume data has a text field
         if data and data.text then
-            return commands.matchCommands(_M.treedata, data.text)
+            -- return commands.matchCommands(data.text)
+            local matchedCommands = commands.matchCommands(data.text)
+            if matchedCommands then
+                for i, cmd in ipairs(matchedCommands) do
+                    local actions = dataHelper.findAction(dataHelper.byDbId(cmd.action))
+                    local action = actions[1]
+                    if action then
+                        Log(action.data.name, action.data.description, action.data.queue)
+                        local ctx = ctxHelper.create({
+                            user = data.user,
+                            value = data.text, -- TODO parse into command and params
+                            channel = data.channel
+                        }, cmd.action)
+                        local queue = dataHelper.getActionQueue(action.data.queue)
+                        -- table.insert(queue, ctx)
+                        Log(ctx)
+                        Log(queue)
+                    end
+                end
+            end
         end
     end
 end

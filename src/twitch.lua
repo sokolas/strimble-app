@@ -382,7 +382,8 @@ local function handleWsMessage(ok, msg)
                                 _M.userMessageListener({
                                     channel = channel,
                                     user = Lutf8.sub(message.prefix, 1, Lutf8.find(message.prefix, "!", 1, true) - 1),
-                                    text = text
+                                    text = text,
+                                    tags = message.tags
                                 })
                             end
                             -- if text == "!reconnect" then
