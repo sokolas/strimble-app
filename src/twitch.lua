@@ -345,7 +345,7 @@ local function handleWsMessage(ok, msg)
         local messages = SplitMessage(msg, "\r\n")
         for i, line in ipairs(messages) do
             if line and line ~= "" then
-                -- Log(line)
+                Log(line)
                 local ok, message = _M.parseMessage(line)
                 if ok then
                     local channel = getChannel(message.params)
@@ -373,6 +373,9 @@ local function handleWsMessage(ok, msg)
                                 _M.setState("joined")
                                 -- emit status change
                             end
+                        elseif message.command == "RECONNECT" or message == "SERVERCHANGE" then
+                            Log("reconnect received")
+                            _M.reconnect()
                         end
                     else
                         if message.command == "PRIVMSG" then
@@ -390,9 +393,7 @@ local function handleWsMessage(ok, msg)
                             -- if text == "!reconnect" then
                                 -- _M.reconnect()
                             -- end
-                        elseif message.command == "RECONNECT" or message == "SERVERCHANGE" then
-                            _M.reconnect()
-                        
+                        else
                         --[[elseif message.command == "353" then    -- names
                             _M.userMessageHandler({
                                 channel = "***",
