@@ -23,7 +23,7 @@ _M.create = function(data, action)
     local steps = dataHelper.findStepsForAction(action)
     ctx.steps = {}
     for i, s in ipairs(steps) do
-        table.insert(ctx.steps, s.f)    -- resolve steps functions so the changes to them won't affect the execution
+        table.insert(ctx.steps, {name = s.name, id = s.id, f = s.f, params = s.params})    -- resolve steps functions so the changes to them won't affect the execution
     end
     setmetatable(ctx, Mt)
     return ctx

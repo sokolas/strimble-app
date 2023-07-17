@@ -171,6 +171,7 @@ local function init()
                 value = true
             }
         },
+        -- validation
         function(data, context)
             if not data.name or data.name == "" then
                 return false, "Name can't be empty"
@@ -182,13 +183,13 @@ local function init()
                 if context and context.id then
                     for i, v in pairs(_M.treedata) do
                         if i ~= context.id and not v.isGroup and v.name == data.name then
-                            return false, "Name mush be unique"
+                            return false, "Name must be unique"
                         end
                     end
                 else
                     for i, v in pairs(_M.treedata) do
                         if not v.isGroup and v.name == data.name then
-                            return false, "Name mush be unique"
+                            return false, "Name must be unique"
                         end
                     end
                 end
@@ -402,7 +403,6 @@ _M.export = function()  -- to json
 end
 
 _M.onTrigger = function(type, data)
-    -- TODO construct a context here with fields from data, trigger, etc
     if type == "twitch_privmsg" then    -- assume data has a text field
         if data and data.text then
             -- return commands.matchCommands(data.text)
@@ -412,16 +412,15 @@ _M.onTrigger = function(type, data)
                     local actions = dataHelper.findAction(dataHelper.byDbId(cmd.action))
                     local action = actions[1]
                     if action then
-                        Log(action.data.name, action.data.description, action.data.queue)
                         local ctx = ctxHelper.create({
                             user = data.user,
                             value = data.text, -- TODO parse into command and params
                             channel = data.channel
                         }, cmd.action)
                         local queue = dataHelper.getActionQueue(action.data.queue)
-                        -- table.insert(queue, ctx)
-                        Log(ctx)
-                        Log(queue)
+                        table.insert(queue, ctx)
+                        Log("action found:", action.data.name, action.data.description, "queue:", action.data.queue, #queue)
+                        Gui.frame:QueueEvent(wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, ACTION_DISPATCH))
                     end
                 end
             end

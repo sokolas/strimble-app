@@ -5,10 +5,13 @@ local wxTimers = require("src/stuff/wxtimers")
 local dialogHelper = require("src/gui/dialog_helper")
 local triggersHelper = require("src/gui/triggers")
 local actionsHelper = require("src/gui/actions")
+local dataHelper = require("src.stuff.data_helper")
 
 local ThingsToKeep = {} -- variable to store references to various stuff that needs to be kept
 local accelTable = {}
 local accelMenu = {}
+
+ACTION_DISPATCH = wx.wxID_HIGHEST + 1   -- the wx id for "dispatch actions" message command
 
 Gui = {
     tools = {},
@@ -352,17 +355,69 @@ function main()
 
     -- set up main loop
     local function event_loop(event)
+        -- network
         xpcall(function(event)
             NetworkManager.dispatch()
         end,
         function(err)
             -- timer:Stop()
-            Log("main loop error", debug.traceback(err))
+            Log("network dispatch loop error", debug.traceback(err))
         end,
         event
         )
     end
     wxTimers.addTimer(50, frame, event_loop, true)
+
+    local function dispatchActions()
+        local queues = dataHelper.getActionQueues()
+        for k, queue in pairs(queues) do
+            if #queue > 0 then
+                if not queue.running then
+                    Log("Processing queue", k, #queue)
+                    queue.running = true
+                    local ctx = queue[1]
+                    Log("action", ctx.action)
+                    local exec = function()
+                        for i, step in ipairs(ctx.steps) do
+                            Log("step", i, step.name)
+                            local ok = step.f(ctx, step.params)
+                            if not ok then
+                                Log("step returned false, aborting action")
+                                return  -- TODO false?
+                            end
+                        end
+                    end
+                    queue.co = coroutine.create(function()
+                        -- try
+                        xpcall(exec,
+                            function(err)
+                                Log("Action execution failed", debug.traceback(err))
+                            end)
+                        -- finally
+                        queue.running = false
+                        queue.co = nil
+                        table.remove(queue, 1)
+                        if #queue > 0 then
+                            Gui.frame:QueueEvent(wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, ACTION_DISPATCH))
+                        else
+                            Log(k, "is empty")
+                        end
+                    end)
+                    local res = coroutine.resume(queue.co)
+                    Log("co result", res)
+                    if queue.co then
+                        Log(coroutine.status(queue.co))
+                    end
+                else
+                    Log(k, "is still running")
+                end
+            else
+                Log(k, "is empty")
+            end
+        end
+    end
+
+    frame:Connect(ACTION_DISPATCH, wx.wxEVT_COMMAND_BUTTON_CLICKED, dispatchActions)
 
     -- twitch
     findWindow("twitchLog", "wxTextCtrl", "log", "twitch", true)

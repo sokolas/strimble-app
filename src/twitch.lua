@@ -345,6 +345,7 @@ local function handleWsMessage(ok, msg)
         local messages = SplitMessage(msg, "\r\n")
         for i, line in ipairs(messages) do
             if line and line ~= "" then
+                -- Log(line)
                 local ok, message = _M.parseMessage(line)
                 if ok then
                     local channel = getChannel(message.params)

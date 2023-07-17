@@ -109,7 +109,7 @@ local function dispatch()
     end
 end
 
--- suspendable; perporf a GET request
+-- suspendable; performs a GET request
 local function doGet(url, headers)
     local this, main_thread = coroutine.running()
     if main_thread then

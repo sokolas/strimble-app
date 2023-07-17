@@ -1,5 +1,7 @@
 _M = {}
 
+local twitch_steps = require("src.stuff.steps.twitch_steps")
+
 local triggersData = {}
 local actionsData = {}
 local stepsData = {}
@@ -19,7 +21,8 @@ end
 
 function _M.findStepsForAction(action)  -- TODO actual steps implementation
     local r = {}
-    table.insert(r, {f = function(ctx) print(ctx.data.user.name) end})
+    table.insert(r, {name = "example action 1", id = 1, f = function(ctx, params) local ok, res = NetworkManager.get("https://sokolas.org"); Log(ok, res.body); return true end})
+    table.insert(r, {name = "example action 2", id = 2, f = twitch_steps.sendMessage, params = {message = "ololo"}})
     return r
 end
 
@@ -68,6 +71,10 @@ function _M.getActionQueue(name)
         }
     end
     return actionQueues[name]
+end
+
+function _M.getActionQueues()
+    return actionQueues
 end
 
 return _M
