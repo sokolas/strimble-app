@@ -187,6 +187,22 @@ local function updateActionItem(item, result)
     dataHelper.updateActions()
 end
 
+local function toggleItem(item, state)
+    logger.log("Toggling " .. tostring(item:GetValue()))
+    local treeItem = _M.actionsData[item:GetValue()]
+    if treeItem.isGroup then
+        return
+    end
+    
+    treeItem.data.enabled = state
+
+    -- update UI
+    actionsListCtrl:SetItemText(item, 1, (treeItem.data.enabled and "Yes" or "No"))
+    
+    -- persist
+    updateActionItemInDb(treeItem)
+end
+
 function _M.addActionGroup(name, rootActionItem)
     local groupItem = actionsListCtrl:AppendItem(rootActionItem, name, iconsHelper.pages.folder, iconsHelper.pages.folder)
     local treeItem = {
@@ -409,9 +425,9 @@ function _M.init()
                 updateActionItem(e:GetItem(), result)
             end
         elseif menuSelection == actionDeleteItem:GetId() then
-            -- deleteItem(e:GetItem(), true)
+            deleteItem(e:GetItem(), true)
         elseif menuSelection == actionToggleItem:GetId() then
-            -- toggleItem(e:GetItem(), actionToggleItem:IsChecked())
+            toggleItem(e:GetItem(), actionToggleItem:IsChecked())
         end
     end)
 
