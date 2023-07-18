@@ -1,3 +1,5 @@
+local logger = Logger.create("dialogs")
+
 -- if control is text or checkbox: set the value directly
 -- if control is choice: set the selected as the value number
 -- if control is combobox: set the value directly
@@ -13,7 +15,7 @@ local function setControlValue(control, value)
     elseif c == "wxChoice" then
         control:SetSelection(value)
     else
-        Log("Error! can't set value to " .. c)
+        logger.err("Error! can't set value to " .. c)
     end
 end
 
@@ -27,26 +29,26 @@ local function getControlValue(control)
     elseif c == "wxChoice" then
         return control:GetSelection()
     else
-        Log("Error! can't get value from " .. c)
+        logger.err("Error! can't get value from " .. c)
     end
 end
 
 local function findInDlg(gui, dlg, name, type, guiName, group)
     local wnd = dlg:FindWindow(name)
     if not wnd then
-        Log("can't find window", name);
+        logger.err("can't find window", name);
         return nil
     end
     local ok, res = xpcall(
         wnd.DynamicCast,
-        function(err) Log("error searching for window '" .. name .. "'/'" .. type .. "': ", debug.traceback(err)) end,
+        function(err) logger.err("error searching for window '" .. name .. "'/'" .. type .. "': ", debug.traceback(err)) end,
         wnd, type
     )
     if ok then
         gui:insert(res, guiName, group)
         -- print("found window", name, type, guiName, group)
     else
-        Log("can't find/cast window", name)
+        logger.err("can't find/cast window", name)
     end
     
     gui.transient[name] = true
@@ -77,7 +79,7 @@ local function createDlgItem(gui, dlg, validate, dlgName)
             end
         end
         for k, v in pairs(data) do
-            -- Log(k, v, gui[name], gui[name][k])
+            -- logger.log(k, v, gui[name], gui[name][k])
             if gui[dlgName][k] and v ~= nil then
                 setControlValue(gui[dlgName][k], v)
             end
@@ -131,7 +133,7 @@ local function loadDialog(gui, dlgName, controls, validate)
     
     for k, v in pairs(controls) do
         local c = findInDlg(gui, dlg, v.name, v.type, k, dlgName)
-        -- Log(k, c)
+        -- logger.log(k, c)
         if v.init then
             v.init(c)
         end
@@ -168,13 +170,14 @@ local function createDataDialog(gui, dlgName, controlsName, controls, validate)
         if v.type == "text" then
             widget = wx.wxTextCtrl(controlsBox, wx.wxID_ANY, v.value or "", wx.wxDefaultPosition, wx.wxDefaultSize)
         elseif v.type == "check" then
-            widget = wx.wxCheckBox(controlsBox, wx.wxID_ANY, v.text or "check", wx.wxDefaultPosition, wx.wxDefaultSize, v.value or false)
+            widget = wx.wxCheckBox(controlsBox, wx.wxID_ANY, v.text or "check", wx.wxDefaultPosition, wx.wxDefaultSize)
+            widget:SetValue(v.value or false)
         elseif v.type == "choice" then
             widget = wx.wxChoice(controlsBox, wx.wxID_ANY, wx.wxDefaultPosition, wx.wxDefaultSize, v.choices)
         elseif v.type == "combo" then
             widget = wx.wxComboBox(controlsBox, wx.wxID_ANY, v.value or "", wx.wxDefaultPosition, wx.wxDefaultSize, v.choices or {})
         else
-            Log("Unknown widget type: " .. tostring(v.type))
+            logger.err("Unknown widget type: " .. tostring(v.type))
             dlg:Destroy()
             return nil
         end
@@ -222,23 +225,23 @@ end
 local function replaceElement(gui, name, constructor, guiName, group)
     local wnd = gui.frame:FindWindow(name)
     if not wnd then
-        Log("can't find window", name);
+        logger.err("can't find window", name);
         return nil
     end
     local parent = wnd:GetParent()
     if not parent then
-        Log("Can't get parent of", name)
+        logger.err("Can't get parent of", name)
         return nil
     end
     local sizer = parent:GetSizer()
     if not sizer then
-        Log("Can't get sizer of parent", parent:GetName())
+        logger.err("Can't get sizer of parent", parent:GetName())
     end
     local e = constructor(parent)
 
     local replaced = sizer:Replace(wnd, e, true)
     if not replaced then
-        Log("Can't replace the item", name)
+        logger.err("Can't replace the item", name)
         e:Destroy()
     end
     wnd:Destroy()

@@ -67,6 +67,67 @@ require("wx")
 -- print(wx.wxGetCwd())
 math.randomseed(os.time())
 
+Logger = {
+    loggers = {}
+}
+
+Logger.create = function(name)
+    if not Logger.loggers[name] then
+        local logger = {
+            enabled = true,
+            name_str = "[" .. name .. "]\t"
+        }
+        logger.log = function(...)
+            if not logger.enabled then return end
+            -- Log(logger.name_str, ...)
+            local arg = table.pack(...)
+            local s = os.date("[%d %b %Y %H:%M:%S]\t") .. logger.name_str
+            local info = debug.getinfo(2)
+        
+            if info then
+                local src = string.gsub(info.short_src, ".\\", "")
+                s = s .. src .. ":" .. info.currentline .. "\t"
+            end
+            for i = 1, arg.n do
+                if type(v) == "string" then
+                    s = s .. arg[i]
+                else
+                    s = s .. tostring(arg[i])
+                end
+                if i < arg.n then
+                    s = s .. "\t"
+                end
+            end
+            io.write(s .. "\n")
+        end
+
+        logger.err = function(...)
+            -- Log(logger.name_str, "ERROR\t", ...)
+            local arg = table.pack(...)
+            local s = os.date("[%d %b %Y %H:%M:%S]\t") .. logger.name_str .. "ERROR\t"
+            local info = debug.getinfo(2)
+        
+            if info then
+                local src = string.gsub(info.short_src, ".\\", "")
+                s = s .. src .. ":" .. info.currentline .. "\t"
+            end
+            for i = 1, arg.n do
+                if type(v) == "string" then
+                    s = s .. arg[i]
+                else
+                    s = s .. tostring(arg[i])
+                end
+                if i < arg.n then
+                    s = s .. "\t"
+                end
+            end
+            io.write(s .. "\n")
+        end
+        Logger.loggers[name] = logger
+    end
+    return Logger.loggers[name]
+end
+
 function Log(...)
     local arg = table.pack(...)
     local s = os.date("[%d %b %Y %H:%M:%S]\t")

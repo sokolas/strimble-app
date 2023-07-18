@@ -1,4 +1,5 @@
 local url = require("socket.url")
+local logger = Logger.create("twitch")
 
 local scopes = {
     "bits:read",
@@ -261,10 +262,10 @@ _M.validateToken = function()
         local text = res.body
         local ok, data = pcall(Json.decode, text)
         if not ok then
-            Log("Error validating twitch token", data)
+            logger.err("Error validating twitch token", data)
             return false, data
         else
-            -- Log(text)
+            -- logger.log(text)
             if not data.scopes then
                 return false, data
             else
@@ -285,7 +286,7 @@ _M.validateToken = function()
             end
         end
     else
-        Log("Error validating token", (res or {}).status, (res or {}).body)
+        logger.err("Error validating token", (res or {}).status, (res or {}).body)
         return false, {status = (res or {}).status, message = (res or {}).body}
     end
 end
@@ -304,7 +305,7 @@ end
 
 local function sendRaw(cmd)
     if _M.chatSock and (_M.state == "connected" or _M.state == "joined") then
-        Log("sending [" .. (cmd or '') .. "]")
+        logger.log("sending [" .. (cmd or '') .. "]")
         _M.chatSock:send(cmd)
         return true
     else
@@ -315,10 +316,10 @@ end
 local sockStatus
 
 local function handleWsStatus(ok, oldStatus, newStatus)
-    Log("*** " .. newStatus)
+    logger.log("*** " .. newStatus)
     sockStatus = newStatus
     if not _M.token or not _M.username then
-        Log("token or username is not set")
+        logger.err("token or username is not set")
         return
     end
     local sock = _M.chatSock
@@ -332,7 +333,7 @@ local function handleWsStatus(ok, oldStatus, newStatus)
         sock:send("NICK " .. _M.username)
         -- sock:send("JOIN " .. toChannel(_M.channel or _M.username))
     elseif newStatus == "error" then
-        Log("twitch connection error")
+        logger.err("twitch connection error")
         _M.setState("error")
         -- sock:close()
     end
@@ -345,7 +346,7 @@ local function handleWsMessage(ok, msg)
         local messages = SplitMessage(msg, "\r\n")
         for i, line in ipairs(messages) do
             if line and line ~= "" then
-                Log(line)
+                logger.log(line)
                 local ok, message = _M.parseMessage(line)
                 if ok then
                     local channel = getChannel(message.params)
@@ -353,8 +354,8 @@ local function handleWsMessage(ok, msg)
                     local msgId = (message.params or {})["msg-id"]
                     
                     if message.command ~= "JOIN" then   -- extend the list of ignored commands?
-                        Log("prefix", message.prefix, "command", message.command, "channel", channel, "msgId", msgId)
-                        Log("text: " , text)
+                        logger.log("prefix", message.prefix, "command", message.command, "channel", channel, "msgId", msgId)
+                        logger.log("text: " , text)
                     end
 
                     if not message.prefix then
@@ -363,7 +364,7 @@ local function handleWsMessage(ok, msg)
                         elseif message.command == "PONG" then
                             -- do nothing
                         else
-                            Log("unknown command without prefix")
+                            logger.log("unknown command without prefix")
                         end
                     elseif message.prefix == "tmi.twitch.tv" then
                         if message.command == "376" then    -- connected
@@ -374,13 +375,13 @@ local function handleWsMessage(ok, msg)
                                 -- emit status change
                             end
                         elseif message.command == "RECONNECT" or message == "SERVERCHANGE" then
-                            Log("reconnect received")
+                            logger.log("reconnect received")
                             _M.reconnect()
                         end
                     else
                         if message.command == "PRIVMSG" then
-                            -- Log(line)
-                            -- Log(Lutf8.escape("%x{0001}ACTION"))
+                            -- logger.log(line)
+                            -- logger.log(Lutf8.escape("%x{0001}ACTION"))
                             -- TODO additional checks: bits, action, etc https://github.com/tmijs/tmi.js/blob/main/lib/ClientBase.js#L1034
                             if _M.userMessageListener then
                                 _M.userMessageListener({
@@ -401,7 +402,7 @@ local function handleWsMessage(ok, msg)
                                 text = table.concat(message.params, ":")
                             })
                             -- names?
-                            -- Log(message.params[4])
+                            -- logger.log(message.params[4])
                         elseif message.command == "JOIN" then
                             userCount = userCount + 1
                             _M.userMessageHandler({
@@ -413,7 +414,7 @@ local function handleWsMessage(ok, msg)
                     end
 
                 else
-                    Log("can't parse line:", line)
+                    logger.err("can't parse line:", line)
                 end
             end
         end
@@ -431,7 +432,7 @@ _M.setStateListener = function(f)
 end
 
 local function connect()
-    Log("connecting to twitch")
+    logger.log("connecting to twitch")
     if not _M.token then
         return false, "token is not set"
     end
@@ -446,9 +447,9 @@ local function connect()
                     local data = (Json.decode(result.body)).data
                     -- print(data[1].display_name)
                 elseif status == "401" then
-                    Log("Token is invalid")
+                    logger.err("Token is invalid")
                 else
-                    Log("unknown status", result.status)
+                    logger.log("unknown status", result.status)
                 end
         end]]
     end
@@ -470,10 +471,10 @@ end
 
 _M.sendToChannel = function(text, channel)
     if not channel and not _M.channel then
-        Log("No channel specified")
+        logger.err("No channel specified")
         return
     end
-    if _M.state ~= "joined" then Log("Not joined to any channel") end
+    if _M.state ~= "joined" then logger.err("Not joined to any channel") end
     local c = channel or _M.channel
     sendRaw("PRIVMSG " .. toChannel(c) .. " :" .. text)   -- todo: escape
 end

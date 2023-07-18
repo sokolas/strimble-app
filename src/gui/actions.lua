@@ -8,17 +8,19 @@ local stepsListCtrl = nil
 
 local groupNames = {}
 
+local logger = Logger.create("actions_gui")
+
 local _M = {
     actionsData = {},
     stepsData = {}
 }
 
 local function deleteItem(item, deleteFromDb)
-    Log("Deleting " .. tostring(item:GetValue()))
+    logger.log("Deleting " .. tostring(item:GetValue()))
     local treeItem = _M.actionsData[item:GetValue()]
-    Log(treeItem.name)
+    logger.log(treeItem.name)
     if treeItem.isGroup and actionsListCtrl:GetFirstChild(item):IsOk() then
-        Log("Can't delete non-empty group item")
+        logger.err("Can't delete non-empty group item")
         return
     end
     local dbId = treeItem.dbId
@@ -35,7 +37,7 @@ local function deleteItem(item, deleteFromDb)
         })
         local res = deleteStmt:step()
         if res ~= Sqlite.DONE then
-            Log("Delete error", res, Db:errmsg())
+            logger.err("Delete error", res, Db:errmsg())
         end
         deleteStmt:finalize()
     end
@@ -62,9 +64,9 @@ end
 local function findGroup(name)
     for k, v in pairs(_M.actionsData) do
         if v.isGroup and v.name and v.name == name then
-            Log(name, "found", k)
+            logger.log(name, "found", k)
             local item = findItemById(actionsListCtrl, k)
-            Log("item found", item)
+            logger.log("item found", item)
             return item, v
         end
     end
@@ -75,10 +77,10 @@ local function findOrCreateGroup(group, rootActionItem)
         group = "Default"
     end
     local groupItem, groupTreeItem = findGroup(group)
-    Log("group find result for", group, groupItem, groupTreeItem)
+    logger.log("group find result for", group, groupItem, groupTreeItem)
     if not groupItem then
         groupItem, groupTreeItem = _M.addActionGroup(group, rootActionItem)
-        Log("group create result for", group, groupItem, groupTreeItem)
+        logger.log("group create result for", group, groupItem, groupTreeItem)
     end
     return groupItem, groupTreeItem
 end
@@ -104,7 +106,7 @@ function _M.addAction(groupGuiItem, data)
     if not data.dbId then
         local insertStmt = Db:prepare("INSERT INTO actions VALUES (NULL, :name, :data);")
         if not insertStmt then
-            Log(Db:errmsg())
+            logger.err(Db:errmsg())
         end
         insertStmt:bind_names({
             name = item.data.name,
@@ -112,10 +114,10 @@ function _M.addAction(groupGuiItem, data)
         })
         local res = insertStmt:step()
         if res ~= Sqlite.DONE then
-            Log("Insert error", res, Db:errmsg())
+            logger.err("Insert error", res, Db:errmsg())
         else
             local rowid = insertStmt:last_insert_rowid()
-            Log("rowid", rowid)
+            logger.log("rowid", rowid)
             item.dbId = rowid
         end
         insertStmt:finalize()
@@ -141,7 +143,7 @@ local function updateActionItemInDb(treeItem)
     })
     local res = updateStmt:step()
     if res ~= Sqlite.DONE then
-        Log("Update error", res, Db:errmsg())
+        logger.err("Update error", res, Db:errmsg())
     end
     updateStmt:finalize()
 end
@@ -176,7 +178,7 @@ local function updateActionItem(item, result)
     end
 
     -- persist
-    Log(treeItem.dbId, treeItem.data.name, "updating")
+    logger.log(treeItem.dbId, treeItem.data.name, "updating")
     updateActionItemInDb(treeItem)
 end
 
@@ -373,7 +375,7 @@ function _M.init()
     actionsListCtrl:Connect(wx.wxEVT_TREELIST_ITEM_CONTEXT_MENU, function(e) -- right click
         local i = e:GetItem():GetValue()
         local treeItem = _M.actionsData[i]
-        Log(treeItem.name)
+        logger.log(treeItem.name)
 
         Gui.menus.actionMenu:Enable(actionAddItem:GetId(), treeItem.canAddChildren == true)
         Gui.menus.actionMenu:Enable(actionEditItem:GetId(), treeItem.canEdit == true)
@@ -382,11 +384,11 @@ function _M.init()
         Gui.menus.actionMenu:Check(actionToggleItem:GetId(), treeItem.data.enabled == true)
 
         local menuSelection = Gui.frame:GetPopupMenuSelectionFromUser(Gui.menus.actionMenu, wx.wxDefaultPosition)
-        Log(menuSelection)
+        logger.log(menuSelection)
         if menuSelection == actionAddItem:GetId() then    -- add new item
             local result = treeItem.add(i, treeItem.childData)
             if not result then
-                Log("'Add item' error")
+                logger.err("'Add item' error")
             else
                 local groupGuiItem, groupTreeItem = findOrCreateGroup(result.group, rootActionItem)
                 _M.addAction(groupGuiItem, result)
@@ -394,9 +396,9 @@ function _M.init()
         elseif menuSelection == actionEditItem:GetId() then   -- edit item TODO move to a function
             local result = treeItem.edit(i, treeItem.data)
             if not result then
-                Log("'Edit item' error")
+                logger.err("'Edit item' error")
             else
-                Log("'Edit item' OK")
+                logger.log("'Edit item' OK")
                 updateActionItem(e:GetItem(), result)
             end
         elseif menuSelection == actionDeleteItem:GetId() then
@@ -420,7 +422,7 @@ function _M.init()
             if treeItem.canEdit then  -- edit item TODO move to a function
                 local result = treeItem.edit(i, treeItem.data)
                 if not result then
-                    Log("'Edit item' cancelled or error")
+                    logger.log("'Edit item' cancelled or error")
                 else
                     updateActionItem(e:GetItem(), result)
                 end
@@ -459,10 +461,10 @@ function _M.load()
     local rootActionItem = actionsListCtrl:GetRootItem()
     local item = actionsListCtrl:GetFirstItem()
     while item:IsOk() do
-        -- Log("item", item:GetValue())
+        -- logger.log("item", item:GetValue())
         local treeItem = _M.actionsData[item:GetValue()]
         if treeItem then
-            -- Log(treeItem.name)
+            -- logger.log(treeItem.name)
             local children = {}
             local child = actionsListCtrl:GetFirstChild(item)
             while child:IsOk() do
@@ -475,7 +477,7 @@ function _M.load()
             children = nil
             deleteItem(item, false)
         else
-            Log("invalid treeitem")
+            logger.err("invalid treeitem")
         end
         item = actionsListCtrl:GetNextSibling(item)
     end
@@ -507,7 +509,7 @@ function _M.load()
 
     dataHelper.setActions(_M.actionsData)
     -- TODO refresh triggers?
-    Log("Triggers load OK")
+    logger.log("Actions load OK")
 end
 
 _M.groupNames = groupNames

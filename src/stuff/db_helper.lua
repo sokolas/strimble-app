@@ -1,3 +1,5 @@
+local logger = Logger.create("db_helper")
+
 Db = Sqlite.open_memory()
 
 function LoadDb()
@@ -10,13 +12,13 @@ function LoadDb()
     local db = Sqlite.open("data/config.sqlite3")
     local backup = Sqlite.backup_init(Db, "main", db, "main")
     if not backup then
-        Log(Db:errmsg())
+        logger.err(Db:errmsg())
     else
         local bres = backup:step(-1)
         if bres ~= Sqlite.DONE then
-            Log(bres, Db:errmsg())
+            logger.err(bres, Db:errmsg())
         else
-            Log("DB load OK")
+            logger.log("DB load OK")
         end
         backup:finish()
     end
@@ -28,13 +30,13 @@ function SaveDb()
     local db = Sqlite.open("data/config.sqlite3")
     local backup = Sqlite.backup_init(db, "main", Db, "main")
     if not backup then
-        Log(db:errmsg())
+        logger.err(db:errmsg())
     else
         local bres = backup:step(-1)
         if bres ~= Sqlite.DONE then
-            Log(bres, db:errmsg())
+            logger.err(bres, db:errmsg())
         else
-            Log("DB save OK")
+            logger.log("DB save OK")
         end
         backup:finish()
     end

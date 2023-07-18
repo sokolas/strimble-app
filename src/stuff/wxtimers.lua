@@ -1,3 +1,5 @@
+local logger = Logger.create("timers")
+
 local _M = {}
 
 local timers = {}
@@ -5,11 +7,11 @@ local timers = {}
 local function addTimer(interval, parent, handler, continous)
     local timer = wx.wxTimer(parent)
     local id = timer:GetId()
-    Log("adding timer" .. tostring(id))
+    logger.log("adding timer" .. tostring(id))
     parent:Connect(id, wx.wxEVT_TIMER, function(event)
         handler(event)
         if not continous then
-            Log("deleting timer " .. tostring(id))
+            logger.log("deleting timer " .. tostring(id))
             timers[id] = nil
             timer:Stop()
             timer:delete()
@@ -31,14 +33,14 @@ local function delTimer(id)
     if timer then
         timer:Stop()
         timer:delete()
-        Log("timer deleted", id)
+        logger.log("timer deleted", id)
         timers[id] = nil
     end
 end
 
 local function stopAll()
     for id, timer in pairs(timers) do
-        -- Log("stopping", id)
+        -- logger.log("stopping", id)
         if timer then
             timer:Stop()
             timer:delete()

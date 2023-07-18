@@ -8,6 +8,8 @@ local ctxHelper = require("src.stuff.action_context")
 local triggerListCtrl = nil
 local commandWhere = commands.commandsWhere
 
+local logger = Logger.create("triggers_gui")
+
 local _M = {
     treedata = {}
 }
@@ -39,10 +41,10 @@ local function addChild(parentItem, result)
         })
         local res = insertStmt:step()
         if res ~= Sqlite.DONE then
-            Log("Insert error", res, Db:errmsg())
+            logger.err("Insert error", res, Db:errmsg())
         else
             local rowid = insertStmt:last_insert_rowid()
-            Log("rowid", rowid)
+            logger.log("rowid", rowid)
             item.dbId = rowid
         end
         insertStmt:finalize()
@@ -74,7 +76,7 @@ local function updateItemInDb(treeItem)
     })
     local res = updateStmt:step()
     if res ~= Sqlite.DONE then
-        Log("Update error", res, Db:errmsg())
+        logger.err("Update error", res, Db:errmsg())
     end
     updateStmt:finalize()
 end
@@ -96,12 +98,12 @@ local function updateItem(item, result)
     end
 
     -- persist
-    Log(treeItem.dbId, treeItem.data.name, "updating")
+    logger.log(treeItem.dbId, treeItem.data.name, "updating")
     updateItemInDb(treeItem)
 end
 
 local function deleteItem(item, deleteFromDb)
-    Log("Deleting " .. tostring(item:GetValue()))
+    logger.log("Deleting " .. tostring(item:GetValue()))
     local treeItem = _M.treedata[item:GetValue()]
     local dbId = treeItem.dbId
     _M.treedata[item:GetValue()] = nil
@@ -117,14 +119,14 @@ local function deleteItem(item, deleteFromDb)
         })
         local res = deleteStmt:step()
         if res ~= Sqlite.DONE then
-            Log("Delete error", res, Db:errmsg())
+            logger.err("Delete error", res, Db:errmsg())
         end
         deleteStmt:finalize()
     end
 end
 
 local function toggleItem(item, enabled)
-    Log("Toggling " .. tostring(item:GetValue()) .. " to " .. tostring(enabled))
+    logger.log("Toggling " .. tostring(item:GetValue()) .. " to " .. tostring(enabled))
     local treeItem = _M.treedata[item:GetValue()]
     _M.treedata[item:GetValue()].data.enabled = enabled
 
@@ -132,7 +134,7 @@ local function toggleItem(item, enabled)
     triggerListCtrl:SetItemText(item, 2, (enabled and "Yes" or "No"))
     
     -- persist
-    Log(treeItem.dbId, treeItem.data.name, "updating")
+    logger.log(treeItem.dbId, treeItem.data.name, "updating")
     updateItemInDb(treeItem)
 end
 
@@ -280,7 +282,7 @@ local function init()
             local m, result = Gui.dialogs.CommandDialog.executeModal("Edit command", dlgData, init, {id = id})
             if m == wx.wxID_OK then
                 local actionName = result.action
-                Log(actionName)
+                logger.log(actionName)
                 result.action = nil
                 for i = 1, #actionNames do
                     if actionNames[i] == actionName then
@@ -288,7 +290,7 @@ local function init()
                         break
                     end
                 end
-                Log(result.action)
+                logger.log(result.action)
                 return result
             end
         end,
@@ -305,7 +307,7 @@ local function init()
     triggerListCtrl:Connect(wx.wxEVT_TREELIST_ITEM_CONTEXT_MENU, function(e) -- right click
         local i = e:GetItem():GetValue()
         local treeItem = _M.treedata[i]
-        Log(treeItem.name)
+        logger.log(treeItem.name)
 
         Gui.menus.triggerMenu:Enable(menuAddItem:GetId(), treeItem.canAddChildren == true)
         Gui.menus.triggerMenu:Enable(menuEditItem:GetId(), treeItem.canEdit == true)
@@ -314,19 +316,19 @@ local function init()
         Gui.menus.triggerMenu:Check(menuToggleItem:GetId(), treeItem.data.enabled == true)
 
         local menuSelection = Gui.frame:GetPopupMenuSelectionFromUser(Gui.menus.triggerMenu, wx.wxDefaultPosition)
-        Log(menuSelection)
+        logger.log(menuSelection)
         
         if menuSelection == menuAddItem:GetId() then    -- add new item
             local result = treeItem.add(i, treeItem.data)
             if not result then
-                Log("'Add item' error")
+                logger.err("'Add item' error")
             else
                 addChild(e:GetItem(), result)
             end
         elseif menuSelection == menuEditItem:GetId() then   -- edit item TODO move to a function
             local result = treeItem.edit(i, treeItem.data)
             if not result then
-                Log("'Edit item' error")
+                logger.err("'Edit item' error")
             else
                 updateItem(e:GetItem(), result)
             end
@@ -351,7 +353,7 @@ local function init()
             if treeItem.canEdit then  -- edit item TODO move to a function
                 local result = treeItem.edit(i, treeItem.data)
                 if not result then
-                    Log("'Edit item' cancelled or error")
+                    logger.log("'Edit item' cancelled or error")
                 else
                     updateItem(e:GetItem(), result)
                 end
@@ -365,10 +367,10 @@ _M.init = init
 _M.load = function()
     local item = triggerListCtrl:GetFirstItem()
     while item:IsOk() do
-        -- Log("item", item:GetValue())
+        -- logger.log("item", item:GetValue())
         local treeItem = _M.treedata[item:GetValue()]
         if treeItem then
-            -- Log(treeItem.name)
+            -- logger.log(treeItem.name)
             if treeItem.childrenType == "twitch_command" and treeItem.isGroup then     -- hardcoded logic for twitch commands
                 local children = {}
                 local child = triggerListCtrl:GetFirstChild(item)
@@ -391,12 +393,12 @@ _M.load = function()
                 end
             end
         else
-            Log("treeitem not found")
+            logger.err("treeitem not found")
         end
         item = triggerListCtrl:GetNextSibling(item)
     end
     dataHelper.setTriggers(_M.treedata)
-    Log("Triggers load OK")
+    logger.log("Triggers load OK")
 end
 
 _M.export = function()  -- to json
@@ -419,7 +421,7 @@ _M.onTrigger = function(type, data)
                         }, cmd.action)
                         local queue = dataHelper.getActionQueue(action.data.queue)
                         table.insert(queue, ctx)
-                        Log("action found:", action.data.name, action.data.description, "queue:", action.data.queue, #queue)
+                        logger.log("action found:", action.data.name, action.data.description, "queue:", action.data.queue, #queue)
                         Gui.frame:QueueEvent(wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, ACTION_DISPATCH))
                     end
                 end

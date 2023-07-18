@@ -1,3 +1,5 @@
+local logger = Logger.create("twitch")
+
 local _M = {
     selecting = false,
     buffer = '',
@@ -32,7 +34,7 @@ _M.onSelectStop = function(evt)
 end
 
 _M.appendTwitchMessage = function(text)
-    Log(text)
+    logger.log(text)
     if _M.selecting then
         _M.buffer = _M.buffer .. text
         return

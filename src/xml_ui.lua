@@ -10,6 +10,8 @@ local dataHelper = require("src.stuff.data_helper")
 local ThingsToKeep = {} -- variable to store references to various stuff that needs to be kept
 local accelTable = {}
 local accelMenu = {}
+local logger = Logger.create("main")
+local actionLogger = Logger.create("actions")
 
 ACTION_DISPATCH = wx.wxID_HIGHEST + 1   -- the wx id for "dispatch actions" message command
 
@@ -44,19 +46,19 @@ end
 local function findWindow(name, type, guiName, group, transient)
     local wnd = Gui.frame:FindWindow(name)
     if not wnd then
-        Log("can't find window", name);
+        logger.err("can't find window", name);
         return nil
     end
     local ok, res = xpcall(
         wnd.DynamicCast,
-        function(err) Log("error searching for window '" .. name .. "'/'" .. type .. "': ", debug.traceback(err)) end,
+        function(err) logger.err("error searching for window '" .. name .. "'/'" .. type .. "': ", debug.traceback(err)) end,
         wnd, type
     )
     if ok then
         Gui:insert(res, guiName, group)
         -- print("found window", name, type, guiName, group)
     else
-        Log("can't find/cast window", name)
+        logger.err("can't find/cast window", name)
     end
     if transient then
         Gui.transient[name] = true
@@ -67,12 +69,12 @@ end
 local function insertInto(name, type, constructor, guiName, group)
     local wnd = Gui.frame:FindWindow(name)
     if not wnd then
-        Log("can't find window", name);
+        logger.err("can't find window", name);
         return nil
     end
     local ok, res = xpcall(
         wnd.DynamicCast,
-        function(err) Log("error searching for window '" .. name .. "'/'" .. type .. "': ", debug.traceback(err)) end,
+        function(err) logger.err("error searching for window '" .. name .. "'/'" .. type .. "': ", debug.traceback(err)) end,
         wnd, type
     )
     
@@ -87,28 +89,28 @@ local function insertInto(name, type, constructor, guiName, group)
             -- print("found window", name, type, guiName, group)
             return e
         else
-            Log("error creating element", guiName)
+            logger.err("error creating element", guiName)
         end
     else
-        Log("can't find/cast window", name)
+        logger.err("can't find/cast window", name)
     end
 end    
 
 local function findTool(name, guiName)
     local rcid = Gui.xmlResource.GetXRCID(name)
-    if not rcid then Log("can't find rc id", name); return nil end
+    if not rcid then logger.err("can't find rc id", name); return nil end
     local wnd = Gui.frame:GetToolBar():FindById(rcid)
-    if not wnd then Log("can't find tool", rcid); return nil end
+    if not wnd then logger.err("can't find tool", rcid); return nil end
     local ok, res = xpcall(
         wnd.DynamicCast,
-        function(err) Log("error searching for tool '" .. name .. "': ", debug.traceback(err)) end,
+        function(err) logger.err("error searching for tool '" .. name .. "': ", debug.traceback(err)) end,
         wnd, "wxToolBarToolBase"
     )
     if ok then
         Gui.tools[guiName] = res
         -- print("found window", name, type, guiName, group)
     else
-        Log("can't find/cast window", name)
+        logger.err("can't find/cast window", name)
     end
     return res
 end
@@ -128,8 +130,8 @@ end
 
 local function getData(ok, result)
     if ok then
-        Log(result.status)
-        Log(result.body)
+        logger.log(result.status)
+        logger.log(result.body)
         local status = string.sub(result.status, 1, 3)
         if status == "200" and result.body and result.body ~= "" then
             print(result.status, result.body)
@@ -140,7 +142,7 @@ local function getData(ok, result)
             if result.body then twitchWnd.appendTwitchMessage(result.body) end
         end
     else
-        Log("error: ", result)
+        logger.err("error: ", result)
     end
 end
 
@@ -157,7 +159,7 @@ local function saveConfig()
         if isIncludedInConfig(group) and type(g) == "table" then
             local d = {}
             for name, value in pairs(g) do
-                -- Log(group, name, value:GetClassInfo():GetClassName())
+                -- logger.log(group, name, value:GetClassInfo():GetClassName())
                 local class = value:GetClassInfo():GetClassName()
                 if not Gui.transient[value:GetName()] then
                     if class == "wxTextCtrl" or class == "wxCheckBox" then
@@ -183,7 +185,7 @@ local function loadConfig()
         if isIncludedInConfig(group) and type(g) == "table" then
             for name, value in pairs(g) do
                 if not Gui.transient[value:GetName()] then
-                    -- Log(group, name, value:GetClassInfo():GetClassName())
+                    -- logger.log(group, name, value:GetClassInfo():GetClassName())
                     local class = value:GetClassInfo():GetClassName()
                     if class == "wxTextCtrl" then
                         local v = ReadFromCfg(group, name, "")
@@ -208,6 +210,14 @@ local function loadConfig()
     actionsHelper.load()
     triggersHelper.load()
     Gui.statusbar:SetStatusText("Config loaded", 0)
+end
+
+local function setLoggingLevels()
+    for k, v in pairs(Gui.logging) do
+        if v:GetClassInfo():GetClassName() == "wxCheckBox" and Logger.loggers[k] then
+            Logger.loggers[k].enabled = v:GetValue()
+        end
+    end
 end
 
 local authFrame = nil
@@ -361,7 +371,7 @@ function main()
         end,
         function(err)
             -- timer:Stop()
-            Log("network dispatch loop error", debug.traceback(err))
+            logger.log("network dispatch loop error", debug.traceback(err))
         end,
         event
         )
@@ -369,20 +379,21 @@ function main()
     wxTimers.addTimer(50, frame, event_loop, true)
 
     local function dispatchActions()
+        local logger = actionLogger
         local queues = dataHelper.getActionQueues()
         for k, queue in pairs(queues) do
             if #queue > 0 then
                 if not queue.running then
-                    Log("Processing queue", k, #queue)
+                    logger.log("Processing queue", k, #queue)
                     queue.running = true
                     local ctx = queue[1]
-                    Log("action", ctx.action)
+                    logger.log("action", ctx.action)
                     local exec = function()
                         for i, step in ipairs(ctx.steps) do
-                            Log("step", i, step.name)
+                            logger.log("step", i, step.name)
                             local ok = step.f(ctx, step.params)
                             if not ok then
-                                Log("step returned false, aborting action")
+                                logger.log("step returned false, aborting action")
                                 return  -- TODO false?
                             end
                         end
@@ -391,7 +402,7 @@ function main()
                         -- try
                         xpcall(exec,
                             function(err)
-                                Log("Action execution failed", debug.traceback(err))
+                                logger.err("Action execution failed", debug.traceback(err))
                             end)
                         -- finally
                         queue.running = false
@@ -400,19 +411,19 @@ function main()
                         if #queue > 0 then
                             Gui.frame:QueueEvent(wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, ACTION_DISPATCH))
                         else
-                            Log(k, "is empty")
+                            logger.log(k, "is empty")
                         end
                     end)
                     local res = coroutine.resume(queue.co)
-                    Log("co result", res)
+                    logger.log("co result", res)
                     if queue.co then
-                        Log(coroutine.status(queue.co))
+                        logger.log(coroutine.status(queue.co))
                     end
                 else
-                    Log(k, "is still running")
+                    logger.log(k, "is still running")
                 end
             else
-                Log(k, "is empty")
+                logger.log(k, "is empty")
             end
         end
     end
@@ -482,7 +493,7 @@ function main()
     end)
 
     local function twitchConnectWithValidation(event)
-        Log("connecting to twitch with validation; timer is " .. tostring(twitchReconnectTimer))
+        logger.log("connecting to twitch with validation; timer is " .. tostring(twitchReconnectTimer))
 
         twitchWnd.appendTwitchMessage("*** checking token")
         local ok, data = Twitch.validateToken()
@@ -520,6 +531,25 @@ function main()
     findWindow("m_button5", "wxButton", "button5", "misc")
     findWindow("m_button6", "wxButton", "button6", "misc")
     findWindow("m_button7", "wxButton", "button7", "misc")
+    -- findWindow("loggingCombobox", "wxComboBox", "loggingCombo", "misc")
+    -- findWindow("loggingCheckbox", "wxCheckBox", "loggingCheck", "misc")
+    findWindow("loggingSetupPanel", "wxPanel", "panel", "logging")
+    
+    local fgSizer = wx.wxBoxSizer(wx.wxVERTICAL)
+    local loggingLabel = wx.wxStaticText(Gui.logging.panel, wx.wxID_ANY, "Logging")
+    fgSizer:Add(loggingLabel, 0, wx.wxALL + wx.wxEXPAND, 5)
+    for name, v in pairs(Logger.loggers) do
+        local widget = wx.wxCheckBox(Gui.logging.panel, wx.wxID_ANY, name, wx.wxDefaultPosition, wx.wxDefaultSize)
+        widget:SetValue(v.enabled)
+        fgSizer:Add(widget, 0, wx.wxALL + wx.wxEXPAND, 5)
+        Gui:insert(widget, name, "logging")
+        frame:Connect(widget:GetId(), wx.wxEVT_CHECKBOX, function(event)
+            local enabled = widget:GetValue()
+            Logger.loggers[name].enabled = enabled
+        end)
+    end
+    Gui.logging.panel:SetSizer(fgSizer)
+    Gui.logging.panel:Layout()
 
     local twitchDebug = false
     Gui.misc.button3:SetLabel("twitch debug")
@@ -533,12 +563,11 @@ function main()
     findWindow("m_button8", "wxButton", "gc", "misc")
     Gui.misc.gc:SetLabel("GC")
     frame:Connect(Gui.misc.gc:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, function(e)
-        Log(collectgarbage("count"))
+        logger.log(collectgarbage("count"))
         collectgarbage("collect")
-        Log(collectgarbage("count"))
+        logger.log(collectgarbage("count"))
     end)
 
-    
     -- Gui.misc.button4:SetLabel("dlg text")
     -- frame:Connect(Gui.misc.button4:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, function(event)
     -- end)
@@ -566,7 +595,7 @@ function main()
     frame:Connect(wx.wxEVT_CLOSE_WINDOW, function(event)
         local rect = frame:GetRect()
         SaveToCfg("window", {x = rect:GetLeft(), y = rect:GetTop(), w = rect:GetWidth(), h = rect:GetHeight()})
-        Log("closing")
+        logger.log("closing")
         xpcall(NetworkManager.closeAll, function(err) print(err) end)
         wxTimers.stopAll()
         -- webView:Destroy()
@@ -578,11 +607,21 @@ function main()
     -- when done
     -- wx.wxPostEvent(frame, wx.wxCommandEvent(wx.wxEVT_TOOL, gui.tools.load:GetId()))
     loadConfig()
+    setLoggingLevels()
 
     if Gui.twitch.autoconnect:GetValue() then
         wx.wxPostEvent(frame, wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, Gui.twitch.connectBtn:GetId()))
     end
     -- collectgarbage("collect")
     
+
     frame:Show(true)
+
+    -- wx.wxLog.SetVerbose(true)
+    -- local logWindow = wx.wxLogWindow(frame, "logger.log Messages", false)
+    -- local pos = frame:GetPosition()
+    -- local size = frame:GetSize()
+    -- logWindow:GetFrame():Move(pos:GetX() + size:GetWidth() + 10, pos:GetY())
+    -- logWindow:Show()
+    -- wx.wxLogVerbose("OnPropertyGridChange(NULL)")
 end

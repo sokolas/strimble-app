@@ -5,6 +5,8 @@ local commandWhere = {
     "Exact match"
 }
 
+local logger = Logger.create("commands")
+
 _M = {}
 
 local twitchCommandFilter = function(v)
