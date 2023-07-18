@@ -45,14 +45,12 @@ end
 
 local function findStepsForAction(action)  -- TODO actual steps implementation
     local r = {}
-    logger.log(action)
     local actions = findAction(byDbId(action))
     if actions and #actions > 0 then
         for i, v in ipairs(actions) do
             table.insert(r, {name = v.name or "", id = i, f = twitch_steps.sendMessage, params = {message = (v.data.description or "") .. " triggered"}})
         end
     end
-    -- table.insert(r, {name = "example action 1", id = 1, f = function(ctx, params) local ok, res = NetworkManager.get("https://sokolas.org"); Log(ok, res.body); return true end})
     return r
 end
 

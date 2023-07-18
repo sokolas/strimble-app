@@ -535,10 +535,17 @@ function main()
     -- findWindow("loggingCheckbox", "wxCheckBox", "loggingCheck", "misc")
     findWindow("loggingSetupPanel", "wxPanel", "panel", "logging")
     
+    local loggers = {}
+    for k, v in pairs(Logger.loggers) do
+        table.insert(loggers, k)
+    end
+    table.sort(loggers)
+
     local fgSizer = wx.wxBoxSizer(wx.wxVERTICAL)
     local loggingLabel = wx.wxStaticText(Gui.logging.panel, wx.wxID_ANY, "Logging")
     fgSizer:Add(loggingLabel, 0, wx.wxALL + wx.wxEXPAND, 5)
-    for name, v in pairs(Logger.loggers) do
+    for i, name in ipairs(loggers) do
+        local v = Logger.loggers[name]
         local widget = wx.wxCheckBox(Gui.logging.panel, wx.wxID_ANY, name, wx.wxDefaultPosition, wx.wxDefaultSize)
         widget:SetValue(v.enabled)
         fgSizer:Add(widget, 0, wx.wxALL + wx.wxEXPAND, 5)

@@ -377,7 +377,7 @@ function _M.init()
     actionsListCtrl:Connect(wx.wxEVT_TREELIST_ITEM_CONTEXT_MENU, function(e) -- right click
         local i = e:GetItem():GetValue()
         local treeItem = _M.actionsData[i]
-        logger.log(treeItem.name)
+        -- logger.log(treeItem.name)
 
         Gui.menus.actionMenu:Enable(actionAddItem:GetId(), treeItem.canAddChildren == true)
         Gui.menus.actionMenu:Enable(actionEditItem:GetId(), treeItem.canEdit == true)
@@ -386,7 +386,7 @@ function _M.init()
         Gui.menus.actionMenu:Check(actionToggleItem:GetId(), treeItem.data.enabled == true)
 
         local menuSelection = Gui.frame:GetPopupMenuSelectionFromUser(Gui.menus.actionMenu, wx.wxDefaultPosition)
-        logger.log(menuSelection)
+        -- logger.log(menuSelection)
         if menuSelection == actionAddItem:GetId() then    -- add new item
             local result = treeItem.add(i, treeItem.childData)
             if not result then
