@@ -271,6 +271,8 @@ function _M.init()
                 value = true
             }
         },
+
+        -- validate
         function(data, context)
             if not data.name or data.name == "" then
                 return false, "Name can't be empty"

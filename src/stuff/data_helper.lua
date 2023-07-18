@@ -1,3 +1,5 @@
+local logger = Logger.create("data_helper")
+
 _M = {}
 
 local twitch_steps = require("src.stuff.steps.twitch_steps")
@@ -7,32 +9,31 @@ local actionsData = {}
 local stepsData = {}
 local actionQueues = {}
 
-function _M.setTriggers(triggers)
-    triggersData = triggers
-end
-
-function _M.setActions(actions)
-    actionsData = actions
-end
-
-function _M.setSteps(steps)
-    stepsData = steps
-end
-
-function _M.findStepsForAction(action)  -- TODO actual steps implementation
-    local r = {}
-    table.insert(r, {name = "example action 1", id = 1, f = function(ctx, params) local ok, res = NetworkManager.get("https://sokolas.org"); Log(ok, res.body); return true end})
-    table.insert(r, {name = "example action 2", id = 2, f = twitch_steps.sendMessage, params = {message = "ololo"}})
-    return r
-end
-
-function _M.byDbId(id)
+local function byDbId(id)
     return function(v)
-        return v.dbId == id
+        return not v.isGroup and v.dbId == id
     end
 end
 
-function _M.findAction(predicate)
+local function enabledByDbId(id)
+    return function(v)
+        return not v.isGroup and v.data.enabled and v.dbId == id
+    end
+end
+
+local function setTriggers(triggers)
+    triggersData = triggers
+end
+
+local function setActions(actions)
+    actionsData = actions
+end
+
+local function setSteps(steps)
+    stepsData = steps
+end
+
+local function findAction(predicate)
     local result = {}
     for k, v in pairs(actionsData) do
         if predicate(v) then
@@ -42,7 +43,20 @@ function _M.findAction(predicate)
     return result
 end
 
-function _M.findTriggers(predicate)
+local function findStepsForAction(action)  -- TODO actual steps implementation
+    local r = {}
+    logger.log(action)
+    local actions = findAction(byDbId(action))
+    if actions and #actions > 0 then
+        for i, v in ipairs(actions) do
+            table.insert(r, {name = v.name or "", id = i, f = twitch_steps.sendMessage, params = {message = (v.data.description or "") .. " triggered"}})
+        end
+    end
+    -- table.insert(r, {name = "example action 1", id = 1, f = function(ctx, params) local ok, res = NetworkManager.get("https://sokolas.org"); Log(ok, res.body); return true end})
+    return r
+end
+
+local function findTriggers(predicate)
     local result = {}
     for k, v in pairs(triggersData) do
         if predicate(v) then
@@ -52,7 +66,7 @@ function _M.findTriggers(predicate)
     return result
 end
 
-function _M.getActionData()
+local function getActionData()
     local names = {}
     local ids = {}
     for k, v in pairs(actionsData) do
@@ -64,7 +78,7 @@ function _M.getActionData()
     return ids, names
 end
 
-function _M.getActionQueue(name)
+local function getActionQueue(name)
     if not actionQueues[name] then
         actionQueues[name] = {
             queue = {}
@@ -73,8 +87,24 @@ function _M.getActionQueue(name)
     return actionQueues[name]
 end
 
-function _M.getActionQueues()
+local function getActionQueues()
     return actionQueues
 end
+
+_M.byDbId = byDbId
+_M.enabledByDbId = enabledByDbId
+
+_M.setTriggers = setTriggers
+_M.setActions = setActions
+_M.setSteps = setSteps
+
+_M.findAction = findAction
+_M.findStepsForAction = findStepsForAction
+_M.findTriggers = findTriggers
+
+_M.getActionData = getActionData
+
+_M.getActionQueue = getActionQueue
+_M.getActionQueues = getActionQueues
 
 return _M

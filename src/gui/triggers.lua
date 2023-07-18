@@ -411,18 +411,22 @@ _M.onTrigger = function(type, data)
             local matchedCommands = commands.matchCommands(data.text)
             if matchedCommands then
                 for i, cmd in ipairs(matchedCommands) do
-                    local actions = dataHelper.findAction(dataHelper.byDbId(cmd.action))
-                    local action = actions[1]
-                    if action then
-                        local ctx = ctxHelper.create({
-                            user = data.user,
-                            value = data.text, -- TODO parse into command and params
-                            channel = data.channel
-                        }, cmd.action)
-                        local queue = dataHelper.getActionQueue(action.data.queue)
-                        table.insert(queue, ctx)
-                        logger.log("action found:", action.data.name, action.data.description, "queue:", action.data.queue, #queue)
-                        Gui.frame:QueueEvent(wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, ACTION_DISPATCH))
+                    if cmd.action then
+                        local actions = dataHelper.findAction(dataHelper.enabledByDbId(cmd.action))
+                        local action = actions[1]
+                        if action then
+                            local ctx = ctxHelper.create({
+                                user = data.user,
+                                value = data.text, -- TODO parse into command and params
+                                channel = data.channel
+                            }, cmd.action)
+                            local queue = dataHelper.getActionQueue(action.data.queue)
+                            table.insert(queue, ctx)
+                            logger.log("action found:", action.data.name, action.data.description, "queue:", action.data.queue, #queue)
+                            Gui.frame:QueueEvent(wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, ACTION_DISPATCH))
+                        end
+                    else
+                        logger.log("no action mapped for ", cmd.name)
                     end
                 end
             end
