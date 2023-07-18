@@ -1,4 +1,4 @@
-local dataHelper = require("src.stuff.data_helper")
+local dataHelper = require("src/stuff/data_helper")
 local commandWhere = {
     "At the start",
     "Anywhere",

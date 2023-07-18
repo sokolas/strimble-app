@@ -2,8 +2,8 @@ local dialogHelper = require("src/gui/dialog_helper")
 local iconsHelper = require("src/gui/icons")
 local json = require("json")
 local commands = require("src/stuff/commands")
-local dataHelper = require("src.stuff.data_helper")
-local ctxHelper = require("src.stuff.action_context")
+local dataHelper = require("src/stuff/data_helper")
+local ctxHelper = require("src/stuff/action_context")
 
 local triggerListCtrl = nil
 local commandWhere = commands.commandsWhere
@@ -136,6 +136,31 @@ local function toggleItem(item, enabled)
     -- persist
     logger.log(treeItem.dbId, treeItem.data.name, "updating")
     updateItemInDb(treeItem)
+end
+
+local function actionsUpdated()
+    logger.log("updating actions in triggers gui")
+    local actionMap = {}
+
+    for k, v in pairs(dataHelper.getActions()) do
+        if not v.isGroup then
+            actionMap[v.dbId] = v
+        end
+    end
+
+    local item = triggerListCtrl:GetFirstItem()
+    while item:IsOk() do
+        local treeItem = _M.treedata[item:GetValue()]
+        if treeItem and not treeItem.isGroup and treeItem.data.action then
+            if not actionMap[treeItem.data.action] then
+                treeItem.data.action = nil
+                triggerListCtrl:SetItemText(item, 4, "")
+            else
+                triggerListCtrl:SetItemText(item, 4, (actionMap[treeItem.data.action].name or ""))
+            end
+        end
+        item = triggerListCtrl:GetNextItem(item)
+    end
 end
 
 -- creates
@@ -360,6 +385,8 @@ local function init()
             end
         end
     end)
+
+    dataHelper.setActionsUpdate(actionsUpdated)
 end
 
 _M.init = init

@@ -9,6 +9,8 @@ local actionsData = {}
 local stepsData = {}
 local actionQueues = {}
 
+local function _updateActions() end
+
 local function byDbId(id)
     return function(v)
         return not v.isGroup and v.dbId == id
@@ -76,6 +78,10 @@ local function getActionData()
     return ids, names
 end
 
+local function getActions()
+    return actionsData
+end
+
 local function getActionQueue(name)
     if not actionQueues[name] then
         actionQueues[name] = {
@@ -89,18 +95,28 @@ local function getActionQueues()
     return actionQueues
 end
 
+local function setActionsUpdate(f)
+    _updateActions = f
+end
+
 _M.byDbId = byDbId
 _M.enabledByDbId = enabledByDbId
 
 _M.setTriggers = setTriggers
 _M.setActions = setActions
 _M.setSteps = setSteps
+_M.setActionsUpdate = setActionsUpdate
+
+_M.updateActions = function()
+    _updateActions()
+end
 
 _M.findAction = findAction
 _M.findStepsForAction = findStepsForAction
 _M.findTriggers = findTriggers
 
 _M.getActionData = getActionData
+_M.getActions = getActions
 
 _M.getActionQueue = getActionQueue
 _M.getActionQueues = getActionQueues

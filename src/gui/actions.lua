@@ -1,7 +1,7 @@
 local dialogHelper = require("src/gui/dialog_helper")
 local iconsHelper = require("src/gui/icons")
 local json = require("json")
-local dataHelper = require("src.stuff.data_helper")
+local dataHelper = require("src/stuff/data_helper")
 
 local actionsListCtrl = nil
 local stepsListCtrl = nil
@@ -40,6 +40,8 @@ local function deleteItem(item, deleteFromDb)
             logger.err("Delete error", res, Db:errmsg())
         end
         deleteStmt:finalize()
+
+        dataHelper.updateActions()  -- if we don't delete from db, then the action was not really deleted
     end
 end
 
@@ -132,6 +134,8 @@ function _M.addAction(groupGuiItem, data)
     if not actionsListCtrl:IsExpanded(groupGuiItem) then
         actionsListCtrl:Expand(groupGuiItem)
     end
+
+    dataHelper.updateActions()
 end
 
 local function updateActionItemInDb(treeItem)
@@ -180,6 +184,7 @@ local function updateActionItem(item, result)
     -- persist
     logger.log(treeItem.dbId, treeItem.data.name, "updating")
     updateActionItemInDb(treeItem)
+    dataHelper.updateActions()
 end
 
 function _M.addActionGroup(name, rootActionItem)

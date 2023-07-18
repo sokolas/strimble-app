@@ -5,7 +5,7 @@ local wxTimers = require("src/stuff/wxtimers")
 local dialogHelper = require("src/gui/dialog_helper")
 local triggersHelper = require("src/gui/triggers")
 local actionsHelper = require("src/gui/actions")
-local dataHelper = require("src.stuff.data_helper")
+local dataHelper = require("src/stuff/data_helper")
 
 local ThingsToKeep = {} -- variable to store references to various stuff that needs to be kept
 local accelTable = {}
@@ -260,19 +260,11 @@ function createAuthFrame()
         wx.wxDefaultPosition,
         wx.wxSize(800, 600),
         wx.wxDEFAULT_FRAME_STYLE)
-    --[[authFrame:Connect(wx.wxEVT_CLOSE_WINDOW, function(event)
-        if event.CanVeto then
-        event:Veto()
-        authFrame:Show(false)
-        end
-    end)]]
     
     webview = wxwebview.wxWebView.New(authFrame, wx.wxID_ANY, "about:blank", wx.wxDefaultPosition, wx.wxDefaultSize, wxwebview.wxWebViewBackendEdge)
     webview:Connect(wxwebview.wxEVT_WEBVIEW_NAVIGATED, evtHandler(function(event)
         local u = event:GetURL()
-        -- print("_ " .. u)
         if string.find(u, Twitch.redirect_url, 1, true) then
-            -- print("twitch auth response")
             local p = Twitch.parseAuth(u)
             if p then
                 if p.access_token then
@@ -472,11 +464,6 @@ function main()
             mod = tags["mod"] == "1"
         }
         local triggered = triggersHelper.onTrigger("twitch_privmsg", {channel = message.channel, user = user, text = message.text})
-        --[[if triggered then
-            for i, v in ipairs(triggered) do
-                twitchWnd.appendTwitchMessage(string.format("%d %s triggered with '%s'!", v.id, v.name, v.text))
-            end
-        end]]
     end)
     
     Twitch.setStateListener(function(oldState, newState)
@@ -531,8 +518,6 @@ function main()
     findWindow("m_button5", "wxButton", "button5", "misc")
     findWindow("m_button6", "wxButton", "button6", "misc")
     findWindow("m_button7", "wxButton", "button7", "misc")
-    -- findWindow("loggingCombobox", "wxComboBox", "loggingCombo", "misc")
-    -- findWindow("loggingCheckbox", "wxCheckBox", "loggingCheck", "misc")
     findWindow("loggingSetupPanel", "wxPanel", "panel", "logging")
     
     local loggers = {}
@@ -605,9 +590,7 @@ function main()
         logger.log("closing")
         xpcall(NetworkManager.closeAll, function(err) print(err) end)
         wxTimers.stopAll()
-        -- webView:Destroy()
         if authFrame then authFrame:Destroy() end
-        -- io.read()
         event:Skip()
     end)
   
