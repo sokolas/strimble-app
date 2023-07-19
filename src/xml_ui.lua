@@ -61,7 +61,7 @@ local function findWindow(name, type, guiName, group, transient)
         logger.err("can't find/cast window", name)
     end
     if transient then
-        Gui.transient[name] = true
+        Gui.transient[group .. "." .. guiName] = true
     end
     return res
 end
@@ -160,8 +160,8 @@ local function saveConfig()
             local d = {}
             for name, value in pairs(g) do
                 -- logger.log(group, name, value:GetClassInfo():GetClassName())
-                local class = value:GetClassInfo():GetClassName()
-                if not Gui.transient[value:GetName()] then
+                if not Gui.transient[group .. "." .. name] then -- value:GetName()
+                    local class = value:GetClassInfo():GetClassName()
                     if class == "wxTextCtrl" or class == "wxCheckBox" then
                         d[name] = value:GetValue()
                     end
@@ -170,6 +170,13 @@ local function saveConfig()
             end
         end
     end
+
+    -- save logging settings
+    local logging = {}
+    for k, v in pairs(Logger.loggers) do
+        logging[k] = v.enabled
+    end
+    SaveToCfg("logging", logging)
 
     -- non-gui part
     SaveToCfg("twitch", {
@@ -184,7 +191,7 @@ local function loadConfig()
     for group, g in pairs(Gui) do
         if isIncludedInConfig(group) and type(g) == "table" then
             for name, value in pairs(g) do
-                if not Gui.transient[value:GetName()] then
+                if not Gui.transient[group .. "." .. name] then --value:GetName()
                     -- logger.log(group, name, value:GetClassInfo():GetClassName())
                     local class = value:GetClassInfo():GetClassName()
                     if class == "wxTextCtrl" then
@@ -197,6 +204,13 @@ local function loadConfig()
                 end
             end
         end
+    end
+
+    -- load logging settings
+    for k, v in pairs(Logger.loggers) do
+        local p = Gui.logging.grid:GetPropertyByName(k)
+        local enabled = ReadFromCfg("logging", k, false)
+        p:SetValueFromString(tostring(enabled == 1))
     end
 
     -- set up twitch
@@ -213,10 +227,9 @@ local function loadConfig()
 end
 
 local function setLoggingLevels()
-    for k, v in pairs(Gui.logging) do
-        if v:GetClassInfo():GetClassName() == "wxCheckBox" and Logger.loggers[k] then
-            Logger.loggers[k].enabled = v:GetValue()
-        end
+    for k, v in pairs(Logger.loggers) do
+        local p = Gui.logging.grid:GetPropertyByName(k)
+        v.enabled = p:GetValue():GetBool()
     end
 end
 
@@ -518,6 +531,7 @@ function main()
     findWindow("m_button5", "wxButton", "button5", "misc")
     findWindow("m_button6", "wxButton", "button6", "misc")
     findWindow("m_button7", "wxButton", "button7", "misc")
+    
     findWindow("loggingSetupPanel", "wxPanel", "panel", "logging")
     
     local loggers = {}
@@ -527,6 +541,30 @@ function main()
     table.sort(loggers)
 
     local fgSizer = wx.wxBoxSizer(wx.wxVERTICAL)
+
+    local lpg = wx.wxPropertyGrid(Gui.logging.panel, wx.wxID_ANY, wx.wxDefaultPosition, wx.wxDefaultSize, wx.wxPG_SPLITTER_AUTO_CENTER + wx.wxPG_BOLD_MODIFIED)
+    lpg:Append(wx.wxPropertyCategory("Logging",wx.wxPG_LABEL))
+
+    -- fgSizer:Add(wx.wxStaticText(Gui.logging.panel, wx.wxID_ANY, "Logging"), 0, wx.wxALL + wx.wxEXPAND, 5)
+    fgSizer:Add(lpg:GetPanel(), 1, wx.wxALL + wx.wxEXPAND, 5)
+
+    for i, name in ipairs(loggers) do
+        local prop = wx.wxBoolProperty(name, wx.wxPG_LABEL)
+        prop:SetValueFromString(tostring(Logger.loggers[name].enabled))
+        lpg:Append(prop)
+    end
+
+    Gui.logging.panel:SetSizer(fgSizer)
+    Gui.logging.panel:Layout()
+    Gui.logging.grid = lpg
+    Gui.transient["logging.grid"] = true
+
+    frame:Connect(wx.wxID_ANY, wx.wxEVT_PG_CHANGED, function(event)
+        local p = event:GetProperty()
+        Logger.loggers[p:GetName()].enabled = p:GetValue():GetBool()
+    end)
+
+    --[[local fgSizer = wx.wxBoxSizer(wx.wxVERTICAL)
     local loggingLabel = wx.wxStaticText(Gui.logging.panel, wx.wxID_ANY, "Logging")
     fgSizer:Add(loggingLabel, 0, wx.wxALL + wx.wxEXPAND, 5)
     for i, name in ipairs(loggers) do
@@ -541,7 +579,7 @@ function main()
         end)
     end
     Gui.logging.panel:SetSizer(fgSizer)
-    Gui.logging.panel:Layout()
+    Gui.logging.panel:Layout() ]]
 
     local twitchDebug = false
     Gui.misc.button3:SetLabel("twitch debug")
@@ -560,9 +598,12 @@ function main()
         logger.log(collectgarbage("count"))
     end)
 
-    -- Gui.misc.button4:SetLabel("dlg text")
-    -- frame:Connect(Gui.misc.button4:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, function(event)
-    -- end)
+    Gui.misc.button4:SetLabel("transient gui")
+    frame:Connect(Gui.misc.button4:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, function(event)
+        for k, v in pairs(Gui.transient) do
+            logger.log(k, v)
+        end
+    end)
     --[[Gui.misc.button5:SetLabel("DROP triggers")
     frame:Connect(Gui.misc.button5:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, evtHandler(function(event)
         local db = Sqlite.open("data/config.sqlite3")

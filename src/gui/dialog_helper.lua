@@ -51,13 +51,13 @@ local function findInDlg(gui, dlg, name, type, guiName, group)
         logger.err("can't find/cast window", name)
     end
     
-    gui.transient[name] = true
+    gui.transient[group .. "." .. guiName] = true
     return res
 end
 
 local function addToDlg(gui, widget, guiName, group)
     gui:insert(widget, guiName, group)
-    gui.transient[widget:GetName()] = true
+    gui.transient[group .. "." .. guiName] = true
     return widget
 end
 
