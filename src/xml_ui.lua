@@ -300,6 +300,13 @@ function createAuthFrame()
     end)
 end
 
+local function restart(id)
+    local pid = wx.wxExecute(mainarg[1], wx.wxEXEC_ASYNC)
+    if pid then
+        wx.wxPostEvent(Gui.frame, wx.wxCloseEvent(wx.wxEVT_CLOSE_WINDOW, id))
+    end
+end
+
 function main()
     -- HideConsole()
     NetworkManager.addSocket(createAuthSock()) -- no handler
@@ -337,10 +344,7 @@ function main()
                 loadConfig()
             end
         elseif id == Gui.tools.restart:GetId() then
-            local pid = wx.wxExecute(mainarg[1], wx.wxEXEC_ASYNC)
-            if pid then
-                wx.wxPostEvent(frame, wx.wxCloseEvent(wx.wxEVT_CLOSE_WINDOW, id))
-            end
+            restart(id)
         elseif id == Gui.tools.help:GetId() then
             wx.wxLaunchDefaultBrowser("https://github.com/sokolas/strimble-app/wiki")
         end
@@ -348,9 +352,13 @@ function main()
 
     accelMenu = wx.wxMenu()
     local consoleMenuItem = accelMenu:Append(wx.wxID_ANY, "Console")
+    local saveMenuItem = accelMenu:Append(wx.wxID_ANY, "Save config")
+    local restartMenuItem = accelMenu:Append(wx.wxID_ANY, "Restart")
 
     accelTable = wx.wxAcceleratorTable({
-        { wx.wxACCEL_NORMAL, wx.WXK_F12, consoleMenuItem:GetId()},
+        { wx.wxACCEL_NORMAL, wx.WXK_F12, consoleMenuItem:GetId() },
+        { wx.wxACCEL_CTRL, string.byte('s'), saveMenuItem:GetId() },
+        { wx.wxACCEL_CTRL, string.byte('r'), restartMenuItem:GetId() }
     })
     frame:SetAcceleratorTable(accelTable)
 
@@ -361,6 +369,14 @@ function main()
         else
             HideConsole()
         end
+    end)
+
+    frame:Connect(saveMenuItem:GetId(), wx.wxEVT_COMMAND_MENU_SELECTED, function(event)
+        saveConfig()
+    end)
+
+    frame:Connect(restartMenuItem:GetId(), wx.wxEVT_COMMAND_MENU_SELECTED, function(event)
+        restart(event:GetId())
     end)
 
     -- set up listbook
