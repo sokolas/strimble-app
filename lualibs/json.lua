@@ -182,7 +182,7 @@ local function decode_error(str, idx, msg)
       col_count = 1
     end
   end
-  error( string.format("%s at line %d col %d", tostring(msg), line_count, col_count) )
+  error( string.format("%s at line %d col %d", msg, line_count, col_count) )
 end
 
 

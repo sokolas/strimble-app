@@ -3,6 +3,7 @@ src/test
 data/*.ini
 data/lockfile.lfs
 
+*.exe
+*.dll
 *.sqlite3
-
 *.dump
