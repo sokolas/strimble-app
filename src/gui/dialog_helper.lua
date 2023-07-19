@@ -279,9 +279,10 @@ _M.loadMainWindow = function()
     img:delete()
     icon:delete()
 
-    frame:SetSizer(wx.NULL)
+    -- frame:SetSizer(wx.NULL)
     frame:SetPosition(pos)
     frame:SetSize(size)
+
     return xmlResource, frame
 end
 

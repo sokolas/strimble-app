@@ -545,7 +545,6 @@ function main()
     local lpg = wx.wxPropertyGrid(Gui.logging.panel, wx.wxID_ANY, wx.wxDefaultPosition, wx.wxDefaultSize, wx.wxPG_SPLITTER_AUTO_CENTER + wx.wxPG_BOLD_MODIFIED)
     lpg:Append(wx.wxPropertyCategory("Logging",wx.wxPG_LABEL))
 
-    -- fgSizer:Add(wx.wxStaticText(Gui.logging.panel, wx.wxID_ANY, "Logging"), 0, wx.wxALL + wx.wxEXPAND, 5)
     fgSizer:Add(lpg:GetPanel(), 1, wx.wxALL + wx.wxEXPAND, 5)
 
     for i, name in ipairs(loggers) do
@@ -626,8 +625,9 @@ function main()
 
     -- rest of init
     frame:Connect(wx.wxEVT_CLOSE_WINDOW, function(event)
+        local page = Gui.listbook:GetSelection()
         local rect = frame:GetRect()
-        SaveToCfg("window", {x = rect:GetLeft(), y = rect:GetTop(), w = rect:GetWidth(), h = rect:GetHeight()})
+        SaveToCfg("window", {x = rect:GetLeft(), y = rect:GetTop(), w = rect:GetWidth(), h = rect:GetHeight(), page = page})
         logger.log("closing")
         xpcall(NetworkManager.closeAll, function(err) print(err) end)
         wxTimers.stopAll()
@@ -639,13 +639,14 @@ function main()
     -- wx.wxPostEvent(frame, wx.wxCommandEvent(wx.wxEVT_TOOL, gui.tools.load:GetId()))
     loadConfig()
     setLoggingLevels()
+    local page = ReadFromCfg("window", "page", 0)
+    Gui.listbook:SetSelection(page)
 
     if Gui.twitch.autoconnect:GetValue() then
         wx.wxPostEvent(frame, wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, Gui.twitch.connectBtn:GetId()))
     end
     -- collectgarbage("collect")
     
-
     frame:Show(true)
 
     -- wx.wxLog.SetVerbose(true)
