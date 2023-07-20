@@ -2,7 +2,9 @@
 src/test
 data/*.ini
 data/lockfile.lfs
-bin/
+bin/*.exe
+bin/*.dll
+bin/clibs/*.dll
 
 *.exe
 *.dll
