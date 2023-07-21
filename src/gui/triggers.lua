@@ -47,7 +47,10 @@ local function addChild(parentItem, result)
             logger.log("rowid", rowid)
             item.dbId = rowid
         end
-        insertStmt:finalize()
+        res = insertStmt:finalize()
+        if res ~= Sqlite.OK then
+            logger.err("Finalize error", res, Db:errmsg())
+        end
     end
 
     -- update UI
@@ -78,7 +81,10 @@ local function updateItemInDb(treeItem)
     if res ~= Sqlite.DONE then
         logger.err("Update error", res, Db:errmsg())
     end
-    updateStmt:finalize()
+    res = updateStmt:finalize()
+    if res ~= Sqlite.OK then
+        logger.err("Finalize error", res, Db:errmsg())
+    end
 end
 
 local function updateItem(item, result)
@@ -121,7 +127,10 @@ local function deleteItem(item, deleteFromDb)
         if res ~= Sqlite.DONE then
             logger.err("Delete error", res, Db:errmsg())
         end
-        deleteStmt:finalize()
+        res = deleteStmt:finalize()
+        if res ~= Sqlite.OK then
+            logger.err("Finalize error", res, Db:errmsg())
+        end
     end
 end
 
@@ -161,6 +170,78 @@ local function actionsUpdated()
         end
         item = triggerListCtrl:GetNextItem(item)
     end
+end
+
+local function createTwitchCmdsFolder(rootTriggerItem)
+    local twitchCmds = triggerListCtrl:AppendItem(rootTriggerItem, "Twitch commands", iconsHelper.pages.twitch,
+        iconsHelper.pages.twitch)
+    _M.treedata[twitchCmds:GetValue()] = {
+        id = twitchCmds:GetValue(),
+        isGroup = true,
+        canAddChildren = true,
+        childrenType = "twitch_command",
+        persistChildren = true,
+        icon = iconsHelper.pages.scripts, -- for children
+        -- canDeleteChildren = true,
+        add = function(id, data)
+            local actionIds, actionNames = dataHelper.getActionData()
+            local init = { action = function(c) c:Set(actionNames) end }
+            local dlgData = CopyTable(data)
+            dlgData.action = nil
+            for i = 1, #actionIds do
+                if actionIds[i] == data.action then
+                    dlgData.action = actionNames[i]
+                    break
+                end
+            end
+            local m, result = Gui.dialogs.CommandDialog.executeModal("Add command", dlgData, init)
+            if m == wx.wxID_OK then
+                local actionName = result.action
+                result.action = nil
+                for i = 1, #actionNames do
+                    if actionNames[i] == actionName then
+                        result.action = actionIds[i]
+                        break
+                    end
+                end
+                return result
+            end
+        end,
+        childEdit = function(id, data)
+            local actionIds, actionNames = dataHelper.getActionData()
+            local init = { action = function(c) c:Set(actionNames) end }
+            local dlgData = CopyTable(data)
+            dlgData.action = nil
+            for i = 1, #actionIds do
+                if actionIds[i] == data.action then
+                    dlgData.action = actionNames[i]
+                    break
+                end
+            end
+            local m, result = Gui.dialogs.CommandDialog.executeModal("Edit command", dlgData, init, { id = id })
+            if m == wx.wxID_OK then
+                local actionName = result.action
+                logger.log(actionName)
+                result.action = nil
+                for i = 1, #actionNames do
+                    if actionNames[i] == actionName then
+                        result.action = actionIds[i]
+                        break
+                    end
+                end
+                logger.log(result.action)
+                return result
+            end
+        end,
+        data = { -- default values for new children
+            name = "Example command",
+            text = "!hello",
+            where = 0,
+            enabled = true
+        }
+    }
+    triggerListCtrl:SetItemText(twitchCmds, 1, "+") -- TODO make this dependent on canAddChildren
+    return twitchCmds
 end
 
 -- creates
@@ -259,74 +340,7 @@ local function init()
         }
     }
 
-    local twitchCmds = triggerListCtrl:AppendItem(rootTriggerItem, "Twitch commands", iconsHelper.pages.twitch,
-        iconsHelper.pages.twitch)
-    _M.treedata[twitchCmds:GetValue()] = {
-        id = twitchCmds:GetValue(),
-        isGroup = true,
-        canAddChildren = true,
-        childrenType = "twitch_command",
-        persistChildren = true,
-        icon = iconsHelper.pages.scripts,   -- for children
-        -- canDeleteChildren = true,
-        add = function(id, data)
-            local actionIds, actionNames = dataHelper.getActionData()
-            local init = {action = function(c) c:Set(actionNames) end}
-            local dlgData = CopyTable(data)
-            dlgData.action = nil
-            for i = 1, #actionIds do
-                if actionIds[i] == data.action then
-                    dlgData.action = actionNames[i]
-                    break
-                end
-            end
-            local m, result = Gui.dialogs.CommandDialog.executeModal("Add command", dlgData, init)
-            if m == wx.wxID_OK then
-                local actionName = result.action
-                result.action = nil
-                for i = 1, #actionNames do
-                    if actionNames[i] == actionName then
-                        result.action = actionIds[i]
-                        break
-                    end
-                end
-                return result
-            end
-        end,
-        childEdit = function(id, data)
-            local actionIds, actionNames = dataHelper.getActionData()
-            local init = {action = function(c) c:Set(actionNames) end}
-            local dlgData = CopyTable(data)
-            dlgData.action = nil
-            for i = 1, #actionIds do
-                if actionIds[i] == data.action then
-                    dlgData.action = actionNames[i]
-                    break
-                end
-            end
-            local m, result = Gui.dialogs.CommandDialog.executeModal("Edit command", dlgData, init, {id = id})
-            if m == wx.wxID_OK then
-                local actionName = result.action
-                logger.log(actionName)
-                result.action = nil
-                for i = 1, #actionNames do
-                    if actionNames[i] == actionName then
-                        result.action = actionIds[i]
-                        break
-                    end
-                end
-                logger.log(result.action)
-                return result
-            end
-        end,
-        data = {    -- default values for new children
-            name = "Example command",
-            text = "!hello",
-            where = 0,
-            enabled = true
-        }
-    }
-    triggerListCtrl:SetItemText(twitchCmds, 1, "+") -- TODO make this dependent on canAddChildren
+    createTwitchCmdsFolder(rootTriggerItem)
 
     -- adding and editing events
     triggerListCtrl:Connect(wx.wxEVT_TREELIST_ITEM_CONTEXT_MENU, function(e) -- right click
@@ -391,43 +405,41 @@ end
 
 _M.init = init
 
-_M.load = function()
+local function load()
+    logger.log("starting loading triggers")
     local item = triggerListCtrl:GetFirstItem()
     while item:IsOk() do
         -- logger.log("item", item:GetValue())
-        local treeItem = _M.treedata[item:GetValue()]
-        if treeItem then
-            -- logger.log(treeItem.name)
-            if treeItem.childrenType == "twitch_command" and treeItem.isGroup then     -- hardcoded logic for twitch commands
-                local children = {}
-                local child = triggerListCtrl:GetFirstChild(item)
-                while child:IsOk() do
-                    table.insert(children, child)
-                    child = triggerListCtrl:GetNextSibling(child)
-                end
-                for i, v in ipairs(children) do
-                    deleteItem(v, false)
-                end
-                children = nil
-
-                for row in Db:nrows("SELECT * FROM triggers WHERE type = 'twitch_command'") do
-                    local result = json.decode(row.data)
-                    result.dbId = row.id
-                    addChild(item, result)
-                    if not triggerListCtrl:IsExpanded(item) then
-                        triggerListCtrl:Expand(item)
-                    end
-                end
-            end
-        else
-            logger.err("treeitem not found")
-        end
-        item = triggerListCtrl:GetNextSibling(item)
+        _M.treedata[item:GetValue()] = nil
+        item = triggerListCtrl:GetNextItem(item)
     end
+
+    local size = 0
+    for k, v in pairs(_M.treedata) do
+        size = size + 1
+    end
+    logger.log("triggers treedata size", size)
+
+    triggerListCtrl:DeleteAllItems()
+
+    -- recreate predefined folders
+    
+    -- twitch commands
+    local twitchCmdsItem = createTwitchCmdsFolder(triggerListCtrl:GetRootItem())
+    for row in Db:nrows("SELECT * FROM triggers WHERE type = 'twitch_command'") do
+        local result = json.decode(row.data)
+        result.dbId = row.id
+        addChild(twitchCmdsItem, result)
+        if not triggerListCtrl:IsExpanded(twitchCmdsItem) then
+            triggerListCtrl:Expand(twitchCmdsItem)
+        end
+    end
+
     dataHelper.setTriggers(_M.treedata)
     logger.log("Triggers load OK")
 end
 
+_M.load = load
 _M.export = function()  -- to json
 end
 
@@ -442,15 +454,18 @@ _M.onTrigger = function(type, data)
                         local actions = dataHelper.findAction(dataHelper.enabledByDbId(cmd.action))
                         local action = actions[1]
                         if action then
+                            local queue = dataHelper.getActionQueue(action.data.queue)
+                            logger.log("action found:", action.data.name, action.data.description, "queue:", action.data.queue, #queue)
                             local ctx = ctxHelper.create({
                                 user = data.user,
                                 value = data.text, -- TODO parse into command and params
                                 channel = data.channel
                             }, cmd.action)
-                            local queue = dataHelper.getActionQueue(action.data.queue)
                             table.insert(queue, ctx)
-                            logger.log("action found:", action.data.name, action.data.description, "queue:", action.data.queue, #queue)
+                            logger.log("context created")
                             Gui.frame:QueueEvent(wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, ACTION_DISPATCH))
+                        else
+                            logger.log("action mapped but not found for", cmd.name)
                         end
                     else
                         logger.log("no action mapped for ", cmd.name)

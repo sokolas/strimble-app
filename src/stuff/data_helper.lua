@@ -6,7 +6,6 @@ local twitch_steps = require("src.stuff.steps.twitch_steps")
 
 local triggersData = {}
 local actionsData = {}
-local stepsData = {}
 local actionQueues = {}
 
 local function _updateActions() end
@@ -31,10 +30,6 @@ local function setActions(actions)
     actionsData = actions
 end
 
-local function setSteps(steps)
-    stepsData = steps
-end
-
 local function findAction(predicate)
     local result = {}
     for k, v in pairs(actionsData) do
@@ -49,8 +44,14 @@ local function findStepsForAction(action)  -- TODO actual steps implementation
     local r = {}
     local actions = findAction(byDbId(action))
     if actions and #actions > 0 then
-        for i, v in ipairs(actions) do
-            table.insert(r, {name = v.name or "", id = i, f = twitch_steps.sendMessage, params = {message = (v.data.description or "") .. " triggered"}})
+        logger.log("triggered action found")
+        if actions[1].steps then
+            for i, v in ipairs(actions[1].steps) do
+                logger.log("adding step", v.prototype.name, v.description)
+                table.insert(r, {name = v.name or "", id = i, f = v.prototype.code, params = v.params})
+            end
+        else
+            logger.log("steps empty")
         end
     end
     return r
@@ -104,7 +105,7 @@ _M.enabledByDbId = enabledByDbId
 
 _M.setTriggers = setTriggers
 _M.setActions = setActions
-_M.setSteps = setSteps
+
 _M.setActionsUpdate = setActionsUpdate
 
 _M.updateActions = function()

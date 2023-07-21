@@ -1,6 +1,8 @@
 local unpack = table.unpack or unpack
 mainarg = table.pack(...)
 
+local tracefile = io.open("trace.log", "w")
+
 local showConsole = false
 for i, a in ipairs(mainarg) do
     if a == "console" then
@@ -71,6 +73,29 @@ Logger = {
     loggers = {}
 }
 
+function Trace(...)
+    local arg = table.pack(...)
+    local s = os.date("[%d %b %Y %H:%M:%S]\t")
+    local info = debug.getinfo(2)
+
+    if info then
+        local src = string.gsub(info.source, ".\\", "")
+        s = s .. src .. ":" .. info.currentline .. "\t"
+    end
+    for i = 1, arg.n do
+        if type(v) == "string" then
+            s = s .. arg[i]
+        else
+            s = s .. tostring(arg[i])
+        end
+        if i < arg.n then
+            s = s .. "\t"
+        end
+    end
+    tracefile:write(s .. "\n")
+    tracefile:flush()
+end
+
 Logger.create = function(name)
     if not Logger.loggers[name] then
         local logger = {
@@ -78,18 +103,17 @@ Logger.create = function(name)
             name_str = "[" .. name .. "]\t"
         }
         logger.log = function(...)
-            if not logger.enabled then return end
             -- Log(logger.name_str, ...)
             local arg = table.pack(...)
             local s = os.date("[%d %b %Y %H:%M:%S]\t") .. logger.name_str
             local info = debug.getinfo(2)
-        
+            local src = ""
             if info then
-                local src = string.gsub(info.short_src, ".\\", "")
-                s = s .. src .. ":" .. info.currentline .. "\t"
+                src = string.gsub(info.source, ".\\", "") .. ":" .. info.currentline
+                s = s .. src .. "\t"
             end
             for i = 1, arg.n do
-                if type(v) == "string" then
+                if type(arg[i]) == "string" then
                     s = s .. arg[i]
                 else
                     s = s .. tostring(arg[i])
@@ -98,7 +122,11 @@ Logger.create = function(name)
                     s = s .. "\t"
                 end
             end
-            io.write(s .. "\n")
+            
+            if logger.enabled then
+                io.write(s .. "\n")
+            end
+            Trace(src, ...)
         end
 
         logger.err = function(...)
@@ -106,13 +134,13 @@ Logger.create = function(name)
             local arg = table.pack(...)
             local s = os.date("[%d %b %Y %H:%M:%S]\t") .. logger.name_str .. "ERROR\t"
             local info = debug.getinfo(2)
-        
+            local src = ""
             if info then
-                local src = string.gsub(info.short_src, ".\\", "")
-                s = s .. src .. ":" .. info.currentline .. "\t"
+                src = string.gsub(info.source, ".\\", "") .. ":" .. info.currentline
+                s = s .. src .. "\t"
             end
             for i = 1, arg.n do
-                if type(v) == "string" then
+                if type(arg[i]) == "string" then
                     s = s .. arg[i]
                 else
                     s = s .. tostring(arg[i])
@@ -122,6 +150,7 @@ Logger.create = function(name)
                 end
             end
             io.write(s .. "\n")
+            Trace(src, ...)
         end
         Logger.loggers[name] = logger
     end
@@ -134,7 +163,7 @@ function Log(...)
     local info = debug.getinfo(2)
 
     if info then
-        local src = string.gsub(info.short_src, ".\\", "")
+        local src = string.gsub(info.source, ".\\", "")
         s = s .. src .. ":" .. info.currentline .. "\t"
     end
     for i = 1, arg.n do
@@ -149,6 +178,7 @@ function Log(...)
     end
     io.write(s .. "\n")
 end
+
 
 local lfs = require("lfs")
 pollnet = require("pollnet")
@@ -230,6 +260,8 @@ main()
 if is_wx_app then
     wx.wxGetApp():MainLoop()
 end
+
+io.close(tracefile)
 
 -- cleanup
 if Db and Db:isopen() then

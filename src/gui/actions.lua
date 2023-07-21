@@ -3,17 +3,30 @@ local iconsHelper = require("src/gui/icons")
 local json = require("json")
 local dataHelper = require("src/stuff/data_helper")
 
+-- steps helpers
+local twitchStepsHelper = require("src/stuff/steps/twitch_steps")
+
 local actionsListCtrl = nil
 local stepsListCtrl = nil
 
 local groupNames = {}
+local currentAction = {}
 
 local logger = Logger.create("actions_gui")
 
+local stepsHandlers = {}
+
 local _M = {
-    actionsData = {},
-    stepsData = {}
+    actionsData = {}
 }
+
+local function findStepByName(name)
+    for k, v in pairs(stepsHandlers) do
+        if v.name == name then
+            return v
+        end
+    end
+end
 
 local function deleteItem(item, deleteFromDb)
     logger.log("Deleting " .. tostring(item:GetValue()))
@@ -28,7 +41,12 @@ local function deleteItem(item, deleteFromDb)
 
     -- update UI
     actionsListCtrl:DeleteItem(item)
-    
+    if not actionsListCtrl:GetSelection():IsOk() then
+        logger.log("selection is invalid, cleaning up")
+        currentAction = {}
+        stepsListCtrl:DeleteAllItems()
+    end
+
     -- persist
     if deleteFromDb then
         local deleteStmt = Db:prepare("DELETE FROM actions WHERE id=:id;")
@@ -39,7 +57,10 @@ local function deleteItem(item, deleteFromDb)
         if res ~= Sqlite.DONE then
             logger.err("Delete error", res, Db:errmsg())
         end
-        deleteStmt:finalize()
+        res = deleteStmt:finalize()
+        if res ~= Sqlite.OK then
+            logger.err("Finalize error", res, Db:errmsg())
+        end
 
         dataHelper.updateActions()  -- if we don't delete from db, then the action was not really deleted
     end
@@ -51,14 +72,7 @@ local function findItemById(ctrl, id)
         if item:GetValue() == id then
             return item
         else
-            local child = ctrl:GetFirstChild(item)
-            while child:IsOk() do
-                if child:GetValue() == id then
-                    return child
-                end
-                child = ctrl:GetNextSibling(child)
-            end
-            item = ctrl:GetNextSibling(item)
+            item = ctrl:GetNextItem(item)
         end
     end
 end
@@ -122,7 +136,10 @@ function _M.addAction(groupGuiItem, data)
             logger.log("rowid", rowid)
             item.dbId = rowid
         end
-        insertStmt:finalize()
+        res = insertStmt:finalize()
+        if res ~= Sqlite.OK then
+            logger.err("Finalize error", res, Db:errmsg())
+        end
     end
 
     -- update UI
@@ -149,7 +166,33 @@ local function updateActionItemInDb(treeItem)
     if res ~= Sqlite.DONE then
         logger.err("Update error", res, Db:errmsg())
     end
-    updateStmt:finalize()
+    res = updateStmt:finalize()
+    if res ~= Sqlite.OK then
+        logger.err("Finalize error", res, Db:errmsg())
+    end
+end
+
+local function updateStepInDb(i, actionId, step)
+    local updateStmt = Db:prepare("UPDATE steps SET name=:name, action=:actionId, step_order=:step_order, data=:data WHERE id=:id;")
+    local data = {
+        description = step.description,
+        params = step.params
+    }
+    updateStmt:bind_names({
+        id = step.dbId,
+        actionId = actionId,
+        name = step.prototype.name,
+        step_order = i,
+        data = json.encode(data)
+    })
+    local res = updateStmt:step()
+    if res ~= Sqlite.DONE then
+        logger.err("Update step error", res, updateStmt:errmsg())
+    end
+    res = updateStmt:finalize()
+    if res ~= Sqlite.OK then
+        logger.err("Finalize error", res, Db:errmsg())
+    end
 end
 
 local function updateActionItem(item, result)
@@ -209,7 +252,7 @@ function _M.addActionGroup(name, rootActionItem)
         id = groupItem:GetValue(),
         name = name,
         isGroup = true,
-        canEdit = true,
+        canEdit = false,
         canAddChildren = true,
         persistChildren = true,
         icon = iconsHelper.pages.actions, -- for children
@@ -362,11 +405,11 @@ function _M.init()
 
     local stepMenu = wx.wxMenu()
     -- triggerMenu:SetTitle("ololo")
-    local stepAddItem = stepMenu:Append(wx.wxID_ANY, "Add...")
+    -- local stepAddItem = stepMenu:Append(wx.wxID_ANY, "Add...")
     local stepEditItem = stepMenu:Append(wx.wxID_ANY, "Edit...")
-    local stepToggleItem = stepMenu:AppendCheckItem(wx.wxID_ANY, "Enabled")
     stepMenu:AppendSeparator()
     local stepDeleteItem = stepMenu:Append(wx.wxID_ANY, "Delete")
+    stepMenu:AppendSeparator()
     Gui.menus.stepMenu = stepMenu
 
     -- actions
@@ -453,16 +496,34 @@ function _M.init()
         end
     end)
 
+    actionsListCtrl:Connect(wx.wxEVT_TREELIST_SELECTION_CHANGED, function(e)
+        logger.log("selection changed")
+        stepsListCtrl:DeleteAllItems()
+
+        local i = e:GetItem()
+        if not i:IsOk() then
+            logger.log("invalid item selected")
+            return
+        end
+        local v = i:GetValue()
+        currentAction = _M.actionsData[v]
+        logger.log("selection item name", currentAction.name)
+        local steps = currentAction.steps
+        if steps and #steps > 0 then
+            local stepRoot = stepsListCtrl:GetRootItem()
+            for j, step in ipairs(steps) do
+                local stepItem = stepsListCtrl:AppendItem(stepRoot, step.prototype.name, step.prototype.icon or iconsHelper.pages.actions, step.prototype.icon or iconsHelper.pages.actions)
+                stepsListCtrl:SetItemText(stepItem, 1, step.description)
+            end
+        end
+    end)
 
     -- steps
     stepsListCtrl = dialogHelper.replaceElement(Gui, "stepsPlaceholder", function(parent)
         return wx.wxTreeListCtrl(parent, wx.wxID_ANY, wx.wxDefaultPosition, wx.wxDefaultSize, wx.wxTL_DEFAULT_STYLE)
     end, "stepsList", "steps")
     
-    -- actionListCtr:AppendColumn("")
-    stepsListCtrl:AppendColumn("Name")
-    stepsListCtrl:AppendColumn("Order")
-    stepsListCtrl:AppendColumn("Enabled")
+    stepsListCtrl:AppendColumn("Type")
     stepsListCtrl:AppendColumn("Description")
 
     imageList = iconsHelper.createImageList()   -- despite the docs, imagelist is not transferred to the tree control, so we use SetImageList and keep the ref
@@ -471,13 +532,97 @@ function _M.init()
     local rootStepItem = stepsListCtrl:GetRootItem()
     
     -- predefined items
-    _M.stepsData[rootStepItem:GetValue()] = {
+    --[[_M.stepsData[rootStepItem:GetValue()] = {
         id = rootStepItem:GetValue(),
         isGroup = true,
         name = "root",
         data = {
         }
-    }
+    }]]
+
+    stepsListCtrl:Connect(wx.wxEVT_TREELIST_SELECTION_CHANGED, function(e)
+        logger.log("steps selection changed", stepsListCtrl:GetItemText(stepsListCtrl:GetSelection(), 1))
+    end)
+
+    twitchStepsHelper.init(stepMenu, stepsHandlers)
+    stepsListCtrl:Connect(wx.wxEVT_TREELIST_ITEM_CONTEXT_MENU, function(e) -- right click
+        if not actionsListCtrl:GetSelection():IsOk() then
+            logger.log("no action selected")
+            return
+        end
+        local actionData = _M.actionsData[actionsListCtrl:GetSelection():GetValue()]
+        if actionData and actionData.isGroup then
+            logger.log("no action selected")
+            return
+        end
+
+        local stepIndex = 0
+        local selected = stepsListCtrl:GetSelection()
+        if selected:IsOk() then
+            stepIndex = 1
+            local item = stepsListCtrl:GetFirstItem()
+            while item:IsOk() and item:GetValue() ~= selected:GetValue() do
+                item = stepsListCtrl:GetNextItem(item)
+                stepIndex = stepIndex + 1
+            end
+        end
+        logger.log("step index", stepIndex)
+
+        Gui.menus.stepMenu:Enable(stepEditItem:GetId(), stepIndex > 0)
+        Gui.menus.stepMenu:Enable(stepDeleteItem:GetId(), stepIndex > 0)
+
+        local menuSelection = Gui.frame:GetPopupMenuSelectionFromUser(Gui.menus.stepMenu, wx.wxDefaultPosition)
+
+        local stepHandler = stepsHandlers[menuSelection]
+        -- TODO if edit or delete
+        if not stepHandler then return end
+        -- add step
+        local m, result = stepHandler.dialogItem.executeModal("Add " .. stepHandler.name, stepHandler.data)
+        if m == wx.wxID_OK then
+            local item = stepsListCtrl:AppendItem(rootStepItem, stepHandler.name, stepHandler.icon or iconsHelper.pages.actions, stepHandler.icon or iconsHelper.pages.actions)
+            stepsListCtrl:SetItemText(item, 1, stepHandler.getDescription(result))
+            local params = result
+            if stepHandler.postProcess then
+                params = stepHandler.postProcess(result)
+            end
+            local stepData = {
+                prototype = stepHandler,
+                description = stepHandler.getDescription(result),
+                params = result
+            }
+            if not actionData.steps then
+                actionData.steps = {}
+            end
+            table.insert(actionData.steps, stepData)
+        end
+
+        --[[ local menuSelection = Gui.frame:GetPopupMenuSelectionFromUser(Gui.menus.actionMenu, wx.wxDefaultPosition)
+        -- logger.log(menuSelection)
+        if menuSelection == actionAddItem:GetId() then    -- add new item
+            local result = treeItem.add(i, treeItem.childData)
+            if not result then
+                logger.err("'Add item' error")
+            else
+                local groupGuiItem, groupTreeItem = findOrCreateGroup(result.group, rootActionItem)
+                _M.addAction(groupGuiItem, result)
+            end
+        elseif menuSelection == actionEditItem:GetId() then   -- edit item TODO move to a function
+            local result = treeItem.edit(i, treeItem.data)
+            if not result then
+                logger.err("'Edit item' error")
+            else
+                logger.log("'Edit item' OK")
+                updateActionItem(e:GetItem(), result)
+            end
+        elseif menuSelection == actionDeleteItem:GetId() then
+            deleteItem(e:GetItem(), true)
+        elseif menuSelection == actionToggleItem:GetId() then
+            toggleItem(e:GetItem(), actionToggleItem:IsChecked())
+        end]]
+    end)
+
+    local upBtn = Gui.findWindow("stepMoveUp", "wxButton", "stepMoveUp", "actions", true)
+    local downBtn = Gui.findWindow("stepMoveDown", "wxButton", "stepMoveDown", "actions", true)
 end
 
 function _M.load()
@@ -485,40 +630,28 @@ function _M.load()
     local item = actionsListCtrl:GetFirstItem()
     while item:IsOk() do
         -- logger.log("item", item:GetValue())
-        local treeItem = _M.actionsData[item:GetValue()]
-        if treeItem then
-            -- logger.log(treeItem.name)
-            local children = {}
-            local child = actionsListCtrl:GetFirstChild(item)
-            while child:IsOk() do
-                table.insert(children, child)
-                child = actionsListCtrl:GetNextSibling(child)
-            end
-            for i, v in ipairs(children) do
-                deleteItem(v, false)
-            end
-            children = nil
-            deleteItem(item, false)
-        else
-            logger.err("invalid treeitem")
-        end
-        item = actionsListCtrl:GetNextSibling(item)
+        _M.actionsData[item:GetValue()] = nil
+        item = actionsListCtrl:GetNextItem(item)
     end
+    actionsListCtrl:DeleteAllItems()
+
+    local size = 0
+    for k, v in pairs(_M.actionsData) do
+        size = size + 1
+    end
+    logger.log("actions treedata size", size)
+
+    currentAction = {}
+    stepsListCtrl:DeleteAllItems()
+
     local rows = {}
 
-    for row in Db:nrows("SELECT * FROM actions") do
+    findOrCreateGroup("Default", rootActionItem)
+
+    for row in Db:nrows("SELECT * FROM actions order by json_extract(json(data), '$.group'), name") do
         row.result = json.decode(row.data)
         table.insert(rows, row)
     end
-    table.sort(rows, function(r1, r2)
-        if r1.result.order == nil then
-            return true
-        elseif r2.result.order == nil then
-            return false
-        else
-            return r1.result.order < r2.result.order
-        end
-    end)
 
     for i, row in pairs(rows) do
         row.result.dbId = row.id

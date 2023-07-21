@@ -66,6 +66,8 @@ local function findWindow(name, type, guiName, group, transient)
     return res
 end
 
+Gui.findWindow = findWindow
+
 local function insertInto(name, type, constructor, guiName, group)
     local wnd = Gui.frame:FindWindow(name)
     if not wnd then

@@ -20,14 +20,15 @@ _M.matchCommands = function(message)
     for i, v in ipairs(dataHelper.findTriggers(twitchCommandFilter)) do
         -- if v.data.ignoreCase then   -- no use for now
         -- else
-        -- Log("checking ", v.name, v.data.text, v.data.where, commandWhere[v.data.where + 1])
+        -- Log("checking ", v.name, v.data.text, "in", message, v.data.where, commandWhere[v.data.where + 1])
         local res = { id = v.dbId, text = v.data.text, name = v.data.name, action = v.data.action }
         if v.data.where == 0 then
             if string.startsWith(message, v.data.text) then
                 table.insert(result, res)
             end
         elseif v.data.where == 1 then
-            if Lutf8.find(message, v.data.text, 1, true) then
+            local found = Lutf8.find(message, v.data.text, 1, true)
+            if found then
                 table.insert(result, res)
             end
         else
