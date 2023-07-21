@@ -10,3 +10,4 @@ bin/clibs/*.dll
 *.dll
 *.sqlite3
 *.dump
+*.log
