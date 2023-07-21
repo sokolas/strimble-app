@@ -153,6 +153,7 @@ function _M.addAction(groupGuiItem, data)
     end
 
     dataHelper.updateActions()
+    return item
 end
 
 local function updateActionItemInDb(treeItem)
@@ -173,17 +174,15 @@ local function updateActionItemInDb(treeItem)
 end
 
 local function updateStepInDb(i, actionId, step)
-    local updateStmt = Db:prepare("UPDATE steps SET name=:name, action=:actionId, step_order=:step_order, data=:data WHERE id=:id;")
-    local data = {
-        description = step.description,
-        params = step.params
-    }
+    logger.log("updating step", i, step.dbId, actionId, step.prototype.name, step.description)
+    local updateStmt = Db:prepare("UPDATE steps SET name=:name, action=:actionId, step_order=:step_order, description=:description, data=:data WHERE id=:id;")
     updateStmt:bind_names({
         id = step.dbId,
         actionId = actionId,
         name = step.prototype.name,
         step_order = i,
-        data = json.encode(data)
+        description = step.description,
+        data = json.encode(step.params)
     })
     local res = updateStmt:step()
     if res ~= Sqlite.DONE then
@@ -192,6 +191,41 @@ local function updateStepInDb(i, actionId, step)
     res = updateStmt:finalize()
     if res ~= Sqlite.OK then
         logger.err("Finalize error", res, Db:errmsg())
+    end
+end
+
+local function deleteStepFromDb(step)
+    logger.log("deleting step", step.dbId, step.prototype.name, step.description)
+    local updateStmt = Db:prepare("DELETE FROM steps WHERE id=:id;")
+    updateStmt:bind_names({
+        id = step.dbId,
+    })
+    local res = updateStmt:step()
+    if res ~= Sqlite.DONE then
+        logger.err("Delete step error", res, updateStmt:errmsg())
+    end
+    res = updateStmt:finalize()
+    if res ~= Sqlite.OK then
+        logger.err("Finalize error", res, Db:errmsg())
+    end
+end
+
+local function updateStepsOrder(action)
+    logger.log("updating steps order", action.dbId, action.name)
+    for i, step in ipairs(action.steps) do
+        local updateStmt = Db:prepare("UPDATE steps SET step_order=:step_order WHERE id=:id;")
+        updateStmt:bind_names({
+            id = step.dbId,
+            step_order = i
+        })
+        local res = updateStmt:step()
+        if res ~= Sqlite.DONE then
+            logger.err("Update steps order error", res, updateStmt:errmsg())
+        end
+        res = updateStmt:finalize()
+        if res ~= Sqlite.OK then
+            logger.err("Finalize error", res, Db:errmsg())
+        end            
     end
 end
 
@@ -295,6 +329,59 @@ function _M.addActionGroup(name, rootActionItem)
     }
     _M.actionsData[groupItem:GetValue()] = treeItem
     return groupItem, treeItem
+end
+
+local function addStep(dbId, actionData, stepData)
+    if not actionData.steps then
+        actionData.steps = {}
+    end
+    table.insert(actionData.steps, stepData)
+
+    local index = #actionData.steps
+    if not dbId then
+        local insertStmt = Db:prepare("INSERT INTO steps VALUES(NULL, :action, :step_order, :name, :description, :data)")
+        if not insertStmt then
+            logger.err(Db:errmsg())
+        end
+        insertStmt:bind_names({
+            action = actionData.dbId,
+            step_order = index,
+            name = stepData.prototype.name,
+            description = stepData.description,
+            data = json.encode(stepData.params)
+        })
+        local res = insertStmt:step()
+        if res ~= Sqlite.DONE then
+            logger.err("Insert step error", res, Db:errmsg())
+        else
+            local rowid = insertStmt:last_insert_rowid()
+            logger.log("step rowid", rowid)
+            stepData.dbId = rowid
+        end
+        res = insertStmt:finalize()
+        if res ~= Sqlite.OK then
+            logger.err("Finalize step error", res, Db:errmsg())
+        end
+    end
+end
+
+local function editStep(m, selected, stepHandler, result, step, actionData, stepIndex)
+    if m == wx.wxID_OK then
+        stepsListCtrl:SetItemText(selected, 1, stepHandler.getDescription(result))
+        local params = result
+        if stepHandler.postProcess then
+            params = stepHandler.postProcess(result)
+        end
+        local stepData = {
+            dbId = step.dbId,
+            prototype = stepHandler,
+            description = stepHandler.getDescription(result),
+            params = params
+        }
+        actionData.steps[stepIndex] = stepData
+        updateStepInDb(stepIndex, actionData.dbId, stepData)
+        return true
+    end
 end
 
 -- creates
@@ -474,7 +561,7 @@ function _M.init()
         end
     end)
 
-    actionsListCtrl:Connect(wx.wxEVT_TREELIST_ITEM_ACTIVATED, function(e) -- double click
+    actionsListCtrl:Connect(wx.wxEVT_TREELIST_ITEM_ACTIVATED, function(e) -- double click on action
         local i = e:GetItem():GetValue()
         local treeItem = _M.actionsData[i]
 
@@ -545,7 +632,7 @@ function _M.init()
     end)
 
     twitchStepsHelper.init(stepMenu, stepsHandlers)
-    stepsListCtrl:Connect(wx.wxEVT_TREELIST_ITEM_CONTEXT_MENU, function(e) -- right click
+    stepsListCtrl:Connect(wx.wxEVT_TREELIST_ITEM_CONTEXT_MENU, function(e) -- right click on a step
         if not actionsListCtrl:GetSelection():IsOk() then
             logger.log("no action selected")
             return
@@ -573,8 +660,26 @@ function _M.init()
 
         local menuSelection = Gui.frame:GetPopupMenuSelectionFromUser(Gui.menus.stepMenu, wx.wxDefaultPosition)
 
+        if menuSelection == stepEditItem:GetId() then
+            local step = actionData.steps[stepIndex]
+            local stepHandler = step.prototype
+            if not stepHandler then return end
+
+            local m, result = stepHandler.dialogItem.executeModal("Edit " .. stepHandler.name, step.params)
+            editStep(m, selected, stepHandler, result, step, actionData, stepIndex)
+            return
+        end
+
+        if menuSelection == stepDeleteItem:GetId() then
+            local step = actionData.steps[stepIndex]
+            table.remove(actionData.steps, stepIndex)
+            stepsListCtrl:DeleteItem(selected)
+            deleteStepFromDb(step)
+            updateStepsOrder(actionData)
+        end
+
+        -- add something was selected
         local stepHandler = stepsHandlers[menuSelection]
-        -- TODO if edit or delete
         if not stepHandler then return end
         -- add step
         local m, result = stepHandler.dialogItem.executeModal("Add " .. stepHandler.name, stepHandler.data)
@@ -590,39 +695,126 @@ function _M.init()
                 description = stepHandler.getDescription(result),
                 params = result
             }
-            if not actionData.steps then
-                actionData.steps = {}
-            end
-            table.insert(actionData.steps, stepData)
+            addStep(nil, actionData, stepData)
+        end
+    end)
+
+    stepsListCtrl:Connect(wx.wxEVT_TREELIST_ITEM_ACTIVATED, function(e) -- double click on step
+        if not actionsListCtrl:GetSelection():IsOk() then
+            logger.log("no action selected")
+            return
+        end
+        local actionData = _M.actionsData[actionsListCtrl:GetSelection():GetValue()]
+        if actionData and actionData.isGroup then
+            logger.log("no action selected")
+            return
         end
 
-        --[[ local menuSelection = Gui.frame:GetPopupMenuSelectionFromUser(Gui.menus.actionMenu, wx.wxDefaultPosition)
-        -- logger.log(menuSelection)
-        if menuSelection == actionAddItem:GetId() then    -- add new item
-            local result = treeItem.add(i, treeItem.childData)
-            if not result then
-                logger.err("'Add item' error")
-            else
-                local groupGuiItem, groupTreeItem = findOrCreateGroup(result.group, rootActionItem)
-                _M.addAction(groupGuiItem, result)
+        local stepIndex = 0
+        local selected = stepsListCtrl:GetSelection()
+        if selected:IsOk() then
+            stepIndex = 1
+            local item = stepsListCtrl:GetFirstItem()
+            while item:IsOk() and item:GetValue() ~= selected:GetValue() do
+                item = stepsListCtrl:GetNextItem(item)
+                stepIndex = stepIndex + 1
             end
-        elseif menuSelection == actionEditItem:GetId() then   -- edit item TODO move to a function
-            local result = treeItem.edit(i, treeItem.data)
-            if not result then
-                logger.err("'Edit item' error")
-            else
-                logger.log("'Edit item' OK")
-                updateActionItem(e:GetItem(), result)
-            end
-        elseif menuSelection == actionDeleteItem:GetId() then
-            deleteItem(e:GetItem(), true)
-        elseif menuSelection == actionToggleItem:GetId() then
-            toggleItem(e:GetItem(), actionToggleItem:IsChecked())
-        end]]
+        end
+        logger.log("step index", stepIndex)
+
+        local step = actionData.steps[stepIndex]
+        local stepHandler = step.prototype
+        if not stepHandler then return end
+
+        local m, result = stepHandler.dialogItem.executeModal("Edit " .. stepHandler.name, step.params)
+        
+        editStep(m, selected, stepHandler, result, step, actionData, stepIndex)
     end)
 
     local upBtn = Gui.findWindow("stepMoveUp", "wxButton", "stepMoveUp", "actions", true)
     local downBtn = Gui.findWindow("stepMoveDown", "wxButton", "stepMoveDown", "actions", true)
+
+    Gui.frame:Connect(upBtn:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, function(event)
+        if not actionsListCtrl:GetSelection():IsOk() then
+            logger.log("no action selected")
+            return
+        end
+        local actionData = _M.actionsData[actionsListCtrl:GetSelection():GetValue()]
+        if actionData and actionData.isGroup then
+            logger.log("no action selected")
+            return
+        end
+
+        local stepIndex = 0
+        local selected = stepsListCtrl:GetSelection()
+        if selected:IsOk() then
+            stepIndex = 1
+            local item = stepsListCtrl:GetFirstItem()
+            while item:IsOk() and item:GetValue() ~= selected:GetValue() do
+                item = stepsListCtrl:GetNextItem(item)
+                stepIndex = stepIndex + 1
+            end
+        end
+        logger.log("step index", stepIndex)
+        if stepIndex <= 1 then
+            return
+        end
+
+        local step = actionData.steps[stepIndex]
+        table.remove(actionData.steps, stepIndex)
+        table.insert(actionData.steps, stepIndex - 1, step)
+
+        stepsListCtrl:DeleteAllItems()
+        for i, v in ipairs(actionData.steps) do
+            local item = stepsListCtrl:AppendItem(rootStepItem, v.prototype.name, v.prototype.icon or iconsHelper.pages.actions, v.prototype.icon or iconsHelper.pages.actions)
+            stepsListCtrl:SetItemText(item, 1, v.description)
+            if i == stepIndex - 1 then
+                stepsListCtrl:Select(item)
+            end
+        end
+        updateStepsOrder(actionData)
+    end)
+
+    Gui.frame:Connect(downBtn:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, function(event)
+        if not actionsListCtrl:GetSelection():IsOk() then
+            logger.log("no action selected")
+            return
+        end
+        local actionData = _M.actionsData[actionsListCtrl:GetSelection():GetValue()]
+        if actionData and actionData.isGroup then
+            logger.log("no action selected")
+            return
+        end
+
+        local stepIndex = 0
+        local selected = stepsListCtrl:GetSelection()
+        if selected:IsOk() then
+            stepIndex = 1
+            local item = stepsListCtrl:GetFirstItem()
+            while item:IsOk() and item:GetValue() ~= selected:GetValue() do
+                item = stepsListCtrl:GetNextItem(item)
+                stepIndex = stepIndex + 1
+            end
+        end
+        logger.log("step index", stepIndex)
+        if stepIndex >= #actionData.steps then
+            return
+        end
+
+        local step = actionData.steps[stepIndex]
+        table.remove(actionData.steps, stepIndex)
+        table.insert(actionData.steps, stepIndex + 1, step)
+
+        stepsListCtrl:DeleteAllItems()
+        for i, v in ipairs(actionData.steps) do
+            local item = stepsListCtrl:AppendItem(rootStepItem, v.prototype.name, v.prototype.icon or iconsHelper.pages.actions, v.prototype.icon or iconsHelper.pages.actions)
+            stepsListCtrl:SetItemText(item, 1, v.description)
+            if i == stepIndex + 1 then
+                stepsListCtrl:Select(item)
+            end
+        end
+        updateStepsOrder(actionData)
+    end)
 end
 
 function _M.load()
@@ -648,7 +840,7 @@ function _M.load()
 
     findOrCreateGroup("Default", rootActionItem)
 
-    for row in Db:nrows("SELECT * FROM actions order by json_extract(json(data), '$.group'), name") do
+    for row in Db:nrows("SELECT * FROM actions ORDER BY json_extract(json(data), '$.group'), name;") do
         row.result = json.decode(row.data)
         table.insert(rows, row)
     end
@@ -657,10 +849,34 @@ function _M.load()
         row.result.dbId = row.id
         local group = row.result.group
         local groupItem = findOrCreateGroup(group, rootActionItem)
-        _M.addAction(groupItem, row.result)
+        local actionItem = _M.addAction(groupItem, row.result)
         -- if not actionsListCtrl:IsExpanded(groupItem) then
             -- actionsListCtrl:Expand(groupItem)
-        -- end    
+        -- end
+
+        local stmt = Db:prepare("SELECT * FROM steps WHERE action=:action ORDER BY step_order;")
+        stmt:bind_names({
+            action = row.id
+        })
+        for row in stmt:nrows() do
+            local prototype = findStepByName(row.name)
+            if prototype then
+                local stepData = {
+                    dbId = row.id,
+                    prototype = prototype,
+                    description = row.description,
+                    params = json.decode(row.data)
+                }
+                addStep(row.id, actionItem, stepData)
+            else
+                logger.err("unknown step name", row.name)
+            end
+        end
+
+        local res = stmt:finalize()
+        if res ~= Sqlite.OK then
+            logger.err("steps select error", res, Db:errmsg())
+        end
     end
 
     dataHelper.setActions(_M.actionsData)
