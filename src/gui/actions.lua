@@ -281,8 +281,70 @@ local function toggleItem(item, state)
     updateActionItemInDb(treeItem)
 end
 
+local function getNextGroupItem(item)
+    local i = nil
+    if item then
+        i = actionsListCtrl:GetNextItem(item)
+    else
+        i = actionsListCtrl:GetFirstItem()
+    end
+
+    while i:IsOk() do
+        logger.log(_M.actionsData[i:GetValue()])
+        if _M.actionsData[i:GetValue()] and _M.actionsData[i:GetValue()].isGroup then
+            return i
+        end
+        i = actionsListCtrl:GetNextItem(i)
+    end
+    return nil
+end
+
+local function placeAction(group, name)
+    local r = {}
+    for i, v in pairs(_M.actionsData) do
+        if not v.isGroup and v.data and v.data.group == group then
+            table.insert(r, v)
+        end
+    end
+    table.insert(r, {new = true, data = { name = name }})
+    table.sort(r, function(a, b)
+        return a.data.name < b.data.name
+    end)
+    
+    if r[#r].new then
+        return "append"
+    elseif r[1].new then
+        return "prepend"
+    else
+        local i = 1
+        while not r[i+1].new do
+            i = i + 1
+        end
+        return "insert", r[i]
+    end
+end
+
 function _M.addActionGroup(name, rootActionItem)
-    local groupItem = actionsListCtrl:AppendItem(rootActionItem, name, iconsHelper.pages.folder, iconsHelper.pages.folder)
+    local currentGroup = getNextGroupItem()
+    local groupItem = nil
+    if not currentGroup then
+        groupItem = actionsListCtrl:AppendItem(rootActionItem, name, iconsHelper.pages.folder, iconsHelper.pages.folder)
+    else
+        if _M.actionsData[currentGroup:GetValue()].name >= name then
+            groupItem = actionsListCtrl:PrependItem(rootActionItem, name, iconsHelper.pages.folder, iconsHelper.pages.folder)
+        else
+            local lastGroup = currentGroup
+            while _M.actionsData[currentGroup:GetValue()].name < name do
+                lastGroup = currentGroup
+                currentGroup = getNextGroupItem(currentGroup)
+                if currentGroup == nil then
+                    break;
+                end
+            end
+            groupItem = actionsListCtrl:InsertItem(rootActionItem, lastGroup, name, iconsHelper.pages.folder, iconsHelper.pages.folder)
+        end
+    end
+    
     local treeItem = {
         id = groupItem:GetValue(),
         name = name,
