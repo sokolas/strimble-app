@@ -40,7 +40,7 @@ local function createImageList()
 end
 
 local lb = nil
-_M = {
+local _M = {
     pages = pages,
     setStatus = function(page, status)
         if pages[page] then

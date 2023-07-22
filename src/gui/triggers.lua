@@ -1,7 +1,7 @@
 local dialogHelper = require("src/gui/dialog_helper")
 local iconsHelper = require("src/gui/icons")
 local json = require("json")
-local commands = require("src/stuff/commands")
+local commands = require("src/stuff/triggers/commands")
 local dataHelper = require("src/stuff/data_helper")
 local ctxHelper = require("src/stuff/action_context")
 
@@ -23,6 +23,7 @@ local function addChild(parentItem, result)
         name = result.name,
         canEdit = true,
         edit = parentTreeItem.childEdit,
+        getDescription = parentTreeItem.getDescription,
         canDelete = true,
         delete = function() end,
         type = parentTreeItem.childrenType,
@@ -57,7 +58,7 @@ local function addChild(parentItem, result)
     local action = dataHelper.findAction(function(a) return a.dbId and a.dbId == item.data.action end)
     triggerListCtrl:SetItemText(cmd1, 0, result.name)
     triggerListCtrl:SetItemText(cmd1, 2, (result.enabled and "Yes" or "No"))
-    triggerListCtrl:SetItemText(cmd1, 3, result.text .. " (" .. commandWhere[result.where + 1] ..")")   -- TODO calculate per item type
+    triggerListCtrl:SetItemText(cmd1, 3, item.getDescription(result))
     if #action > 0 then
         triggerListCtrl:SetItemText(cmd1, 4, (action[1].name or ""))
     else
@@ -87,7 +88,7 @@ local function updateItemInDb(treeItem)
     end
 end
 
-local function updateItem(item, result)
+local function updateItem(item, result, getDescription)
     local treeItem = _M.treedata[item:GetValue()]
     treeItem.data = result
     treeItem.name = result.name
@@ -96,7 +97,7 @@ local function updateItem(item, result)
     local action = dataHelper.findAction(function(a) return a.dbId and a.dbId == result.action end)
     triggerListCtrl:SetItemText(item, 0, result.name)
     triggerListCtrl:SetItemText(item, 2, (result.enabled and "Yes" or "No"))
-    triggerListCtrl:SetItemText(item, 3, result.text .. " (" .. commandWhere[result.where + 1] ..")")   -- TODO calculate per item type
+    triggerListCtrl:SetItemText(item, 3, getDescription(result))   -- TODO calculate per item type
     if #action > 0 then
         triggerListCtrl:SetItemText(item, 4, (action[1].name or ""))
     else
@@ -172,138 +173,13 @@ local function actionsUpdated()
     end
 end
 
-local function createTwitchCmdsFolder(rootTriggerItem)
-    local twitchCmds = triggerListCtrl:AppendItem(rootTriggerItem, "Twitch commands", iconsHelper.pages.twitch,
-        iconsHelper.pages.twitch)
-    _M.treedata[twitchCmds:GetValue()] = {
-        id = twitchCmds:GetValue(),
-        isGroup = true,
-        canAddChildren = true,
-        childrenType = "twitch_command",
-        persistChildren = true,
-        icon = iconsHelper.pages.scripts, -- for children
-        -- canDeleteChildren = true,
-        add = function(id, data)
-            local actionIds, actionNames = dataHelper.getActionData()
-            local init = { action = function(c) c:Set(actionNames) end }
-            local dlgData = CopyTable(data)
-            dlgData.action = nil
-            for i = 1, #actionIds do
-                if actionIds[i] == data.action then
-                    dlgData.action = actionNames[i]
-                    break
-                end
-            end
-            local m, result = Gui.dialogs.CommandDialog.executeModal("Add command", dlgData, init)
-            if m == wx.wxID_OK then
-                local actionName = result.action
-                result.action = nil
-                for i = 1, #actionNames do
-                    if actionNames[i] == actionName then
-                        result.action = actionIds[i]
-                        break
-                    end
-                end
-                return result
-            end
-        end,
-        childEdit = function(id, data)
-            local actionIds, actionNames = dataHelper.getActionData()
-            local init = { action = function(c) c:Set(actionNames) end }
-            local dlgData = CopyTable(data)
-            dlgData.action = nil
-            for i = 1, #actionIds do
-                if actionIds[i] == data.action then
-                    dlgData.action = actionNames[i]
-                    break
-                end
-            end
-            local m, result = Gui.dialogs.CommandDialog.executeModal("Edit command", dlgData, init, { id = id })
-            if m == wx.wxID_OK then
-                local actionName = result.action
-                logger.log(actionName)
-                result.action = nil
-                for i = 1, #actionNames do
-                    if actionNames[i] == actionName then
-                        result.action = actionIds[i]
-                        break
-                    end
-                end
-                logger.log(result.action)
-                return result
-            end
-        end,
-        data = { -- default values for new children
-            name = "Example command",
-            text = "!hello",
-            where = 0,
-            enabled = true
-        }
-    }
-    triggerListCtrl:SetItemText(twitchCmds, 1, "+") -- TODO make this dependent on canAddChildren
-    return twitchCmds
-end
-
 -- creates
 --      gui.triggers.triggersList
 --      gui.dialogs.CommandDialog
 --      gui.menus.triggerMenu
 --      gui.CommandDialog.* fields
 local function init()
-    local commandDlg = dialogHelper.createDataDialog(Gui, "CommandDialog", "Trigger properties", {
-            {
-                name = "name",
-                label = "Name",
-                type = "text"
-            },
-            {
-                name = "text",
-                label = "Text to activate",
-                type = "text"
-            },
-            {
-                name = "where",
-                label = "Where",
-                type = "choice",
-                choices = commandWhere
-            },
-            {
-                name = "action",
-                label = "Action",
-                type = "combo"
-            },
-            {
-                name = "enabled",
-                text = "Enabled",
-                type = "check",
-                value = true
-            }
-        },
-        -- validation
-        function(data, context)
-            if not data.name or data.name == "" then
-                return false, "Name can't be empty"
-            elseif data.where == -1 then
-                return false, "'Where' should be specified"
-            elseif not data.text or data.text == "" then
-                return false, "Text can't be empty"
-            else
-                if context and context.id then
-                    for i, v in pairs(_M.treedata) do
-                        if i ~= context.id and not v.isGroup and v.name == data.name then
-                            return false, "Name must be unique"
-                        end
-                    end
-                else
-                    for i, v in pairs(_M.treedata) do
-                        if not v.isGroup and v.name == data.name then
-                            return false, "Name must be unique"
-                        end
-                    end
-                end
-                return true
-            end
-        end)
+    local commandDlg = commands.createCommandDlg()
     if not commandDlg then return end
 
     local triggerMenu = wx.wxMenu()
@@ -340,7 +216,8 @@ local function init()
         }
     }
 
-    createTwitchCmdsFolder(rootTriggerItem)
+    local twitchCmdsGuiItem, twitchCmdsTreeItem = commands.createTwitchCmdsFolder(triggerListCtrl, rootTriggerItem)
+    _M.treedata[twitchCmdsTreeItem.id] = twitchCmdsTreeItem
 
     -- adding and editing events
     triggerListCtrl:Connect(wx.wxEVT_TREELIST_ITEM_CONTEXT_MENU, function(e) -- right click
@@ -369,7 +246,7 @@ local function init()
             if not result then
                 logger.err("'Edit item' error")
             else
-                updateItem(e:GetItem(), result)
+                updateItem(e:GetItem(), result, treeItem.getDescription)
             end
         elseif menuSelection == menuDeleteItem:GetId() then
             deleteItem(e:GetItem(), true)
@@ -394,7 +271,7 @@ local function init()
                 if not result then
                     logger.log("'Edit item' cancelled or error")
                 else
-                    updateItem(e:GetItem(), result)
+                    updateItem(e:GetItem(), result, treeItem.getDescription)
                 end
             end
         end
@@ -425,13 +302,14 @@ local function load()
     -- recreate predefined folders
     
     -- twitch commands
-    local twitchCmdsItem = createTwitchCmdsFolder(triggerListCtrl:GetRootItem())
+    local twitchCmdsGuiItem, twitchCmdsTreeItem = commands.createTwitchCmdsFolder(triggerListCtrl, triggerListCtrl:GetRootItem())
+    _M.treedata[twitchCmdsTreeItem.id] = twitchCmdsTreeItem
     for row in Db:nrows("SELECT * FROM triggers WHERE type = 'twitch_command'") do
         local result = json.decode(row.data)
         result.dbId = row.id
-        addChild(twitchCmdsItem, result)
-        if not triggerListCtrl:IsExpanded(twitchCmdsItem) then
-            triggerListCtrl:Expand(twitchCmdsItem)
+        addChild(twitchCmdsGuiItem, result)
+        if not triggerListCtrl:IsExpanded(twitchCmdsGuiItem) then
+            triggerListCtrl:Expand(twitchCmdsGuiItem)
         end
     end
 

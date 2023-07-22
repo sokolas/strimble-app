@@ -250,7 +250,7 @@ local function replaceElement(gui, name, constructor, guiName, group)
     return e
 end
 
-_M = {}
+local _M = {}
 
 _M.loadMainWindow = function()
     local xmlResource = nil

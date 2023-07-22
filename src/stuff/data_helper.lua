@@ -1,8 +1,6 @@
 local logger = Logger.create("data_helper")
 
-_M = {}
-
-local twitch_steps = require("src.stuff.steps.twitch_steps")
+local _M = {}
 
 local triggersData = {}
 local actionsData = {}
