@@ -47,10 +47,6 @@ local function init(menu, dialogs)
     menu:AppendSubMenu(submenu, "Twitch")
 end
 
--- TODO:
--- create dialogs for everything
--- connect the listeners somewhere?
-
 _M.sendMessage = sendMessage
 _M.init = init
 

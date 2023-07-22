@@ -3,20 +3,27 @@ local logger = Logger.create("timers")
 local _M = {}
 
 local timers = {}
+local handlers = {}
 
-local function addTimer(interval, parent, handler, continous)
-    local timer = wx.wxTimer(parent)
+local function addTimer(interval, handler, continous)
+    local timer = wx.wxTimer(Gui.frame)
     local id = timer:GetId()
     logger.log("adding timer" .. tostring(id))
-    parent:Connect(id, wx.wxEVT_TIMER, function(event)
-        handler(event)
+
+    handlers[id] = function(event)
         if not continous then
             logger.log("deleting timer " .. tostring(id))
             timers[id] = nil
             timer:Stop()
             timer:delete()
         end
-    end)
+        -- logger.log(id, "handling timer event")
+        handler(event)
+        -- logger.log(id, "timer event handled")
+    end
+
+    wx.wxPostEvent(Gui.frame, wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, TIMER_ADD))    -- frame will make the connection in the main thread
+
     timers[id] = timer
     local mode = (continous and wx.wxTIMER_CONTINUOUS) or wx.wxTIMER_ONE_SHOT
     -- print("mode", mode)
@@ -50,6 +57,8 @@ local function stopAll()
 end
 
 _M.timers = timers
+_M.handlers = handlers
+
 _M.addTimer = addTimer
 _M.delTimer = delTimer
 _M.stopAll = stopAll

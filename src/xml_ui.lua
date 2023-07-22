@@ -14,6 +14,7 @@ local logger = Logger.create("main")
 local actionLogger = Logger.create("actions")
 
 ACTION_DISPATCH = wx.wxID_HIGHEST + 1   -- the wx id for "dispatch actions" message command
+TIMER_ADD       = wx.wxID_HIGHEST + 2   -- the wx id for "add timer" message command
 
 Gui = {
     tools = {},
@@ -399,7 +400,7 @@ function main()
         event
         )
     end
-    wxTimers.addTimer(50, frame, event_loop, true)
+    wxTimers.addTimer(50, event_loop, true)
 
     local function dispatchActions()
         local logger = actionLogger
@@ -415,6 +416,7 @@ function main()
                         for i, step in ipairs(ctx.steps) do
                             logger.log("step", i, step.name)
                             local ok = step.f(ctx, step.params)
+                            logger.log("step", i, "result", ok)
                             if not ok then
                                 logger.log("step returned false, aborting action")
                                 return  -- TODO false?
@@ -428,6 +430,7 @@ function main()
                                 logger.err("Action execution failed", debug.traceback(err))
                             end)
                         -- finally
+                        logger.log("action co finished", ctx.action)
                         queue.running = false
                         queue.co = nil
                         table.remove(queue, 1)
@@ -437,8 +440,10 @@ function main()
                             logger.log(k, "is empty")
                         end
                     end)
-                    local res = coroutine.resume(queue.co)
-                    logger.log("co result", res)
+                    logger.log(coroutine.status(queue.co))
+                    logger.log("executing steps for", ctx.action)
+                    local ok, res = coroutine.resume(queue.co)
+                    logger.log("co result", ok, res, queue.co)
                     if queue.co then
                         logger.log(coroutine.status(queue.co))
                     end
@@ -452,6 +457,14 @@ function main()
     end
 
     frame:Connect(ACTION_DISPATCH, wx.wxEVT_COMMAND_BUTTON_CLICKED, dispatchActions)
+    frame:Connect(TIMER_ADD, wx.wxEVT_COMMAND_BUTTON_CLICKED, function(event)
+        for id, v in pairs(wxTimers.handlers) do
+            logger.log("connecting timer", id)
+            frame:Connect(id, wx.wxEVT_TIMER, v)
+            wxTimers.handlers[id] = nil
+            logger.log("timer connected", id)
+        end
+    end)
 
     -- twitch
     findWindow("twitchLog", "wxTextCtrl", "log", "twitch", true)
@@ -503,7 +516,7 @@ function main()
             iconsHelper.setStatus("twitch", false)
             -- TODO stop the timer in some cases
             twitchWnd.appendTwitchMessage("*** twitch chat connection error; retrying in 15 seconds")
-            twitchReconnectTimer = wxTimers.addTimer(15000, frame, evtHandler(function(event) Twitch.reconnect() end))
+            twitchReconnectTimer = wxTimers.addTimer(15000, evtHandler(function(event) Twitch.reconnect() end))
         elseif newState == "joined" then
             twitchWnd.appendTwitchMessage("*** joined " .. Twitch.channel)
             iconsHelper.setStatus("twitch", true)
@@ -521,7 +534,7 @@ function main()
             Twitch.reconnect()
         else
             iconsHelper.setStatus("twitch", false)
-            twitchReconnectTimer = wxTimers.addTimer(15000, frame, evtHandler(twitchConnectWithValidation))
+            twitchReconnectTimer = wxTimers.addTimer(15000, evtHandler(twitchConnectWithValidation))
         end
     end
     frame:Connect(Gui.twitch.connectBtn:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, evtHandler(function(event)

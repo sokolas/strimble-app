@@ -48,7 +48,7 @@ local function findStepsForAction(action)  -- TODO actual steps implementation
         if actions[1].steps then
             for i, v in ipairs(actions[1].steps) do
                 logger.log("adding step", v.prototype.name, v.description)
-                table.insert(r, {name = v.name or "", id = i, f = v.prototype.code, params = v.params})
+                table.insert(r, {name = v.prototype.name or "", id = i, f = v.prototype.code, params = v.params})
             end
         else
             logger.log("steps empty")

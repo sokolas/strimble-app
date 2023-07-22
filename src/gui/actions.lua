@@ -5,6 +5,7 @@ local dataHelper = require("src/stuff/data_helper")
 
 -- steps helpers
 local twitchStepsHelper = require("src/stuff/steps/twitch_steps")
+local generalStepsHelper = require("src/stuff/steps/general_steps")
 
 local actionsListCtrl = nil
 local stepsListCtrl = nil
@@ -369,6 +370,7 @@ local function editStep(m, selected, stepHandler, result, step, actionData, step
     if m == wx.wxID_OK then
         stepsListCtrl:SetItemText(selected, 1, stepHandler.getDescription(result))
         local params = result
+        logger.log(stepHandler.postProcess)
         if stepHandler.postProcess then
             params = stepHandler.postProcess(result)
         end
@@ -617,21 +619,14 @@ function _M.init()
     stepsListCtrl:SetImageList(imageList)
 
     local rootStepItem = stepsListCtrl:GetRootItem()
-    
-    -- predefined items
-    --[[_M.stepsData[rootStepItem:GetValue()] = {
-        id = rootStepItem:GetValue(),
-        isGroup = true,
-        name = "root",
-        data = {
-        }
-    }]]
 
     stepsListCtrl:Connect(wx.wxEVT_TREELIST_SELECTION_CHANGED, function(e)
         logger.log("steps selection changed", stepsListCtrl:GetItemText(stepsListCtrl:GetSelection(), 1))
     end)
 
     twitchStepsHelper.init(stepMenu, stepsHandlers)
+    generalStepsHelper.init(stepMenu, stepsHandlers)
+
     stepsListCtrl:Connect(wx.wxEVT_TREELIST_ITEM_CONTEXT_MENU, function(e) -- right click on a step
         if not actionsListCtrl:GetSelection():IsOk() then
             logger.log("no action selected")
@@ -665,7 +660,11 @@ function _M.init()
             local stepHandler = step.prototype
             if not stepHandler then return end
 
-            local m, result = stepHandler.dialogItem.executeModal("Edit " .. stepHandler.name, step.params)
+            local data = step.params
+            if stepHandler.preProcess then
+                data = stepHandler.preProcess(step.params)
+            end
+            local m, result = stepHandler.dialogItem.executeModal("Edit " .. stepHandler.name, data)
             editStep(m, selected, stepHandler, result, step, actionData, stepIndex)
             return
         end
@@ -693,7 +692,7 @@ function _M.init()
             local stepData = {
                 prototype = stepHandler,
                 description = stepHandler.getDescription(result),
-                params = result
+                params = params
             }
             addStep(nil, actionData, stepData)
         end
@@ -726,7 +725,12 @@ function _M.init()
         local stepHandler = step.prototype
         if not stepHandler then return end
 
-        local m, result = stepHandler.dialogItem.executeModal("Edit " .. stepHandler.name, step.params)
+        local data = step.params
+        if stepHandler.preProcess then
+            logger.log("preprocessing")
+            data = stepHandler.preProcess(step.params)
+        end
+        local m, result = stepHandler.dialogItem.executeModal("Edit " .. stepHandler.name, data)
         
         editStep(m, selected, stepHandler, result, step, actionData, stepIndex)
     end)
@@ -861,11 +865,15 @@ function _M.load()
         for row in stmt:nrows() do
             local prototype = findStepByName(row.name)
             if prototype then
+                local data = json.decode(row.data)
+                if prototype.postProcess then
+                    data = prototype.postProcess(data)
+                end
                 local stepData = {
                     dbId = row.id,
                     prototype = prototype,
                     description = row.description,
-                    params = json.decode(row.data)
+                    params = data
                 }
                 addStep(row.id, actionItem, stepData)
             else
