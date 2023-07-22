@@ -13,6 +13,8 @@ local function addTimer(interval, handler, continous)
     handlers[id] = function(event)
         if not continous then
             logger.log("deleting timer " .. tostring(id))
+            local r = Gui.frame:Disconnect(id, wx.wxEVT_TIMER)
+            logger.log("disconnect result", r)
             timers[id] = nil
             timer:Stop()
             timer:delete()
@@ -38,6 +40,8 @@ end
 local function delTimer(id)
     local timer = timers[id]
     if timer then
+        local r = Gui.frame:Disconnect(id, wx.wxEVT_TIMER)
+        logger.log("disconnect result", r)
         timer:Stop()
         timer:delete()
         logger.log("timer deleted", id)

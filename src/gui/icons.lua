@@ -11,6 +11,7 @@ local icons = {
     {path = "images/icons/bug_lines.png", page = "about"},
     
     {path = "images/icons/folder_black.png", page = "folder"},  -- not really a page
+    {path = "images/icons/timer_black.png", page = "timer"},
 
     {path = "images/icons/check_ok.png"},
     {path = "images/icons/warning.png"}

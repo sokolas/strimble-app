@@ -54,7 +54,7 @@ local function init(menu, dialogs)
         name = "Delay",
         dialog = steps.sendMessageDialog,
         dialogItem = Gui.dialogs.DelayStepDialog,
-        icon = iconsHelper.pages.logs,
+        icon = iconsHelper.pages.timer,
         getDescription = function(result) return result.delay .. 'ms' end,
         preProcess = function(params)
             return {
