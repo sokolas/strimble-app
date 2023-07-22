@@ -1,7 +1,8 @@
 local unpack = table.unpack or unpack
 mainarg = table.pack(...)
 
-local tracefile = io.open("trace.log", "w")
+local tracing = false
+local tracefile = tracing and io.open("trace.log", "w")
 
 local showConsole = false
 for i, a in ipairs(mainarg) do
@@ -74,6 +75,7 @@ Logger = {
 }
 
 function Trace(...)
+    if not tracing then return end
     local arg = table.pack(...)
     local s = os.date("[%d %b %Y %H:%M:%S]\t")
     local info = debug.getinfo(2)
@@ -126,7 +128,9 @@ Logger.create = function(name)
             if logger.enabled then
                 io.write(s .. "\n")
             end
-            Trace(src, ...)
+            if tracing then
+                Trace(src, ...)
+            end
         end
 
         logger.err = function(...)
@@ -150,7 +154,9 @@ Logger.create = function(name)
                 end
             end
             io.write(s .. "\n")
-            Trace(src, ...)
+            if tracing then
+                Trace(src, ...)
+            end
         end
         Logger.loggers[name] = logger
     end
@@ -167,7 +173,7 @@ function Log(...)
         s = s .. src .. ":" .. info.currentline .. "\t"
     end
     for i = 1, arg.n do
-        if type(v) == "string" then
+        if type(arg[i]) == "string" then
             s = s .. arg[i]
         else
             s = s .. tostring(arg[i])
@@ -261,7 +267,9 @@ if is_wx_app then
     wx.wxGetApp():MainLoop()
 end
 
-io.close(tracefile)
+if tracing then
+    io.close(tracefile)
+end
 
 -- cleanup
 if Db and Db:isopen() then
