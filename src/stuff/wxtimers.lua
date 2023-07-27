@@ -8,7 +8,7 @@ local handlers = {}
 local function addTimer(interval, handler, continous)
     local timer = wx.wxTimer(Gui.frame)
     local id = timer:GetId()
-    logger.log("adding timer" .. tostring(id))
+    logger.log("adding timer", id, tostring(interval) .. "ms")
 
     handlers[id] = function(event)
         if not continous then

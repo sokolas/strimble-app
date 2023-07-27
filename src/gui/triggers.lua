@@ -2,6 +2,7 @@ local dialogHelper = require("src/gui/dialog_helper")
 local iconsHelper = require("src/gui/icons")
 local json = require("json")
 local commands = require("src/stuff/triggers/commands")
+local timers = require("src/stuff/triggers/timers")
 local dataHelper = require("src/stuff/data_helper")
 local ctxHelper = require("src/stuff/action_context")
 
@@ -25,7 +26,11 @@ local function addChild(parentItem, result)
         edit = parentTreeItem.childEdit,
         getDescription = parentTreeItem.getDescription,
         canDelete = true,
-        delete = function() end,
+        onCreate = parentTreeItem.onCreate,
+        onDelete = parentTreeItem.onDelete,
+        onEnable = parentTreeItem.onEnable,
+        onDisable = parentTreeItem.onDisable,
+        onUpdate = parentTreeItem.onUpdate,
         type = parentTreeItem.childrenType,
         persist = parentTreeItem.persistChildren,
         data = result
@@ -68,6 +73,14 @@ local function addChild(parentItem, result)
     if not triggerListCtrl:IsExpanded(parentItem) then
         triggerListCtrl:Expand(parentItem)
     end
+
+    if item.onCreate then
+        item.onCreate(item, cmd1)
+    end
+
+    if result.enabled and item.onEnable then
+        item.onEnable(item, cmd1)
+    end
 end
 
 local function updateItemInDb(treeItem)
@@ -90,6 +103,12 @@ end
 
 local function updateItem(item, result, getDescription)
     local treeItem = _M.treedata[item:GetValue()]
+
+    logger.log("onUpdate is", treeItem.onUpdate)
+    if treeItem.onUpdate then
+        treeItem.onUpdate(treeItem, item, result)
+    end
+
     treeItem.data = result
     treeItem.name = result.name
 
@@ -97,7 +116,7 @@ local function updateItem(item, result, getDescription)
     local action = dataHelper.findAction(function(a) return a.dbId and a.dbId == result.action end)
     triggerListCtrl:SetItemText(item, 0, result.name)
     triggerListCtrl:SetItemText(item, 2, (result.enabled and "Yes" or "No"))
-    triggerListCtrl:SetItemText(item, 3, getDescription(result))   -- TODO calculate per item type
+    triggerListCtrl:SetItemText(item, 3, getDescription(result))
     if #action > 0 then
         triggerListCtrl:SetItemText(item, 4, (action[1].name or ""))
     else
@@ -112,6 +131,15 @@ end
 local function deleteItem(item, deleteFromDb)
     logger.log("Deleting " .. tostring(item:GetValue()))
     local treeItem = _M.treedata[item:GetValue()]
+
+    if treeItem.onDisable then
+        treeItem.onDisable(treeItem, item)
+    end
+
+    if treeItem.onDelete then
+        treeItem.onDelete(treeItem, item)
+    end
+
     local dbId = treeItem.dbId
     _M.treedata[item:GetValue()] = nil
 
@@ -138,7 +166,7 @@ end
 local function toggleItem(item, enabled)
     logger.log("Toggling " .. tostring(item:GetValue()) .. " to " .. tostring(enabled))
     local treeItem = _M.treedata[item:GetValue()]
-    _M.treedata[item:GetValue()].data.enabled = enabled
+    treeItem.data.enabled = enabled
 
     -- update UI
     triggerListCtrl:SetItemText(item, 2, (enabled and "Yes" or "No"))
@@ -146,6 +174,14 @@ local function toggleItem(item, enabled)
     -- persist
     logger.log(treeItem.dbId, treeItem.data.name, "updating")
     updateItemInDb(treeItem)
+
+    if enabled and treeItem.onEnable then
+        treeItem.onEnable(treeItem, item)
+    end
+
+    if not enabled and treeItem.onDisable then
+        treeItem.onDisable(treeItem, item)
+    end
 end
 
 local function actionsUpdated()
@@ -173,6 +209,53 @@ local function actionsUpdated()
     end
 end
 
+local function onTrigger(type, data)
+    if type == "twitch_privmsg" then    -- assume data has a text field
+        if data and data.text then
+            local matchedCommands = commands.matchCommands(data.text)
+            if matchedCommands then
+                for i, cmd in ipairs(matchedCommands) do
+                    if cmd.action then
+                        local actions = dataHelper.findAction(dataHelper.enabledByDbId(cmd.action))
+                        local action = actions[1]
+                        if action then
+                            local queue = dataHelper.getActionQueue(action.data.queue)
+                            logger.log("action found:", action.data.name, action.data.description, "queue:", action.data.queue, #queue)
+                            local ctx = ctxHelper.create({
+                                user = data.user,
+                                value = data.text, -- TODO parse into command and params
+                                channel = data.channel
+                            }, cmd.action)
+                            table.insert(queue, ctx)
+                            logger.log("context created")
+                            Gui.frame:QueueEvent(wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, ACTION_DISPATCH))
+                        else
+                            logger.log("action mapped but not found for command", cmd.name)
+                        end
+                    else
+                        logger.log("no action mapped for ", cmd.name)
+                    end
+                end
+            end
+        end
+    elseif type == "timer" then
+        if data.action then
+            local actions = dataHelper.findAction(dataHelper.enabledByDbId(data.action))
+            local action = actions[1]
+            if action then
+                local queue = dataHelper.getActionQueue(action.data.queue)
+                logger.log("action found:", action.data.name, action.data.description, "queue:", action.data.queue, #queue)
+                local ctx = ctxHelper.create({}, data.action)
+                table.insert(queue, ctx)
+                logger.log("context created")
+                Gui.frame:QueueEvent(wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, ACTION_DISPATCH))
+            else
+                logger.log("action mapped but not found for timer", data.name)
+            end
+        end
+    end
+end
+
 -- creates
 --      gui.triggers.triggersList
 --      gui.dialogs.CommandDialog
@@ -181,6 +264,9 @@ end
 local function init()
     local commandDlg = commands.createCommandDlg()
     if not commandDlg then return end
+
+    local timerDlg = timers.createTimerDialog()
+    if not timerDlg then return end
 
     local triggerMenu = wx.wxMenu()
     -- triggerMenu:SetTitle("ololo")
@@ -287,6 +373,13 @@ local function load()
     local item = triggerListCtrl:GetFirstItem()
     while item:IsOk() do
         -- logger.log("item", item:GetValue())
+        local i = _M.treedata[item:GetValue()]
+        if i and i.onDisable and not i.isGroup then
+            i.onDisable(i, item)
+        end
+        if i and i.onDelete and not i.isGroup then
+            i.onDelete(i, item)
+        end
         _M.treedata[item:GetValue()] = nil
         item = triggerListCtrl:GetNextItem(item)
     end
@@ -313,6 +406,18 @@ local function load()
         end
     end
 
+    -- timers
+    local timersGuiItem, timersTreeItem = timers.createTimersFolder(triggerListCtrl, triggerListCtrl:GetRootItem(), onTrigger)
+    _M.treedata[timersTreeItem.id] = timersTreeItem
+    for row in Db:nrows("SELECT * FROM triggers WHERE type = 'timer'") do
+        local result = json.decode(row.data)
+        result.dbId = row.id
+        addChild(timersGuiItem, result)
+        if not triggerListCtrl:IsExpanded(timersGuiItem) then
+            triggerListCtrl:Expand(timersGuiItem)
+        end
+    end
+
     dataHelper.setTriggers(_M.treedata)
     logger.log("Triggers load OK")
 end
@@ -321,37 +426,6 @@ _M.load = load
 _M.export = function()  -- to json
 end
 
-_M.onTrigger = function(type, data)
-    if type == "twitch_privmsg" then    -- assume data has a text field
-        if data and data.text then
-            -- return commands.matchCommands(data.text)
-            local matchedCommands = commands.matchCommands(data.text)
-            if matchedCommands then
-                for i, cmd in ipairs(matchedCommands) do
-                    if cmd.action then
-                        local actions = dataHelper.findAction(dataHelper.enabledByDbId(cmd.action))
-                        local action = actions[1]
-                        if action then
-                            local queue = dataHelper.getActionQueue(action.data.queue)
-                            logger.log("action found:", action.data.name, action.data.description, "queue:", action.data.queue, #queue)
-                            local ctx = ctxHelper.create({
-                                user = data.user,
-                                value = data.text, -- TODO parse into command and params
-                                channel = data.channel
-                            }, cmd.action)
-                            table.insert(queue, ctx)
-                            logger.log("context created")
-                            Gui.frame:QueueEvent(wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, ACTION_DISPATCH))
-                        else
-                            logger.log("action mapped but not found for", cmd.name)
-                        end
-                    else
-                        logger.log("no action mapped for ", cmd.name)
-                    end
-                end
-            end
-        end
-    end
-end
+_M.onTrigger = onTrigger
 
 return _M

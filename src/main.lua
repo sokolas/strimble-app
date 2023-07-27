@@ -212,7 +212,6 @@ end
 
 Lutf8 = require("lua-utf8")
 NetworkManager = require("src/netutils")
-DelayManager = require("src/delayutils")
 Json = require("json")
 
 -- local _sq = package.loadlib("bin/sqlite3.dll", "sqlite3_version") -- hack to preload sqlite3 dll
@@ -254,7 +253,7 @@ end
 
 dofile("src/migrations/migrations.lua")  -- do this for db file!
 
-Twitch = require("src/twitch")
+Twitch = require("src/integrations/twitch")
 
 -- UI init
 dofile("src/xml_ui.lua")

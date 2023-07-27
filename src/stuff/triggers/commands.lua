@@ -108,6 +108,37 @@ local function matchCommands(message)
     end
 end
 
+local function addOrEdit(title, mode)
+    return function(id, data)
+        local actionIds, actionNames = dataHelper.getActionData()
+        local init = { action = function(c) c:Set(actionNames) end }
+        local dlgData = CopyTable(data)
+        dlgData.action = nil
+        for i = 1, #actionIds do
+            if actionIds[i] == data.action then
+                dlgData.action = actionNames[i]
+                break
+            end
+        end
+        local ctx = nil
+        if mode == "edit" then
+            ctx = { id = id }
+        end
+        local m, result = Gui.dialogs.CommandDialog.executeModal(title, dlgData, init, ctx)
+        if m == wx.wxID_OK then
+            local actionName = result.action
+            result.action = nil
+            for i = 1, #actionNames do
+                if actionNames[i] == actionName then
+                    result.action = actionIds[i]
+                    break
+                end
+            end
+            return result
+        end
+    end
+end
+
 local function createTwitchCmdsFolder(triggerListCtrl, rootTriggerItem)
     local twitchCmds = triggerListCtrl:AppendItem(rootTriggerItem, "Twitch commands", iconsHelper.pages.twitch,
         iconsHelper.pages.twitch)
@@ -123,56 +154,8 @@ local function createTwitchCmdsFolder(triggerListCtrl, rootTriggerItem)
             return result.text .. " (" .. commandWhere[result.where + 1] ..")"
         end,
         -- canDeleteChildren = true,
-        add = function(id, data)
-            local actionIds, actionNames = dataHelper.getActionData()
-            local init = { action = function(c) c:Set(actionNames) end }
-            local dlgData = CopyTable(data)
-            dlgData.action = nil
-            for i = 1, #actionIds do
-                if actionIds[i] == data.action then
-                    dlgData.action = actionNames[i]
-                    break
-                end
-            end
-            local m, result = Gui.dialogs.CommandDialog.executeModal("Add command", dlgData, init)
-            if m == wx.wxID_OK then
-                local actionName = result.action
-                result.action = nil
-                for i = 1, #actionNames do
-                    if actionNames[i] == actionName then
-                        result.action = actionIds[i]
-                        break
-                    end
-                end
-                return result
-            end
-        end,
-        childEdit = function(id, data)
-            local actionIds, actionNames = dataHelper.getActionData()
-            local init = { action = function(c) c:Set(actionNames) end }
-            local dlgData = CopyTable(data)
-            dlgData.action = nil
-            for i = 1, #actionIds do
-                if actionIds[i] == data.action then
-                    dlgData.action = actionNames[i]
-                    break
-                end
-            end
-            local m, result = Gui.dialogs.CommandDialog.executeModal("Edit command", dlgData, init, { id = id })
-            if m == wx.wxID_OK then
-                local actionName = result.action
-                logger.log(actionName)
-                result.action = nil
-                for i = 1, #actionNames do
-                    if actionNames[i] == actionName then
-                        result.action = actionIds[i]
-                        break
-                    end
-                end
-                logger.log(result.action)
-                return result
-            end
-        end,
+        add = addOrEdit("Add command", "add"),
+        childEdit = addOrEdit("Edit command", "edit"),
         data = { -- default values for new children
             name = "Example command",
             text = "!hello",
