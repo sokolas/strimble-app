@@ -133,6 +133,33 @@ Logger.create = function(name)
             end
         end
 
+        logger.force = function(...)
+            local arg = table.pack(...)
+            local s = os.date("[%d %b %Y %H:%M:%S]\t") .. logger.name_str
+            local info = debug.getinfo(2)
+            local src = ""
+            if info then
+                src = string.gsub(info.source, ".\\", "") .. ":" .. info.currentline
+                s = s .. src .. "\t"
+            end
+            for i = 1, arg.n do
+                if type(arg[i]) == "string" then
+                    s = s .. arg[i]
+                else
+                    s = s .. tostring(arg[i])
+                end
+                if i < arg.n then
+                    s = s .. "\t"
+                end
+            end
+            
+            io.write(s .. "\n")
+            
+            if tracing then
+                Trace(src, ...)
+            end
+        end
+
         logger.err = function(...)
             -- Log(logger.name_str, "ERROR\t", ...)
             local arg = table.pack(...)

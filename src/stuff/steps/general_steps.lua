@@ -29,11 +29,17 @@ local function delay(ctx, params)
     return true
 end
 
+local function log(ctx, params)
+    local output = ctx:interpolate(params.message)
+    logger.force(output)
+    return true
+end
+
 local function init(menu, dialogs)
     -- delay
     steps.delayItem = submenu:Append(wx.wxID_ANY, "delay")
 
-    steps.sendMessageDialog = dialogHelper.createDataDialog(Gui, "DelayStepDialog", "Delay", {
+    steps.delayDialog = dialogHelper.createDataDialog(Gui, "DelayStepDialog", "Delay", {
         {
             name = "delay",
             label = "Delay (ms)",
@@ -52,7 +58,7 @@ local function init(menu, dialogs)
     
     dialogs[steps.delayItem:GetId()] = {
         name = "Delay",
-        dialog = steps.sendMessageDialog,
+        dialog = steps.delayDialog,
         dialogItem = Gui.dialogs.DelayStepDialog,
         icon = iconsHelper.pages.timer,
         getDescription = function(result) return result.delay .. 'ms' end,
@@ -71,6 +77,46 @@ local function init(menu, dialogs)
         code = delay,
         data = {
             delay = "1000"
+        }
+    }
+
+    -- log
+    steps.logItem = submenu:Append(wx.wxID_ANY, "log")
+
+    steps.logDialog = dialogHelper.createDataDialog(Gui, "LogStepDialog", "Log", {
+        {
+            name = "message",
+            label = "Message",
+            type = "text"
+        }
+    },
+    function(data, context)
+        if not data.message or data.message == "" then
+            return false, "Message can't be empty"
+        else
+            local start, finish = Lutf8.find(data.message, var_pattern)
+            while start do
+                local var_expr = Lutf8.sub(data.message, start, finish)
+                if not string.startsWith(var_expr, '$$') then
+                    local var = Lutf8.sub(var_expr, 2)
+                    logger.log("var", var)
+                end
+                start, finish = Lutf8.find(data.message, var_pattern, finish)
+            end
+            
+            return true
+        end
+    end)
+    
+    dialogs[steps.logItem:GetId()] = {
+        name = "Log",
+        dialog = steps.logDialog,
+        dialogItem = Gui.dialogs.LogStepDialog,
+        icon = iconsHelper.pages.logs,
+        getDescription = function(result) return result.message end,
+        code = log,
+        data = {
+            message = "User: $user, channel: $channel"
         }
     }
 

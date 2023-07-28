@@ -7,7 +7,11 @@ local submenu = wx.wxMenu()
 local steps = {}
 
 local function sendMessage(ctx, params)
-    Twitch.sendToChannel(params.message, ctx.data.channel)
+    if params.interpolate then
+        Twitch.sendToChannel(ctx:interpolate(params.message), ctx.data.channel)
+    else
+        Twitch.sendToChannel(params.message, ctx.data.channel)
+    end
     return true
 end
 
@@ -20,6 +24,11 @@ local function init(menu, dialogs)
             name = "message",
             label = "Message",
             type = "text"
+        },
+        {
+            name = "interpolate",
+            text = "Use variables",
+            type = "check"
         }
     },
     function(data, context)
@@ -39,7 +48,8 @@ local function init(menu, dialogs)
         postProcess = function(result) return result end,
         code = sendMessage,
         data = {
-            message = "hello world"
+            message = "hello world",
+            interpolate = false
         }
     }
 
