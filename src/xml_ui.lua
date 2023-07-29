@@ -6,6 +6,7 @@ local dialogHelper = require("src/gui/dialog_helper")
 local triggersHelper = require("src/gui/triggers")
 local actionsHelper = require("src/gui/actions")
 local dataHelper = require("src/stuff/data_helper")
+local audio = require("src/stuff/audio")
 
 local ThingsToKeep = {} -- variable to store references to various stuff that needs to be kept
 local accelTable = {}
@@ -399,6 +400,16 @@ function main()
         end,
         event
         )
+        -- audio
+        xpcall(function(event)
+            audio.dispatch()
+        end,
+        function(err)
+            -- timer:Stop()
+            logger.log("audio dispatch loop error", debug.traceback(err))
+        end,
+        event
+        )
     end
     wxTimers.addTimer(50, event_loop, true)
 
@@ -562,6 +573,7 @@ function main()
     findWindow("m_button5", "wxButton", "button5", "misc")
     findWindow("m_button6", "wxButton", "button6", "misc")
     findWindow("m_button7", "wxButton", "button7", "misc")
+    findWindow("aboutPanel", "wxPanel", "aboutPanel", "misc")
     
     findWindow("loggingSetupPanel", "wxPanel", "panel", "logging")
     

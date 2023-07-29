@@ -286,7 +286,9 @@ Twitch = require("src/integrations/twitch")
 dofile("src/xml_ui.lua")
 -- dofile("src/test/sqlite.lua")
 -- dofile("src/timer.lua")
+local audio = require("src/stuff/audio")
 
+audio.init()
 -- run
 main()
 if is_wx_app then
@@ -304,3 +306,4 @@ end
 if DataDb and DataDb:isopen() then
     DataDb:close()
 end
+audio.destroy()

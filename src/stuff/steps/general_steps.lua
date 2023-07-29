@@ -1,7 +1,7 @@
 local dialogHelper = require("src/gui/dialog_helper")
 local iconsHelper = require("src/gui/icons")
 local wxtimers = require("src/stuff/wxtimers")
-
+local audio = require("src/stuff/audio")
 
 local _M = {}
 
@@ -35,9 +35,14 @@ local function log(ctx, params)
     return true
 end
 
+local function playSound(ctx, params)
+    audio.loadAndPlay(params.filename, nil, true)
+    return true
+end
+
 local function init(menu, dialogs)
     -- delay
-    steps.delayItem = submenu:Append(wx.wxID_ANY, "delay")
+    steps.delayItem = submenu:Append(wx.wxID_ANY, "Delay")
 
     steps.delayDialog = dialogHelper.createDataDialog(Gui, "DelayStepDialog", "Delay", {
         {
@@ -81,7 +86,7 @@ local function init(menu, dialogs)
     }
 
     -- log
-    steps.logItem = submenu:Append(wx.wxID_ANY, "log")
+    steps.logItem = submenu:Append(wx.wxID_ANY, "Log")
 
     steps.logDialog = dialogHelper.createDataDialog(Gui, "LogStepDialog", "Log", {
         {
@@ -117,6 +122,28 @@ local function init(menu, dialogs)
         code = log,
         data = {
             message = "User: $user, channel: $channel"
+        }
+    }
+
+    --sound
+    steps.playSoundItem = submenu:Append(wx.wxID_ANY, "Play sound")
+    steps.soundDialog = dialogHelper.createDataDialog(Gui, "PlaySoundStepDialog", "PlaySound", {
+        {
+            name = "filename",
+            label = "File name",
+            type = "text"
+        }
+    })
+
+    dialogs[steps.playSoundItem:GetId()] = {
+        name = "Play sound",
+        dialog = steps.soundDialog,
+        dialogItem = Gui.dialogs.PlaySoundStepDialog,
+        icon = iconsHelper.pages.logs,
+        getDescription = function(result) return result.filename end,
+        code = playSound,
+        data = {
+            filename = "example.wav"
         }
     }
 
