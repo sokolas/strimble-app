@@ -44,6 +44,16 @@ uint32_t pollnet_get_nanoid(char* dest, uint32_t dest_size);
 void pollnet_sleep_ms(uint32_t milliseconds);
 ]]
 
+--[[
+  possible states:
+
+  open
+  opening
+  error
+  closed
+  
+]]
+
 local pollnet
 if jit.os == 'Windows' then
   pollnet = ffi.load(LIBDIR .. "pollnet.dll")

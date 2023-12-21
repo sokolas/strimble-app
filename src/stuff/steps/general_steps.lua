@@ -132,6 +132,14 @@ local function init(menu, dialogs)
             name = "filename",
             label = "File name",
             type = "text"
+        },
+        {
+            name = "file_selector",
+            label = "",
+            value = "Select file...",
+            type = "file",
+            ref = "filename",
+            wildcard = "Audio files (MP3, WAV, OGG)|*.mp3;*.wav;*.ogg"
         }
     })
 

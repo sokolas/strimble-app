@@ -176,6 +176,22 @@ local function createDataDialog(gui, dlgName, controlsName, controls, validate)
             widget = wx.wxChoice(controlsBox, wx.wxID_ANY, wx.wxDefaultPosition, wx.wxDefaultSize, v.choices)
         elseif v.type == "combo" then
             widget = wx.wxComboBox(controlsBox, wx.wxID_ANY, v.value or "", wx.wxDefaultPosition, wx.wxDefaultSize, v.choices or {})
+        elseif v.type == "file" then
+            -- fields: value - button name and file dialog title; wildcard - file masks; ref - widget to set the filename to
+            widget = wx.wxButton(controlsBox, wx.wxID_ANY, v.value or "Open file")
+            dlg:Connect(widget:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, function(event)
+                local fileDialog = wx.wxFileDialog(wx.NULL,
+                v.value or "Open file",
+                "",
+                "",
+                v.wildcard or "All files (*)|*",
+                wx.wxFD_OPEN + wx.wxFD_FILE_MUST_EXIST)
+
+                if fileDialog:ShowModal() == wx.wxID_OK then
+                    local filename = fileDialog:GetPath()
+                    setControlValue(gui[dlgName][v.ref], filename)
+                end
+            end)
         else
             logger.err("Unknown widget type: " .. tostring(v.type))
             dlg:Destroy()

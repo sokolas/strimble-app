@@ -1,5 +1,7 @@
 local url = require("socket.url")
 local logger = Logger.create("twitch")
+local twitch_chat_logger = Logger.create("twitch-chat-ws")
+local Websocket = require("src/stuff/websocket")
 
 local scopes = {
     "bits:read",
@@ -10,6 +12,7 @@ local scopes = {
     "channel:manage:redemptions",
     "channel:manage:moderators",
     --   "channel:manage:videos",
+    "channel:read:ads",
     "channel:read:goals",
     "channel:read:hype_train",
     "channel:read:polls",
@@ -19,6 +22,7 @@ local scopes = {
     "moderation:read",
     "moderator:manage:banned_users",
     "moderator:read:blocked_terms",
+    "moderator:read:followers",
     "moderator:manage:blocked_terms",
     "moderator:manage:automod",
     "moderator:read:automod_settings",
@@ -26,7 +30,9 @@ local scopes = {
     "moderator:read:chat_settings",
     "moderator:manage:chat_settings",
     "moderator:read:chatters",
+    "moderator:manage:shoutouts",
     "user:manage:blocked_users",
+    "user:read:chat",
     "user:read:follows",
     "user:read:subscriptions",
     "channel:moderate",
@@ -40,6 +46,7 @@ table.sort(scopes)
 local auth_url = "https://id.twitch.tv/oauth2/authorize"
 local client_id = "yoe4w8ei1vm5q5b0w4ndqqzpvrs7dy"
 local redirect_url = "http://localhost:10115/tw_user"
+local chat_url = "wss://irc-ws.chat.twitch.tv:443"
 
 local function toChannel(str)
     local username = Lutf8.lower(str or '')
@@ -70,6 +77,8 @@ _M.username = nil
 _M.channel = nil
 _M.userId = nil
 _M.redirect_url = redirect_url
+_M.reconnect_interval = 15000
+_M.auto_reconnect = true
 
 _M.setState = function(newState)
     local oldState = _M.state
@@ -198,7 +207,6 @@ end
 
 _M.setToken = function(token)
     _M.token = token
-    _M.setState("token_set")
 end
 
 _M.getAuthUrl = function()
@@ -243,7 +251,7 @@ _M.apiGet = function(url)
     return NetworkManager.get(url, {["Authorization"] = "Bearer " .. _M.token, ["Client-Id"] = client_id})
 end
 
-_M.getUserInfo = function(callback)
+_M.getUserInfo = function(callback) -- unused
     if not _M.token then
         return false, "token is not set"
     end
@@ -259,13 +267,14 @@ _M.validateToken = function()
     end
     local ok, res = NetworkManager.get("https://id.twitch.tv/oauth2/validate", {["Authorization"] = "OAuth " .. _M.token, ["Client-Id"] = client_id})
     if ok then
-        local text = res.body
+        local text = (res or {}).body
         local ok, data = pcall(Json.decode, text)
         if not ok then
             logger.err("Error validating twitch token", data)
             return false, data
         else
             -- logger.log(text)
+            _M.userId = data.user_id
             if not data.scopes then
                 return false, data
             else
@@ -304,97 +313,92 @@ local function getMsg(params)
 end
 
 local function sendRaw(cmd)
-    if _M.chatSock and (_M.state == "connected" or _M.state == "joined") then
-        logger.log("sending [" .. (cmd or '') .. "]")
-        _M.chatSock:send(cmd)
-        return true
-    else
-        return false
-    end
+    logger.log("sending [" .. (cmd or '') .. "]")
+    _M.chat_socket:send(cmd)
 end
 
-local sockStatus
-
-local function handleWsStatus(ok, oldStatus, newStatus)
+local function handleWsStatus(oldStatus, newStatus)
     logger.log("*** " .. newStatus)
-    sockStatus = newStatus
+    _M.setState(newStatus)
     if not _M.token or not _M.username then
         logger.err("token or username is not set")
         return
     end
-    local sock = _M.chatSock
-    if newStatus == "open" then
-        _M.setState("connected")
+    local sock = _M.chat_socket
+    if newStatus == "connected" then
         sock:send("CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands")
-        -- print("PASS " .. _M.token)
         sock:send("PASS oauth:" .. _M.token)
         -- local anon_user_name = "justinfan" .. math.random(1, 100000)
-        -- print("NICK " .. _M.username)
         sock:send("NICK " .. _M.username)
-        -- sock:send("JOIN " .. toChannel(_M.channel or _M.username))
-    elseif newStatus == "error" then
-        logger.err("twitch connection error")
-        _M.setState("error")
+    elseif newStatus == "error" or newStatus == "closed" then
+        --[[logger.err("twitch connection error")
+        if _M.auto_reconnect then
+            logger.log("reconnecting")
+            _M.setState("reconnecting")
+        else
+            logger.log("not reconnecting")
+            _M.setState("error")
+        end]]
         -- sock:close()
     end
 end
 
 local userCount = 0
 
-local function handleWsMessage(ok, msg)
-    if ok then
-        local messages = SplitMessage(msg, "\r\n")
-        for i, line in ipairs(messages) do
-            if line and line ~= "" then
-                logger.log(line)
-                local ok, message = _M.parseMessage(line)
-                if ok then
-                    local channel = getChannel(message.params)
-                    local text = getMsg(message.params)
-                    local msgId = (message.params or {})["msg-id"]
+local function handleWsMessage(msg)
+    local messages = SplitMessage(msg, "\r\n")
+    for i, line in ipairs(messages) do
+        if line and line ~= "" then
+            logger.log(line)
+            local ok, message = _M.parseMessage(line)
+            if ok then
+                local channel = getChannel(message.params)
+                local text = getMsg(message.params)
+                local msgId = (message.params or {})["msg-id"]
                     
-                    if message.command ~= "JOIN" then   -- extend the list of ignored commands?
-                        logger.log("prefix", message.prefix, "command", message.command, "channel", channel, "msgId", msgId)
-                        logger.log("text: " , text)
-                    end
+                if message.command ~= "JOIN" then   -- extend the list of ignored commands?
+                    logger.log("prefix", message.prefix, "command", message.command, "channel", channel, "msgId", msgId)
+                    logger.log("text: " , text)
+                end
 
-                    if not message.prefix then
-                        if message.command == "PING" then
-                            sendRaw("PONG :tmi.twitch.tv")
-                        elseif message.command == "PONG" then
-                            -- do nothing
-                        else
-                            logger.log("unknown command without prefix")
+                if not message.prefix then
+                    if message.command == "PING" then
+                        sendRaw("PONG :tmi.twitch.tv")
+                    elseif message.command == "PONG" then
+                        -- do nothing
+                    else
+                        logger.log("unknown command without prefix")
+                    end
+                elseif message.prefix == "tmi.twitch.tv" then
+                    if message.command == "376" then    -- connected
+                        sendRaw("JOIN " .. toChannel(_M.channel or _M.username))
+                    elseif message.command == "ROOMSTATE" then
+                        if _M.chat_socket.state ~= "joined" then
+                            _M.chat_socket:setState("joined")
+                            -- emit status change
                         end
-                    elseif message.prefix == "tmi.twitch.tv" then
-                        if message.command == "376" then    -- connected
-                            sendRaw("JOIN " .. toChannel(_M.channel or _M.username))
-                        elseif message.command == "ROOMSTATE" then
-                            if _M.state ~= "joined" then
-                                _M.setState("joined")
-                                -- emit status change
-                            end
-                        elseif message.command == "RECONNECT" or message == "SERVERCHANGE" then
+                    elseif message.command == "RECONNECT" or message == "SERVERCHANGE" then
+                        logger.log("reconnect received")
+                        _M.chat_socket:connect()
+                    end
+                else
+                    if message.command == "PRIVMSG" then
+                        -- logger.log(line)
+                        -- logger.log(Lutf8.escape("%x{0001}ACTION"))
+                        -- TODO additional checks: bits, action, etc https://github.com/tmijs/tmi.js/blob/main/lib/ClientBase.js#L1034
+                        if _M.userMessageListener then
+                            _M.userMessageListener({
+                                channel = channel,
+                                user = Lutf8.sub(message.prefix, 1, Lutf8.find(message.prefix, "!", 1, true) - 1),
+                                text = text,
+                                tags = message.tags
+                            })
+                        end
+                        if text == "!reconnect" then
                             logger.log("reconnect received")
-                            _M.reconnect()
+                            _M.chat_socket:connect()
                         end
                     else
-                        if message.command == "PRIVMSG" then
-                            -- logger.log(line)
-                            -- logger.log(Lutf8.escape("%x{0001}ACTION"))
-                            -- TODO additional checks: bits, action, etc https://github.com/tmijs/tmi.js/blob/main/lib/ClientBase.js#L1034
-                            if _M.userMessageListener then
-                                _M.userMessageListener({
-                                    channel = channel,
-                                    user = Lutf8.sub(message.prefix, 1, Lutf8.find(message.prefix, "!", 1, true) - 1),
-                                    text = text,
-                                    tags = message.tags
-                                })
-                            end
-                            -- if text == "!reconnect" then
-                                -- _M.reconnect()
-                            -- end
-                        else
                         --[[elseif message.command == "353" then    -- names
                             _M.userMessageHandler({
                                 channel = "***",
@@ -410,16 +414,12 @@ local function handleWsMessage(ok, msg)
                                 user = "***",
                                 text = "users: " .. tostring(userCount)
                             })]]
-                        end
                     end
-
-                else
-                    logger.err("can't parse line:", line)
                 end
+            else
+                logger.err("can't parse line:", line)
             end
         end
-    else
-        -- check for manual disconnect
     end
 end
 
@@ -431,42 +431,28 @@ _M.setStateListener = function(f)
     _M.userStateListener = f
 end
 
-local function connect()
+_M.connect = function()
     logger.log("connecting to twitch")
+    if _M.chat_socket.state == "connecting" then
+        logger.err("state: connecting, skipping")
+        return
+    end
+    -- _M.setState("connecting")
+
     if not _M.token then
+        _M.chat_socket:reconnect("error")
         return false, "token is not set"
     end
-    if not _M.username or _M.username == '' then
+    if (not _M.username) or (_M.username == '') then
+        _M.chat_socket:reconnect("error")
         return false, "username is not set"
-        --[[local ok, result = _M.apiGet("https://api.twitch.tv/helix/users")
-        if ok and result then
-            -- print(result.status)
-            local status = string.sub(result.status, 1, 3)
-                if status == "200" then
-                    -- print(result.status, result.body)
-                    local data = (Json.decode(result.body)).data
-                    -- print(data[1].display_name)
-                elseif status == "401" then
-                    logger.err("Token is invalid")
-                else
-                    logger.log("unknown status", result.status)
-                end
-        end]]
     end
     _M.channel = _M.channel or _M.username
-    if not _M.channel or _M.channel == '' then
+    if (not _M.channel) or (_M.channel == '') then
+        _M.chat_socket:reconnect("error")
         return false, "channel is not set"
     end
-    local sock = pollnet.open_ws("wss://irc-ws.chat.twitch.tv:443")
-    
-    if sock then
-        _M.chatSock = sock
-        local id = NetworkManager.addSocket(_M.chatSock, handleWsMessage, handleWsStatus)
-        _M.chatSockId = id
-    else
-        handleWsStatus(false, nil, "error")
-    end
-    -- print("ws is", id)
+    _M.chat_socket:connect()
 end
 
 _M.sendToChannel = function(text, channel)
@@ -474,23 +460,14 @@ _M.sendToChannel = function(text, channel)
         logger.err("No channel specified")
         return
     end
-    if _M.state ~= "joined" then logger.err("Not joined to any channel") end
+    if _M.chat_socket.state ~= "joined" then logger.err("Not joined to any channel") end
     local c = channel or _M.channel
     sendRaw("PRIVMSG " .. toChannel(c) .. " :" .. text)   -- todo: escape
 end
 
-_M.reconnect = function()
-    _M.setState("reconnecting") -- do we need it? not sure
-    if _M.chatSock then
-        if _M.chatSockId then
-            NetworkManager.delSocket(_M.chatSockId)
-            _M.chatSockId = nil
-        else
-            _M.chatSock:close()
-        end
-        _M.chatSock = nil
-    end
-    connect()
+_M.init = function()
+    _M.chat_socket = Websocket:create("twitch-chat-ws", chat_url, _M.reconnect_interval, _M.reconnect_interval,
+    {"joined"}, handleWsMessage, handleWsStatus, twitch_chat_logger, true)
 end
 
 _M.toUsername = toUsername

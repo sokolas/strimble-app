@@ -4,6 +4,7 @@ local _M = {}
 
 local timers = {}
 local handlers = {}
+local options = {}
 
 local function addTimer(interval, handler, continous)
     local timer = wx.wxTimer(Gui.frame)
@@ -30,7 +31,17 @@ local function addTimer(interval, handler, continous)
     local mode = (continous and wx.wxTIMER_CONTINUOUS) or wx.wxTIMER_ONE_SHOT
     -- print("mode", mode)
     timer:Start(interval, mode)
+    options[id] = {
+        interval = interval,
+        mode = mode
+    }
     return id
+end
+
+local function resetTimer(id)
+    local option = options[id]
+    logger.log("Resetting timer", id, option)
+    timers[id]:Start(option.interval, option.mode)
 end
 
 local function addWxTimerRaw(id, timer)
@@ -65,6 +76,7 @@ _M.handlers = handlers
 
 _M.addTimer = addTimer
 _M.delTimer = delTimer
+_M.resetTimer = resetTimer
 _M.stopAll = stopAll
 
 return _M

@@ -11,3 +11,6 @@ bin/clibs/*.dll
 *.sqlite3
 *.dump
 *.log
+*.ogg
+*.wav
+*.mp3

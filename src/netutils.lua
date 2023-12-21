@@ -52,7 +52,9 @@ end
 -- add an open socket to the table for dispatching
 local function addSocket(sock, handler, statusHandler, debug)
     local id = pollnet.nanoid()
-    if debug then logger.log("added socket " .. id) end
+    -- if debug then
+        logger.force("added socket " .. id)
+    -- end
     _M.sockets[id] = {
         sock = sock,
         handler = handler,
@@ -64,7 +66,7 @@ end
 
 -- does not call the status handler because this function is supposed to be calle dmanually
 local function delSocket(id)
-    logger.log("deleting and closing " .. id)
+    logger.force("deleting and closing " .. id)
     if _M.sockets[id] then
         if _M.sockets[id].sock then
             _M.sockets[id].sock:close()
@@ -83,7 +85,7 @@ local function dispatch()
                 -- print("polling", id)
                 local ok, msg = v.sock:poll()
                 local status = v.sock:status()
-                if v.debug then logger.log(id, ok, status, msg) end
+                if v.debug then logger.force(id, ok, status, msg) end
                 if status ~= v.status and v.statusHandler then
                     v.statusHandler(ok, v.status, status)
                 end
@@ -92,23 +94,57 @@ local function dispatch()
                 local finished = false
                 if v.handler and msg then
                     -- print("handling " .. id)
-                    -- logger.log(id, "handling")
+                    if v.debug then logger.force(id, "handling") end
                     finished = v.handler(ok, msg)  -- msg can contain an error if not ok
-                    -- logger.log(id, "finished", finished)
+                    if v.debug then logger.force(id, "finished:", finished) end
                 end
                 -- TODO check if the socket is still there in case it was closed in the handler???
-                if not ok or finished then
+                if (not ok) or finished then
                     -- if v.debug then
-                        logger.log("closing " .. id)
+                        logger.force("closing " .. id)
                     -- end
                     
                     v.sock:close()
                     _M.sockets[id] = nil
                 end
                 finished = _M.sockets[id] == nil   -- if the socket was deleted don't poll it again
+                -- if v.debug then logger.force(id .. ": socket was deleted") end
             -- until not ok or not msg or finished
         end
     end
+end
+
+local function execute(this, url, method, headers, body, debug)
+    local sock
+    if method == "GET" then
+        sock = pollnet.http_get(url, headers)
+    elseif method == "POST" then
+        sock = pollnet.http_post(url, headers, body)
+    else
+        return false, {error = "unsupported method"}
+    end
+    local resp_reader = coroutine.create(_resp_reader)
+    local ok, resp = coroutine.resume(resp_reader, this)   -- init
+    if not ok then
+        logger.err("http request error (init)", resp)  -- shouldn't be here, but still
+        sock:close()
+        return false
+    end
+    addSocket(sock, function(ok, msg)
+        -- print("inside reader", ok, msg)
+        local ok, caller_ok, resp = coroutine.resume(resp_reader, ok, msg)
+        -- print("reader resume result", ok, caller_ok, resp)
+        if not ok then
+            logger.err("http request error (read)", resp)
+        end
+        if caller_ok == false then
+            logger.err("Error in caller", resp)
+        end
+        return coroutine.status(resp_reader) == "dead" -- processing ended, we won't be able to handle further data anyway
+    end, nil, debug)
+    local ok, full_resp = coroutine.yield()
+    return ok, full_resp
+
 end
 
 -- suspendable; performs a GET request
@@ -118,28 +154,16 @@ local function doGet(url, headers)
         logger.err("Can't use suspendable 'doGet' from non-coroutine", debug.traceback())
         return false
     end
-    local sock = pollnet.http_get(url, headers)
-    local resp_reader = coroutine.create(_resp_reader)
-    local ok, resp = coroutine.resume(resp_reader, this)   -- init
-    if not ok then
-        logger.err("http get error (init)", resp)  -- shouldn't be here, but still
-        sock:close()
+    return execute(this, url, "GET", headers)
+end
+
+local function doPost(url, headers, body, debug)
+    local this, main_thread = coroutine.running()
+    if main_thread then
+        logger.err("Can't use suspendable 'doPost' from non-coroutine", debug.traceback())
         return false
     end
-    addSocket(sock, function(ok, msg)
-        -- print("inside reader", ok, msg)
-        local ok, caller_ok, resp = coroutine.resume(resp_reader, ok, msg)
-        -- print("reader resume result", ok, caller_ok, resp)
-        if not ok then
-            logger.err("http get error (read)", resp)
-        end
-        if caller_ok == false then
-            logger.err("Error in caller", resp)
-        end
-        return coroutine.status(resp_reader) == "dead" -- processing ended, we won't be able to handle further data anyway
-    end)
-    local ok, full_resp = coroutine.yield()
-    return ok, full_resp
+    return execute(this, url, "POST", headers, body, debug)
 end
 
 _M.addSocket = addSocket
@@ -147,5 +171,6 @@ _M.delSocket = delSocket
 _M.closeAll = closeAll
 _M.dispatch = dispatch
 _M.get = doGet
+_M.post = doPost
 
 return _M
