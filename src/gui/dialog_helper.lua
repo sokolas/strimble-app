@@ -147,73 +147,87 @@ local function loadDialog(gui, dlgName, controls, validate)
     return dlg
 end
 
-local function createDataDialog(gui, dlgName, controlsName, controls, validate)
+local function createDataDialog(gui, dlgName, controls, validate)
     local frame = gui.frame
     
-    local dlg = wx.wxDialog(frame, wx.wxID_ANY, "sample dialog", wx.wxDefaultPosition, wx.wxDefaultSize, wx.wxDEFAULT_DIALOG_STYLE, "wxDialog")
+    local dlg = wx.wxDialog(frame, wx.wxID_ANY, "sample dialog", wx.wxDefaultPosition, wx.wxDefaultSize, wx.wxDEFAULT_DIALOG_STYLE + wx.wxRESIZE_BORDER, "wxDialog")
     local topLevelSizer = wx.wxBoxSizer(wx.wxVERTICAL);
     local bgPanel = wx.wxPanel(dlg, wx.wxID_ANY, wx.wxDefaultPosition, wx.wxDefaultSize)
 
-    local controlsBox = wx.wxStaticBox(bgPanel, wx.wxID_ANY, controlsName)
-    local listBoxStaticBoxSizer = wx.wxStaticBoxSizer(controlsBox, wx.wxVERTICAL);
-    listBoxStaticBoxSizer:SetMinSize( wx.wxSize( 300,-1 ) )
-    -- local fgSizer = wx.wxFlexGridSizer(#controls, 2)
-    local fgSizer = wx.wxFlexGridSizer(0, 2)
-    fgSizer:AddGrowableCol(0)
-    fgSizer:AddGrowableCol(1, 1)
-    fgSizer:SetFlexibleDirection( wx.wxHORIZONTAL )
-	fgSizer:SetNonFlexibleGrowMode( wx.wxFLEX_GROWMODE_ALL )
+    local sizers = {}
+    for groupName, controlGroup in pairs(controls) do
+        local controlsBox = wx.wxStaticBox(bgPanel, wx.wxID_ANY, groupName)
+        local listBoxStaticBoxSizer = wx.wxStaticBoxSizer(controlsBox, wx.wxVERTICAL);
+        listBoxStaticBoxSizer:SetMinSize(wx.wxSize(300, -1))
+        -- local fgSizer = wx.wxFlexGridSizer(#controls, 2)
+        local fgSizer = wx.wxFlexGridSizer(0, 2)
+        -- fgSizer:AddGrowableCol(0, 0)
+        fgSizer:AddGrowableCol(1, 1)
+        fgSizer:SetFlexibleDirection(wx.wxHORIZONTAL)
+        fgSizer:SetNonFlexibleGrowMode(wx.wxFLEX_GROWMODE_ALL)
 
-    for i, v in ipairs(controls) do
-        local label = wx.wxStaticText(controlsBox, wx.wxID_ANY, v.label or "")
-        local widget = nil
-        if v.type == "text" then
-            widget = wx.wxTextCtrl(controlsBox, wx.wxID_ANY, v.value or "", wx.wxDefaultPosition, wx.wxDefaultSize)
-        elseif v.type == "check" then
-            widget = wx.wxCheckBox(controlsBox, wx.wxID_ANY, v.text or "check", wx.wxDefaultPosition, wx.wxDefaultSize)
-            widget:SetValue(v.value or false)
-        elseif v.type == "choice" then
-            widget = wx.wxChoice(controlsBox, wx.wxID_ANY, wx.wxDefaultPosition, wx.wxDefaultSize, v.choices)
-        elseif v.type == "combo" then
-            widget = wx.wxComboBox(controlsBox, wx.wxID_ANY, v.value or "", wx.wxDefaultPosition, wx.wxDefaultSize, v.choices or {})
-        elseif v.type == "file" then
-            -- fields: value - button name and file dialog title; wildcard - file masks; ref - widget to set the filename to
-            widget = wx.wxButton(controlsBox, wx.wxID_ANY, v.value or "Open file")
-            dlg:Connect(widget:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, function(event)
-                local fileDialog = wx.wxFileDialog(wx.NULL,
-                v.value or "Open file",
-                "",
-                "",
-                v.wildcard or "All files (*)|*",
-                wx.wxFD_OPEN + wx.wxFD_FILE_MUST_EXIST)
+        for i, v in ipairs(controlGroup) do
+            local label = wx.wxStaticText(controlsBox, wx.wxID_ANY, v.label or "")
+            local widget = nil
+            if v.type == "text" then
+                widget = wx.wxTextCtrl(controlsBox, wx.wxID_ANY, v.value or "", wx.wxDefaultPosition, wx.wxDefaultSize)
+            elseif v.type == "check" then
+                widget = wx.wxCheckBox(controlsBox, wx.wxID_ANY, v.text or "check", wx.wxDefaultPosition,
+                    wx.wxDefaultSize)
+                widget:SetValue(v.value or false)
+            elseif v.type == "choice" then
+                widget = wx.wxChoice(controlsBox, wx.wxID_ANY, wx.wxDefaultPosition, wx.wxDefaultSize, v.choices)
+            elseif v.type == "combo" then
+                widget = wx.wxComboBox(controlsBox, wx.wxID_ANY, v.value or "", wx.wxDefaultPosition, wx.wxDefaultSize,
+                    v.choices or {})
+            elseif v.type == "file" then
+                -- fields: value - button name and file dialog title; wildcard - file masks; ref - widget to set the filename to
+                widget = wx.wxButton(controlsBox, wx.wxID_ANY, v.value or "Open file")
+                dlg:Connect(widget:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, function(event)
+                    local fileDialog = wx.wxFileDialog(wx.NULL,
+                        v.value or "Open file",
+                        "",
+                        "",
+                        v.wildcard or "All files (*)|*",
+                        wx.wxFD_OPEN + wx.wxFD_FILE_MUST_EXIST)
 
-                if fileDialog:ShowModal() == wx.wxID_OK then
-                    local filename = fileDialog:GetPath()
-                    setControlValue(gui[dlgName][v.ref], filename)
-                end
-            end)
-        else
-            logger.err("Unknown widget type: " .. tostring(v.type))
-            dlg:Destroy()
-            return nil
-        end
-        if widget then
-            if v.init then
-                v.init(widget)
+                    if fileDialog:ShowModal() == wx.wxID_OK then
+                        local filename = fileDialog:GetPath()
+                        setControlValue(gui[dlgName][v.ref], filename)
+                    end
+                end)
+            else
+                logger.err("Unknown widget type: " .. tostring(v.type))
+                dlg:Destroy()
+                return nil
             end
-            widget:SetName(dlgName .. "__" .. v.name)
-            addToDlg(gui, widget, v.name, dlgName)
-            fgSizer:Add(label, (i - 1) * 2, wx.wxALL, 5)
-            fgSizer:Add(widget, (i - 1) * 2 + 1, wx.wxALL + wx.wxEXPAND, 5)
+            if widget then
+                if v.init then
+                    v.init(widget)
+                end
+                widget:SetName(dlgName .. "__" .. v.name)
+                addToDlg(gui, widget, v.name, dlgName)
+                fgSizer:Add(label, (i - 1) * 2, wx.wxALL, 5)
+                fgSizer:Add(widget, (i - 1) * 2 + 1, wx.wxALL + wx.wxEXPAND, 5)
+            end
         end
+
+        listBoxStaticBoxSizer:Add(fgSizer, 1, wx.wxEXPAND, 5)
+        table.insert(sizers, listBoxStaticBoxSizer)
     end
 
+    local outerSizer = wx.wxFlexGridSizer(1, #sizers, 0, 5)
+    outerSizer:SetFlexibleDirection(wx.wxHORIZONTAL)
+    outerSizer:SetNonFlexibleGrowMode(wx.wxFLEX_GROWMODE_ALL)
+    for i = 1, #sizers do
+        outerSizer:AddGrowableCol(i - 1, 1)
+        outerSizer:Add(sizers[i], 1, wx.wxEXPAND, 0)
+    end
+    
 
-    listBoxStaticBoxSizer:Add(fgSizer, 1, wx.wxEXPAND, 5)
-
-    bgPanel:SetSizer(listBoxStaticBoxSizer)
+    bgPanel:SetSizer(outerSizer)
     bgPanel:Layout()
-    listBoxStaticBoxSizer:Fit(bgPanel)
+    outerSizer:Fit(bgPanel)
 
     topLevelSizer:Add(bgPanel, 1, wx.wxALL + wx.wxEXPAND, 5)
 

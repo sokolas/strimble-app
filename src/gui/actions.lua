@@ -456,34 +456,36 @@ end
 --      gui.dialogs.ActionDialog
 --      gui.ActionDialog.* fields
 function _M.init()
-    local actionDlg = dialogHelper.createDataDialog(Gui, "ActionDialog", "Action properties", {
-            {
-                name = "name",
-                label = "Name",
-                type = "text"
-            },
-            {
-                name = "group",
-                label = "Group",
-                type = "combo",
-                value = "Default"
-            },
-            {
-                name = "description",
-                label = "Description",
-                type = "text"
-            },
-            {
-                name = "queue",
-                label = "Queue",
-                type = "combo",
-                value = "Default"
-            },
-            {
-                name = "enabled",
-                text = "Enabled",
-                type = "check",
-                value = true
+    local actionDlg = dialogHelper.createDataDialog(Gui, "ActionDialog", {
+            ["Action properties"] = {
+                {
+                    name = "name",
+                    label = "Name",
+                    type = "text"
+                },
+                {
+                    name = "group",
+                    label = "Group",
+                    type = "combo",
+                    value = "Default"
+                },
+                {
+                    name = "description",
+                    label = "Description",
+                    type = "text"
+                },
+                {
+                    name = "queue",
+                    label = "Queue",
+                    type = "combo",
+                    value = "Default"
+                },
+                {
+                    name = "enabled",
+                    text = "Enabled",
+                    type = "check",
+                    value = true
+                }
             }
         },
 
@@ -510,16 +512,18 @@ function _M.init()
         end)
     if not actionDlg then return end
 
-    local actionGroupDlg = dialogHelper.createDataDialog(Gui, "ActionGroupDialog", "Group properties", {
-        {
-            name = "name",
-            label = "Name",
-            type = "text"
-        },
-        {
-            name = "description",
-            label = "Description",
-            type = "text"
+    local actionGroupDlg = dialogHelper.createDataDialog(Gui, "ActionGroupDialog", {
+        ["Group properties"] = {
+            {
+                name = "name",
+                label = "Name",
+                type = "text"
+            },
+            {
+                name = "description",
+                label = "Description",
+                type = "text"
+            }
         }
     },
     function(data, context) -- validate

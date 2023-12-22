@@ -19,16 +19,18 @@ local function init(menu, dialogs)
     -- send message
     steps.sendMessageItem = submenu:Append(wx.wxID_ANY, "send message")
 
-    steps.sendMessageDialog = dialogHelper.createDataDialog(Gui, "SendTwitchMessageStepDlg", "Send Twitch message", {
-        {
-            name = "message",
-            label = "Message",
-            type = "text"
-        },
-        {
-            name = "interpolate",
-            text = "Use variables",
-            type = "check"
+    steps.sendMessageDialog = dialogHelper.createDataDialog(Gui, "SendTwitchMessageStepDlg", {
+        ["Send Twitch message"] = {
+            {
+                name = "message",
+                label = "Message",
+                type = "text"
+            },
+            {
+                name = "interpolate",
+                text = "Use variables",
+                type = "check"
+            }
         }
     },
     function(data, context)

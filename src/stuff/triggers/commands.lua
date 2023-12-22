@@ -13,33 +13,35 @@ local commandWhere = {
 local _M = {}
 
 local function createCommandDlg()
-    local commandDlg = dialogHelper.createDataDialog(Gui, "CommandDialog", "Trigger properties", {
-        {
-            name = "name",
-            label = "Name",
-            type = "text"
-        },
-        {
-            name = "text",
-            label = "Text to activate",
-            type = "text"
-        },
-        {
-            name = "where",
-            label = "Where",
-            type = "choice",
-            choices = commandWhere
-        },
-        {
-            name = "action",
-            label = "Action",
-            type = "combo"
-        },
-        {
-            name = "enabled",
-            text = "Enabled",
-            type = "check",
-            value = true
+    local commandDlg = dialogHelper.createDataDialog(Gui, "CommandDialog", {
+        ["Trigger properties"] = {
+            {
+                name = "name",
+                label = "Name",
+                type = "text"
+            },
+            {
+                name = "text",
+                label = "Text to activate",
+                type = "text"
+            },
+            {
+                name = "where",
+                label = "Where",
+                type = "choice",
+                choices = commandWhere
+            },
+            {
+                name = "action",
+                label = "Action",
+                type = "combo"
+            },
+            {
+                name = "enabled",
+                text = "Enabled",
+                type = "check",
+                value = true
+            }
         }
     },
     -- validation

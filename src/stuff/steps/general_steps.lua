@@ -44,11 +44,13 @@ local function init(menu, dialogs)
     -- delay
     steps.delayItem = submenu:Append(wx.wxID_ANY, "Delay")
 
-    steps.delayDialog = dialogHelper.createDataDialog(Gui, "DelayStepDialog", "Delay", {
-        {
-            name = "delay",
-            label = "Delay (ms)",
-            type = "text"
+    steps.delayDialog = dialogHelper.createDataDialog(Gui, "DelayStepDialog", {
+        ["Delay"] = {
+            {
+                name = "delay",
+                label = "Delay (ms)",
+                type = "text"
+            }
         }
     },
     function(data, context)
@@ -88,11 +90,13 @@ local function init(menu, dialogs)
     -- log
     steps.logItem = submenu:Append(wx.wxID_ANY, "Log")
 
-    steps.logDialog = dialogHelper.createDataDialog(Gui, "LogStepDialog", "Log", {
-        {
-            name = "message",
-            label = "Message",
-            type = "text"
+    steps.logDialog = dialogHelper.createDataDialog(Gui, "LogStepDialog", {
+        ["Log"] = {
+            {
+                name = "message",
+                label = "Message",
+                type = "text"
+            }
         }
     },
     function(data, context)
@@ -127,19 +131,21 @@ local function init(menu, dialogs)
 
     --sound
     steps.playSoundItem = submenu:Append(wx.wxID_ANY, "Play sound")
-    steps.soundDialog = dialogHelper.createDataDialog(Gui, "PlaySoundStepDialog", "PlaySound", {
-        {
-            name = "filename",
-            label = "File name",
-            type = "text"
-        },
-        {
-            name = "file_selector",
-            label = "",
-            value = "Select file...",
-            type = "file",
-            ref = "filename",
-            wildcard = "Audio files (MP3, WAV, OGG)|*.mp3;*.wav;*.ogg"
+    steps.soundDialog = dialogHelper.createDataDialog(Gui, "PlaySoundStepDialog", {
+        ["PlaySound"] = {
+            {
+                name = "filename",
+                label = "File name",
+                type = "text"
+            },
+            {
+                name = "file_selector",
+                label = "",
+                value = "Select file...",
+                type = "file",
+                ref = "filename",
+                wildcard = "Audio files (MP3, WAV, OGG)|*.mp3;*.wav;*.ogg"
+            }
         }
     })
 

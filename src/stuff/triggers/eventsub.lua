@@ -9,28 +9,30 @@ local es_helper = require("src/integrations/es_helper")
 local event_names = es_helper.scope_names
 
 local function createEventSubDlg()
-    local esDlg = dialogHelper.createDataDialog(Gui, "EventSubDialog", "Trigger properties",
+    local esDlg = dialogHelper.createDataDialog(Gui, "EventSubDialog", 
         {
-            {
-                name = "name",
-                label = "Name",
-                type = "text"
-            },
-            {
-                name = "type",
-                label = "Type",
-                type = "combo"
-            },
-            {
-                name = "action",
-                label = "Action",
-                type = "combo"
-            },
-            {
-                name = "enabled",
-                text = "Enabled",
-                type = "check",
-                value = true
+            ["Event properties"] = {
+                {
+                    name = "name",
+                    label = "Name",
+                    type = "text"
+                },
+                {
+                    name = "type",
+                    label = "Type",
+                    type = "combo"
+                },
+                {
+                    name = "action",
+                    label = "Action",
+                    type = "combo"
+                },
+                {
+                    name = "enabled",
+                    text = "Enabled",
+                    type = "check",
+                    value = true
+                }
             }
         },
         -- validation
