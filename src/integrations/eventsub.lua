@@ -33,6 +33,12 @@ end
 
 ]]
 
+local onMessage = nil
+
+local function setOnMessage(f)
+    onMessage = f
+end
+
 local function getSubHeaders()
     return {
         ["Authorization"] = "Bearer " .. token,
@@ -69,6 +75,9 @@ local function handleWsMessage(msg)
     if message.metadata then
         if message.metadata.message_type ~= "session_keepalive" then
             logger.log(msg)
+            if onMessage then
+                onMessage(message)
+            end
         end
 
         if message.metadata.message_type == "session_welcome" then
@@ -88,9 +97,10 @@ local function connect()
     websocket:connect()
 end
 
-local function init()
+local function init(f)
+    setOnMessage(f)
     websocket = Websocket:create("eventsub-ws", ws_url, reconnect_interval, auto_reconnect, 
-        {"subscribing", "subscribed"}, handleWsMessage, handleWsStatus, es_ws_logger, true);
+        {"subscribing", "subscribed"}, handleWsMessage, handleWsStatus, es_ws_logger, false);
 end
 
 local _M = {}

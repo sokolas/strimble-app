@@ -467,7 +467,7 @@ end
 
 _M.init = function()
     _M.chat_socket = Websocket:create("twitch-chat-ws", chat_url, _M.reconnect_interval, _M.reconnect_interval,
-    {"joined"}, handleWsMessage, handleWsStatus, twitch_chat_logger, true)
+    {"joined"}, handleWsMessage, handleWsStatus, twitch_chat_logger, false)
 end
 
 _M.toUsername = toUsername

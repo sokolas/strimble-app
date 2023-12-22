@@ -416,6 +416,65 @@ local function shoutout_create(sessionId, userId)
     }
 end
 
+local function shoutout_receive(sessionId, userId)
+    return {
+        type = "channel.shoutout.receive",
+        version = "1",
+        condition = {
+            broadcaster_user_id = userId,
+            moderator_user_id = userId
+        },
+        transport = {
+            method = "websocket",
+            session_id = sessionId
+        }
+    }
+end
+
+local function stream_online(sessionId, userId)
+    return {
+        type = "stream.online",
+        version = "1",
+        condition = {
+            broadcaster_user_id = userId,
+        },
+        transport = {
+            method = "websocket",
+            session_id = sessionId
+        }
+    }
+end
+
+local function stream_offline(sessionId, userId)
+    return {
+        type = "stream.offline",
+        version = "1",
+        condition = {
+            broadcaster_user_id = userId,
+        },
+        transport = {
+            method = "websocket",
+            session_id = sessionId
+        }
+    }
+end
+
+local function user_update(sessionId, userId)
+    return {
+        type = "user.update",
+        version = "1",
+        condition = {
+            user_id = userId,
+        },
+        transport = {
+            method = "websocket",
+            session_id = sessionId
+        }
+    }
+end
+
+
+
 local function scopes(sessionId, userId)
     return {
         channel_follow(sessionId, userId),
@@ -448,12 +507,25 @@ local function scopes(sessionId, userId)
         channel_hype_train_begin(sessionId, userId),
         channel_hype_train_progress(sessionId, userId),
         channel_hype_train_end(sessionId, userId),
-        
+        shoutout_create(sessionId, userId),
+        shoutout_receive(sessionId, userId),
+        stream_online(sessionId, userId),
+        stream_offline(sessionId, userId),
+        user_update(sessionId, userId)
     }
+end
+
+local function scope_names()
+    local names = {}
+    for i, v in ipairs(scopes()) do
+        table.insert(names, v.type)
+    end
+    return names
 end
 
 local _M = {}
 
 _M.scopes = scopes
+_M.scope_names = scope_names()
 
 return _M

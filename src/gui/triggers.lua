@@ -3,6 +3,7 @@ local iconsHelper = require("src/gui/icons")
 local json = require("json")
 local commands = require("src/stuff/triggers/commands")
 local timers = require("src/stuff/triggers/timers")
+local eventsub = require("src/stuff/triggers/eventsub")
 local dataHelper = require("src/stuff/data_helper")
 local ctxHelper = require("src/stuff/action_context")
 
@@ -253,6 +254,30 @@ local function onTrigger(type, data)
                 logger.log("action mapped but not found for timer", data.name)
             end
         end
+    elseif type == "twitch_eventsub" then
+        if data.payload and data.payload.subscription and data.payload.subscription.type then
+            local matchedEvents = eventsub.matchTrigger(data)
+            if matchedEvents then
+                for i, event in ipairs(matchedEvents) do
+                    if event.action then
+                        local actions = dataHelper.findAction(dataHelper.enabledByDbId(event.action))
+                        local action = actions[1]
+                        if action then
+                            local queue = dataHelper.getActionQueue(action.data.queue)
+                            logger.log("action found:", action.data.name, action.data.description, "queue:", action.data.queue, #queue)
+                            local ctx = ctxHelper.create({
+                                payload = data.payload
+                            }, event.action)
+                            table.insert(queue, ctx)
+                            logger.log("context created")
+                            Gui.frame:QueueEvent(wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, ACTION_DISPATCH))
+                        else
+                            logger.log("action mapped but not found for command", cmd.name)
+                        end
+                    end
+                end
+            end
+        end
     end
 end
 
@@ -267,6 +292,9 @@ local function init()
 
     local timerDlg = timers.createTimerDialog()
     if not timerDlg then return end
+
+    local esDlg = eventsub.createEventSubDlg()
+    if not esDlg then return end
 
     local triggerMenu = wx.wxMenu()
     -- triggerMenu:SetTitle("ololo")
@@ -415,6 +443,18 @@ local function load()
         addChild(timersGuiItem, result)
         if not triggerListCtrl:IsExpanded(timersGuiItem) then
             triggerListCtrl:Expand(timersGuiItem)
+        end
+    end
+
+    -- EventSub
+    local eventsubGuiItem, eventsubTreeItem = eventsub.createEventSubFolder(triggerListCtrl, triggerListCtrl:GetRootItem())
+    _M.treedata[eventsubTreeItem.id] = eventsubTreeItem
+    for row in Db:nrows("SELECT * FROM triggers WHERE type = 'twitch_eventsub'") do
+        local result = json.decode(row.data)
+        result.dbId = row.id
+        addChild(eventsubGuiItem, result)
+        if not triggerListCtrl:IsExpanded(eventsubGuiItem) then
+            triggerListCtrl:Expand(eventsubGuiItem)
         end
     end
 

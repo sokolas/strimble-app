@@ -73,7 +73,7 @@ local function createCommandDlg()
 end
 
 local twitchCommandFilter = function(v)
-    return v.type == "twitch_command" and not v.isGroup and v.data and v.data.enabled
+    return v.type == "twitch_command" and (not v.isGroup) and v.data and v.data.enabled
 end
 
 local function matchCommands(message)

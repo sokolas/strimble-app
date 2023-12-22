@@ -5,7 +5,7 @@ local _M = {}
 
 local Mt = {}
 
-local var_pattern = "%$+[%w%.]+"
+local var_pattern = "%$+[%w%._]+"
 
 Mt.interpolate = function(self, message)
     if not message or message == '' then

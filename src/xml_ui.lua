@@ -646,8 +646,7 @@ function main()
     --[[eventsub.setStateListener(function(oldState, newState)
         logger.log("eventsub state changed", oldState, newState)
     end)]]
-    eventsub.init()
-
+    eventsub.init(function(msg) local triggered = triggersHelper.onTrigger("twitch_eventsub", msg) end)
     Gui.misc.button5:SetLabel("connect eventsub")
     frame:Connect(Gui.misc.button5:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, evtHandler(function(event)
         eventsub.setToken(Twitch.token)
