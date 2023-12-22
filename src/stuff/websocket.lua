@@ -33,7 +33,7 @@ end
 function Websocket:setMessageListener(f)
     self.messageListener = function(websocket, ok, msg)
         if ok then
-            self.logger.log(self.id .. ": handling message")
+            if self.debug then self.logger.log(self.id .. ": handling message") end
             f(msg)
         else
             self.logger.err(self.id .. ": socket read error")
@@ -63,7 +63,7 @@ function Websocket:getWsStatusHandler()
         elseif newStatus == "error" or newStatus == "closed" then
             self:handleDisconnection(newStatus)
         end
-        self.logger.log(ok and "OK" or "NOT OK", newStatus)
+        if self.debug then self.logger.log(ok and "OK" or "NOT OK", newStatus) end
     end
 end
 
@@ -88,7 +88,7 @@ end
 function Websocket:setupTimer()
     if self.timer == nil then
         self.timer = timers.addTimer(self.reconnect_interval, function(event) self:handleReconnect() end, true)
-        self.logger.log(self.id .. ": added reconnect timer " .. tostring(self.timer))
+        if self.debug then self.logger.log(self.id .. ": added reconnect timer " .. tostring(self.timer)) end
     end
 end
 
@@ -100,7 +100,7 @@ function Websocket:connect()
     if self.state ~= "offline" and self.state ~= "error" and self.state ~= "reconnecting" then
         -- or, rather, self:isInConnectedState()
         if self.socket.sock then
-            self.logger.log(self.id .. ": closing previous socket " .. (self.socket.id or "<nil>"))
+            if self.debug then self.logger.log(self.id .. ": closing previous socket " .. (self.socket.id or "<nil>")) end
             self.socket.sock:close()
             self.socket.sock = nil
             self.socket.id = nil
@@ -121,13 +121,13 @@ function Websocket:connect()
         self.logger.err(self.id .. ": couldn't open websocket")
         self:handleDisconnection("error")
     end
-    self.logger.log(self.id .. ": opened websocket")
+    if self.debug then self.logger.log(self.id .. ": opened websocket") end
     self:setupTimer()
 end
 
 function Websocket:reconnect(newState)
     if self.socket.sock then
-        self.logger.log(self.id .. ": closing previous socket " .. (self.socket.id or "<nil>"))
+        if self.debug then self.logger.log(self.id .. ": closing previous socket " .. (self.socket.id or "<nil>")) end
         self.socket.sock:close()
         self.socket.sock = nil
         self.socket.id = nil
