@@ -7,7 +7,7 @@ local triggersHelper = require("src/gui/triggers")
 local actionsHelper = require("src/gui/actions")
 local dataHelper = require("src/stuff/data_helper")
 local audio = require("src/stuff/audio")
-local eventsub = require("src/integrations/eventsub")
+local vts = require("src/integrations/vts")
 
 local ThingsToKeep = {} -- variable to store references to various stuff that needs to be kept
 local accelTable = {}
@@ -185,7 +185,7 @@ local function saveConfig()
 
     -- non-gui part
     SaveToCfg("twitch", {
-        id = Twitch.userId,
+        userId = Twitch.userId,
     })
     
     Gui.statusbar:SetStatusText("Config saved", 0)
@@ -219,7 +219,7 @@ local function loadConfig()
     end
 
     -- set up twitch
-    Twitch.id = ReadFromCfg("twitch", "id", "")
+    Twitch.userId = ReadFromCfg("twitch", "userId", "")
     Twitch.token = Gui.twitch.token:GetValue()
     Twitch.username = Gui.twitch.username:GetValue()
     Twitch.channel = Gui.twitch.channel:GetValue()
@@ -244,7 +244,7 @@ local webview = nil
 local function updateTwitchInfo(ok, data, token)
     if token then
         Gui.twitch.token:SetValue(token)
-        Twitch.token = token
+        Twitch.setToken(token)
     end
     
     if not ok then
@@ -488,6 +488,9 @@ function main()
     findWindow("twitchShowChatLogs", "wxCheckBox", "showChat", "twitch")
     findWindow("twitchAutoconnect", "wxCheckBox", "autoconnect", "twitch")
     findWindow("twitchAutoscroll", "wxCheckBox", "autoscroll", "twitch")
+    findWindow("twitchChatStatus", "wxStaticText", "chatStatus", "twitch", true)
+    findWindow("twitchEsStatus", "wxStaticText", "esStatus", "twitch", true)
+    findWindow("twitchStatusPanel", "wxPanel", "statusPanel", "twitch")
     twitchWnd.init(Gui.twitch.log)
     
     frame:Connect(Gui.twitch.authBtn:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, function(event)
@@ -498,8 +501,12 @@ function main()
             webview:LoadURL(url)
         end
     end)
+    
+    local function eventSubMessageListener(msg)
+        local triggered = triggersHelper.onTrigger("twitch_eventsub", msg)
+    end
 
-    Twitch.setMessageListener(function(message)
+    local function twitchChatMessageListener(message)
         if Gui.twitch.showChat:GetValue() then
             --[[if message.tags and #message.tags then
                 for k, v in pairs(message.tags) do
@@ -517,19 +524,26 @@ function main()
             mod = tags["mod"] == "1"
         }
         local triggered = triggersHelper.onTrigger("twitch_privmsg", {channel = message.channel, user = user, text = message.text})
-    end)
+    end
     
-    Twitch.setStateListener(function(oldState, newState)
-        twitchWnd.appendTwitchMessage("*** status: " .. newState)
-        if newState == "error" or newState == "reconnecting" then
-            iconsHelper.setStatus("twitch", false)
-            -- TODO stop the timer in some cases
-            twitchWnd.appendTwitchMessage("*** twitch chat connection error; retrying in " .. tostring(Twitch.reconnect_interval) .. "ms")
-        elseif newState == "joined" then
-            twitchWnd.appendTwitchMessage("*** joined " .. Twitch.channel)
-            iconsHelper.setStatus("twitch", true)
+    local function twitchStateListener(chatState, chatIcon, esState, esIcon)
+        Gui.twitch.chatStatus:SetLabel("Chat: " .. (chatState or "unknown"))
+        Gui.twitch.esStatus:SetLabel("EventSub: " .. (esState or "unknown"))
+        Gui.twitch.statusPanel:Layout();
+        -- twitchWnd.appendTwitchMessage("*** status: " .. newState)
+        
+        if (not chatIcon) and (not esIcon) then -- both empty - set empty icon
+            iconsHelper.setStatus("twitch", nil)
+        elseif chatIcon == "error" or esIcon == "error" then    -- any error
+            iconsHelper.setStatus("twitch", "fail")
+        elseif chatIcon == "retry" or esIcon == "retry" then    -- any reconnecting, but no errors
+            iconsHelper.setStatus("twitch", "retry")
+        else
+            iconsHelper.setStatus("twitch", "ok")
         end
-    end)
+    end
+
+    Twitch.init(eventSubMessageListener, twitchChatMessageListener, twitchStateListener)
 
     local function twitchConnectWithValidation(event)
         logger.log("connecting to twitch with validation")
@@ -546,8 +560,6 @@ function main()
         end
     end
 
-    Twitch.init()
-
     frame:Connect(Gui.twitch.connectBtn:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, evtHandler(function(event)
         local chan = Gui.twitch.channel:GetValue()
         if chan and chan ~= "" and chan ~= Twitch.channel then
@@ -555,6 +567,22 @@ function main()
         end
         iconsHelper.setStatus("twitch", nil)
         twitchConnectWithValidation(event)
+    end))
+
+    frame:Connect(Gui.twitch.autoconnect:GetId(), wx.wxEVT_CHECKBOX, evtHandler(function(event)
+        Twitch.setAutoReconnect(event:IsChecked())
+    end))
+
+    -- VTube Studio
+    findWindow("vtsConnectBtn", "wxButton", "connect", "vts")
+    findWindow("vtsAddress", "wxTextCtrl", "address", "vts")
+    vts.init(vts.setAddress)    -- default url for now
+    frame:Connect(Gui.vts.connect:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, evtHandler(function(event)
+        local url = Gui.vts.address:GetValue()
+        if url and url ~= "" then
+            vts.setAddress(url)
+        end
+        vts.connect()
     end))
 
     -- actions
@@ -646,18 +674,13 @@ function main()
     --[[eventsub.setStateListener(function(oldState, newState)
         logger.log("eventsub state changed", oldState, newState)
     end)]]
-    eventsub.init(function(msg) local triggered = triggersHelper.onTrigger("twitch_eventsub", msg) end)
-    Gui.misc.button5:SetLabel("connect eventsub")
+    --[[Gui.misc.button5:SetLabel("connect eventsub")
     frame:Connect(Gui.misc.button5:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, evtHandler(function(event)
-        eventsub.setToken(Twitch.token)
-        eventsub.setBroadcasterId(Twitch.userId)
-        eventsub.connect()
-    end))
+    end))]]
     
-    Gui.misc.button6:SetLabel("get state")
+    --[[Gui.misc.button6:SetLabel("toggle reconnect")
     frame:Connect(Gui.misc.button6:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, evtHandler(function(event)
-        logger.log(eventsub.getState())
-    end))
+    end))]]
     -- Gui.misc.button7:SetLabel("persist db")
     -- frame:Connect(Gui.misc.button7:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, evtHandler(function(event)
         -- local m = dialogHelper.showOkCancel(Gui.frame, "text", "caption")

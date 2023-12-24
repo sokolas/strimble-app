@@ -14,12 +14,16 @@ local icons = {
     {path = "images/icons/timer_black.png", page = "timer"},
     {path = "images/icons/folder_open_black_18dp.png", page = "folder_open"},  -- not really a page
 
+    {path = "images/icons/check_reload.png"},
     {path = "images/icons/check_ok.png"},
     {path = "images/icons/warning.png"}
 }
+local retry = #icons-3
 local ok = #icons-2
 local fail = #icons-1
+
 local pages = {}
+
 for i, v in ipairs(icons) do
     if v.page then
         pages[v.page] = i-1
@@ -47,8 +51,10 @@ local _M = {
         if pages[page] then
             if status == nil then
                 lb:SetItem(pages[page], 1, "", -1)
-            elseif status == true then
+            elseif status == "ok" then
                 lb:SetItem(pages[page], 1, "", ok)
+            elseif status == "retry" then
+                lb:SetItem(pages[page], 1, "", retry)
             else
                 lb:SetItem(pages[page], 1, "", fail)
             end

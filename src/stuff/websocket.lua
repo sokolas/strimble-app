@@ -15,8 +15,22 @@ function Websocket:getState()
     return self.state
 end
 
+function Websocket:isInConnectedState()
+    local result = self.state == "connected"
+    if self.connected_states then
+        for _, value in ipairs(self.connected_states) do
+            result = result or (self.state == value)
+        end
+    end
+    return result
+end
+
+
 function Websocket:setAutoReconnect(rec)
     self.auto_reconnect = rec
+    if self.state == "reconnecting" and (not rec) then
+        self:setState("offline")
+    end
 end
 
 function Websocket:setReconnectInterval(interval)
@@ -43,11 +57,16 @@ end
 -- setmetatable(Websocket, Websocket)
 
 function Websocket:handleDisconnection(newState)    -- internal
-    self.logger.log(self.id .. ": " .. (newState or "<nil>") .. ": need reconnect")
     if self.timer ~= nil then
         timers.resetTimer(self.timer)
     end
-    self:setState("reconnecting")
+    if self.auto_reconnect then
+        self.logger.log(self.id .. ": " .. (newState or "<nil>") .. ": need reconnect")
+        self:setState("reconnecting")
+    else
+        self.logger.log(self.id .. ": " .. (newState or "<nil>") .. ": going offline")
+        self:setState("offline")
+    end
 end
 
 function Websocket:getWsMessageListener()
@@ -58,6 +77,7 @@ end
 
 function Websocket:getWsStatusHandler()
     return function(ok, oldStatus, newStatus)
+        -- I don't handle "invalid" here because usually it means the socket was already closed
         if newStatus == "open" then
             self:setState("connected")
         elseif newStatus == "error" or newStatus == "closed" then
@@ -67,22 +87,15 @@ function Websocket:getWsStatusHandler()
     end
 end
 
-function Websocket:isInConnectedState()
-    local result = self.state == "connected"
-    for _, value in ipairs(self.connected_states) do
-        result = result or (self.state == value)
-    end
-    return result
-end
-
 function Websocket:handleReconnect()  -- actually handles the reconnection timer event, not reconnects. Use connect() instead
     if self.state == "reconnecting" then
         self:connect()
-    elseif not self:isInConnectedState() then
-        self.logger.err(self.id .. ": invalid state: " .. (self.state or "<nil>"))
-    else
-        -- skipping reconnect
     end
+    -- elseif not self:isInConnectedState() then
+        -- self.logger.err(self.id .. ": invalid state: " .. (self.state or "<nil>"))
+    -- else
+        -- skipping reconnect
+    -- end
 end
 
 function Websocket:setupTimer()

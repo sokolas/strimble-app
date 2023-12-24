@@ -44,14 +44,14 @@ local function createTimerDialog()
         else
             if context and context.id then
                 local duplicates = dataHelper.findTriggers(function(v)
-                    return v.id ~= context.id and not v.isGroup and v.name == data.name
+                    return v.id ~= context.id and (not v.isGroup) and v.name == data.name
                 end)
                 if #duplicates > 0 then
                     return false, "Name must be unique"
                 end
             else
                 local duplicates = dataHelper.findTriggers(function(v)
-                    return not v.isGroup and v.name == data.name
+                    return (not v.isGroup) and v.name == data.name
                 end)
                 if #duplicates > 0 then
                     return false, "Name must be unique"

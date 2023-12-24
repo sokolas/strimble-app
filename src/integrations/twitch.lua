@@ -2,6 +2,7 @@ local url = require("socket.url")
 local logger = Logger.create("twitch")
 local twitch_chat_logger = Logger.create("twitch-chat-ws")
 local Websocket = require("src/stuff/websocket")
+local eventsub = require("src/integrations/eventsub")
 
 local scopes = {
     "bits:read",
@@ -72,6 +73,7 @@ end
 local _M = {}
 
 _M.state = "offline"
+_M.es_state = "offline"
 _M.token = nil
 _M.username = nil
 _M.channel = nil
@@ -80,11 +82,38 @@ _M.redirect_url = redirect_url
 _M.reconnect_interval = 15000
 _M.auto_reconnect = true
 
-_M.setState = function(newState)
-    local oldState = _M.state
-    _M.state = newState
-    if _M.userStateListener then
-        _M.userStateListener(oldState, newState)
+local function getChatIcon(state)
+    if state == "ready" then
+        return "ok"
+    elseif state == "connecting" or state == "reconnecting" or state == "connected" then
+        return "retry"
+    elseif state == "error" or state == "offline" or state == "closed" then
+        return "error"
+    end
+end
+
+local function getEsIcon(state)
+    if state == "ready" then
+        return "ok"
+    elseif state == "connecting" or state == "reconnecting" or state == "connected" or state == "subscribing" then
+        return "retry"
+    elseif state == "error" or state == "offline" or state == "closed" then
+        return "error"
+    end
+end
+
+_M.setState = function(component, newState)
+    logger.log("component", component, "state", newState)
+    if component == "chat" then
+        _M.state = newState
+        if _M.userStateListener then
+            _M.userStateListener(newState, getChatIcon(newState), _M.es_state, getEsIcon(_M.es_state))
+        end
+    else
+        _M.es_state = newState
+        if _M.userStateListener then
+            _M.userStateListener(_M.state, getChatIcon(_M.state), newState, getEsIcon(newState))
+        end
     end
 end
 
@@ -317,21 +346,20 @@ local function sendRaw(cmd)
     _M.chat_socket:send(cmd)
 end
 
-local function handleWsStatus(oldStatus, newStatus)
+local function chat_handleWsStatus(oldStatus, newStatus)
     logger.log("*** " .. newStatus)
-    _M.setState(newStatus)
+    _M.setState("chat", newStatus)
     if not _M.token or not _M.username then
         logger.err("token or username is not set")
-        return
-    end
-    local sock = _M.chat_socket
-    if newStatus == "connected" then
-        sock:send("CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands")
-        sock:send("PASS oauth:" .. _M.token)
-        -- local anon_user_name = "justinfan" .. math.random(1, 100000)
-        sock:send("NICK " .. _M.username)
-    elseif newStatus == "error" or newStatus == "closed" then
-        --[[logger.err("twitch connection error")
+    else
+        local sock = _M.chat_socket
+        if newStatus == "connected" then
+            sock:send("CAP REQ :twitch.tv/membership twitch.tv/tags twitch.tv/commands")
+            sock:send("PASS oauth:" .. _M.token)
+            -- local anon_user_name = "justinfan" .. math.random(1, 100000)
+            sock:send("NICK " .. _M.username)
+        elseif newStatus == "error" or newStatus == "closed" then
+            --[[logger.err("twitch connection error")
         if _M.auto_reconnect then
             logger.log("reconnecting")
             _M.setState("reconnecting")
@@ -339,13 +367,14 @@ local function handleWsStatus(oldStatus, newStatus)
             logger.log("not reconnecting")
             _M.setState("error")
         end]]
-        -- sock:close()
+            -- sock:close()
+        end
     end
 end
 
 local userCount = 0
 
-local function handleWsMessage(msg)
+local function chat_handleWsMessage(msg)
     local messages = SplitMessage(msg, "\r\n")
     for i, line in ipairs(messages) do
         if line and line ~= "" then
@@ -373,8 +402,8 @@ local function handleWsMessage(msg)
                     if message.command == "376" then    -- connected
                         sendRaw("JOIN " .. toChannel(_M.channel or _M.username))
                     elseif message.command == "ROOMSTATE" then
-                        if _M.chat_socket.state ~= "joined" then
-                            _M.chat_socket:setState("joined")
+                        if _M.chat_socket.state ~= "ready" then
+                            _M.chat_socket:setState("ready")
                             -- emit status change
                         end
                     elseif message.command == "RECONNECT" or message == "SERVERCHANGE" then
@@ -396,7 +425,7 @@ local function handleWsMessage(msg)
                         end
                         if text == "!reconnect" then
                             logger.log("reconnect received")
-                            _M.chat_socket:connect()
+                            _M.connect()
                         end
                     else
                         --[[elseif message.command == "353" then    -- names
@@ -441,18 +470,25 @@ _M.connect = function()
 
     if not _M.token then
         _M.chat_socket:reconnect("error")
+        eventsub.reconnect("error")
         return false, "token is not set"
     end
     if (not _M.username) or (_M.username == '') then
         _M.chat_socket:reconnect("error")
+        eventsub.reconnect("error")
         return false, "username is not set"
     end
     _M.channel = _M.channel or _M.username
     if (not _M.channel) or (_M.channel == '') then
         _M.chat_socket:reconnect("error")
+        eventsub.reconnect("error")
         return false, "channel is not set"
     end
     _M.chat_socket:connect()
+
+    eventsub.setToken(_M.token)
+    eventsub.setBroadcasterId(_M.userId)
+    eventsub.connect()
 end
 
 _M.sendToChannel = function(text, channel)
@@ -460,14 +496,45 @@ _M.sendToChannel = function(text, channel)
         logger.err("No channel specified")
         return
     end
-    if _M.chat_socket.state ~= "joined" then logger.err("Not joined to any channel") end
+    if _M.chat_socket.state ~= "ready" then logger.err("Not joined any channel") end
     local c = channel or _M.channel
     sendRaw("PRIVMSG " .. toChannel(c) .. " :" .. text)   -- todo: escape
 end
 
-_M.init = function()
+_M.esStateListener = function(oldState, newState)
+    _M.setState("eventsub", newState)
+end
+
+_M.init = function(esMessageListener, chatMessageListener, stateListener)
+    _M.userMessageListener = chatMessageListener
+    _M.userStateListener = stateListener
     _M.chat_socket = Websocket:create("twitch-chat-ws", chat_url, _M.reconnect_interval, _M.reconnect_interval,
-    {"joined"}, handleWsMessage, handleWsStatus, twitch_chat_logger, false)
+    {"ready"}, chat_handleWsMessage, chat_handleWsStatus, twitch_chat_logger, false)
+
+    eventsub.init(esMessageListener, _M.esStateListener)
+
+    -- eventsub.setToken(Twitch.token)
+    -- eventsub.setBroadcasterId(Twitch.userId)
+    -- eventsub.connect()
+end
+
+_M.setEventSubListener = function(f)
+    eventsub.setOnMessage(f)
+end
+
+_M.setAutoReconnect = function(auto_reconnect)
+    _M.auto_reconnect = auto_reconnect
+
+    if _M.chat_socket then
+        _M.chat_socket:setAutoReconnect(auto_reconnect)
+        logger.log("connected state:", _M.chat_socket:isInConnectedState(), _M.chat_socket:getState())
+        if auto_reconnect and (not _M.chat_socket:isInConnectedState()) then
+            _M.connect()
+        end
+    else
+        logger.log("websocket is nil")
+    end
+    eventsub.setAutoReconnect(auto_reconnect)
 end
 
 _M.toUsername = toUsername

@@ -15,6 +15,8 @@ local reconnect_interval = 15000
 local auto_reconnect = true
 local websocket = nil
 
+local onMessage = nil
+local onStateChange = nil
 
 local function setToken(tkn)
     token = tkn
@@ -25,18 +27,39 @@ local function setBroadcasterId(id)
 end
 
 
+local function connect()
+    websocket:connect()
+end
+
+local function setAutoReconnect(a)
+    auto_reconnect = a
+    logger.log("setting auto reconnect to", auto_reconnect)
+    if websocket then
+        websocket:setAutoReconnect(auto_reconnect)
+        logger.log("connected state:", websocket:isInConnectedState(), websocket:getState())
+        if auto_reconnect and (not websocket:isInConnectedState()) then
+            connect()
+        end
+    else
+        logger.log("websocket is nil")
+    end
+end
+
+
 --[[
     additional states:
 
     subscribing
-    subscribed
+    ready
 
 ]]
 
-local onMessage = nil
-
 local function setOnMessage(f)
     onMessage = f
+end
+
+local function setOnStateChange(f)
+    onStateChange = f
 end
 
 local function getSubHeaders()
@@ -66,8 +89,12 @@ local function subscribe()
     if err then
         websocket:reconnect("error")
     else
-        websocket:setState("subscribed")
+        websocket:setState("ready")
     end
+end
+
+local function reconnect(newState)
+    websocket:reconnect(newState)
 end
 
 local function handleWsMessage(msg)
@@ -90,24 +117,32 @@ local function handleWsMessage(msg)
 end
 
 local function handleWsStatus(oldState, newState)
-    logger.log("changing state", oldState, "->", newState)
+    if onStateChange then
+        onStateChange(oldState, newState)
+    end
 end
 
-local function connect()
-    websocket:connect()
-end
-
-local function init(f)
-    setOnMessage(f)
-    websocket = Websocket:create("eventsub-ws", ws_url, reconnect_interval, auto_reconnect, 
-        {"subscribing", "subscribed"}, handleWsMessage, handleWsStatus, es_ws_logger, false);
+local function init(f, s)
+    if f then
+        setOnMessage(f)
+    end
+    if s then
+        setOnStateChange(s)
+    end
+    websocket = Websocket:create("eventsub-ws", ws_url, reconnect_interval, auto_reconnect,
+        {"subscribing", "ready"}, handleWsMessage, handleWsStatus, es_ws_logger, false);
+    websocket:setupTimer()
 end
 
 local _M = {}
 
 _M.setToken = setToken
 _M.setBroadcasterId = setBroadcasterId
+_M.setAutoReconnect = setAutoReconnect
 _M.connect = connect
+_M.reconnect = reconnect
+_M.setOnMessage = setOnMessage
+_M.setOnStateChange = setOnStateChange
 _M.init = init
 
 return _M

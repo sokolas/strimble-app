@@ -240,6 +240,7 @@ end
 Lutf8 = require("lua-utf8")
 NetworkManager = require("src/netutils")
 Json = require("json")
+require("winsock")
 
 -- local _sq = package.loadlib("bin/sqlite3.dll", "sqlite3_version") -- hack to preload sqlite3 dll
 local _vw2 = package.loadlib("bin/WebView2Loader.dll", "GetAvailableCoreWebView2BrowserVersionString")  -- hack to preload webview dll

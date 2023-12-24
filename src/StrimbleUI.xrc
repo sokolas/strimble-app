@@ -178,7 +178,7 @@
 												<option>0</option>
 												<flag>wxEXPAND | wxALL</flag>
 												<border>5</border>
-												<object class="wxPanel" name="m_panel18">
+												<object class="wxPanel" name="twitchStatusPanel">
 													<style>wxTAB_TRAVERSAL</style>
 													<object class="wxBoxSizer">
 														<orient>wxHORIZONTAL</orient>
@@ -207,6 +207,40 @@
 															<object class="wxCheckBox" name="twitchAutoscroll">
 																<label>Autoscroll</label>
 																<checked>1</checked>
+															</object>
+														</object>
+														<object class="sizeritem">
+															<option>0</option>
+															<flag>wxEXPAND | wxALL</flag>
+															<border>5</border>
+															<object class="wxStaticLine" name="m_staticline1">
+																<style>wxLI_VERTICAL</style>
+															</object>
+														</object>
+														<object class="sizeritem">
+															<option>0</option>
+															<flag>wxALL</flag>
+															<border>5</border>
+															<object class="wxStaticText" name="twitchChatStatus">
+																<label>Chat: offline</label>
+																<wrap>-1</wrap>
+															</object>
+														</object>
+														<object class="sizeritem">
+															<option>0</option>
+															<flag>wxEXPAND | wxALL</flag>
+															<border>5</border>
+															<object class="wxStaticLine" name="m_staticline2">
+																<style>wxLI_VERTICAL</style>
+															</object>
+														</object>
+														<object class="sizeritem">
+															<option>0</option>
+															<flag>wxALL</flag>
+															<border>5</border>
+															<object class="wxStaticText" name="twitchEsStatus">
+																<label>EventSub: offline</label>
+																<wrap>-1</wrap>
 															</object>
 														</object>
 													</object>
@@ -240,9 +274,100 @@
 								</object>
 								<object class="listbookpage">
 									<label>VTube Studio</label>
-									<selected>0</selected>
+									<selected>1</selected>
 									<object class="wxPanel" name="vtsPanel">
 										<style>wxTAB_TRAVERSAL</style>
+										<object class="wxBoxSizer">
+											<orient>wxVERTICAL</orient>
+											<object class="sizeritem">
+												<option>0</option>
+												<flag>wxEXPAND | wxALL</flag>
+												<border>5</border>
+												<object class="wxPanel" name="m_panel25">
+													<style>wxTAB_TRAVERSAL</style>
+													<object class="wxStaticBoxSizer">
+														<orient>wxVERTICAL</orient>
+														<label>VTube Studio</label>
+														<object class="sizeritem">
+															<option>1</option>
+															<flag>wxEXPAND</flag>
+															<border>5</border>
+															<object class="wxFlexGridSizer">
+																<rows>0</rows>
+																<cols>3</cols>
+																<vgap>0</vgap>
+																<hgap>0</hgap>
+																<growablecols>1</growablecols>
+																<growablerows></growablerows>
+																<object class="sizeritem">
+																	<option>0</option>
+																	<flag>wxALL</flag>
+																	<border>5</border>
+																	<object class="wxStaticText" name="m_staticText12">
+																		<label>Address</label>
+																		<wrap>-1</wrap>
+																	</object>
+																</object>
+																<object class="sizeritem">
+																	<option>1</option>
+																	<flag>wxALL|wxEXPAND</flag>
+																	<border>5</border>
+																	<object class="wxTextCtrl" name="vtsAddress">
+																		<value></value>
+																	</object>
+																</object>
+																<object class="sizeritem">
+																	<option>0</option>
+																	<flag>wxALL</flag>
+																	<border>5</border>
+																	<object class="wxButton" name="vtsConnectBtn">
+																		<label>Connect</label>
+																		<default>0</default>
+																		<auth_needed>0</auth_needed>
+																		<markup>0</markup>
+																		<bitmap />
+																	</object>
+																</object>
+															</object>
+														</object>
+													</object>
+												</object>
+											</object>
+											<object class="sizeritem">
+												<option>0</option>
+												<flag>wxEXPAND | wxALL</flag>
+												<border>5</border>
+												<object class="wxPanel" name="m_panel26">
+													<style>wxTAB_TRAVERSAL</style>
+													<object class="wxFlexGridSizer">
+														<rows>0</rows>
+														<cols>2</cols>
+														<vgap>0</vgap>
+														<hgap>0</hgap>
+														<growablecols>1</growablecols>
+														<growablerows></growablerows>
+														<object class="sizeritem">
+															<option>0</option>
+															<flag>wxALL</flag>
+															<border>5</border>
+															<object class="wxCheckBox" name="vtsAutoconnect">
+																<label>Autoconnect</label>
+																<checked>1</checked>
+															</object>
+														</object>
+														<object class="sizeritem">
+															<option>1</option>
+															<flag>wxALIGN_RIGHT|wxALL</flag>
+															<border>5</border>
+															<object class="wxStaticText" name="vtsStatusText">
+																<label>offline</label>
+																<wrap>-1</wrap>
+															</object>
+														</object>
+													</object>
+												</object>
+											</object>
+										</object>
 									</object>
 								</object>
 								<object class="listbookpage">
@@ -394,7 +519,7 @@
 								</object>
 								<object class="listbookpage">
 									<label>DEBUG</label>
-									<selected>1</selected>
+									<selected>0</selected>
 									<object class="wxPanel" name="miscPanel">
 										<style>wxTAB_TRAVERSAL</style>
 										<object class="wxBoxSizer">
@@ -555,132 +680,6 @@
 									</object>
 								</object>
 							</object>
-						</object>
-					</object>
-				</object>
-			</object>
-		</object>
-	</object>
-	<object class="wxDialog" name="ExampleDialog">
-		<style>wxDEFAULT_DIALOG_STYLE</style>
-		<size>506,374</size>
-		<title></title>
-		<centered>1</centered>
-		<object class="wxBoxSizer">
-			<orient>wxVERTICAL</orient>
-			<object class="sizeritem">
-				<option>1</option>
-				<flag>wxALL|wxEXPAND</flag>
-				<border>5</border>
-				<object class="wxPanel" name="commandDlgPanel">
-					<style>wxTAB_TRAVERSAL</style>
-					<object class="wxStaticBoxSizer">
-						<minsize>300,-1</minsize>
-						<orient>wxVERTICAL</orient>
-						<label>Command properties</label>
-						<object class="sizeritem">
-							<option>1</option>
-							<flag>wxEXPAND</flag>
-							<border>5</border>
-							<object class="wxFlexGridSizer">
-								<rows>0</rows>
-								<cols>2</cols>
-								<vgap>0</vgap>
-								<hgap>0</hgap>
-								<growablecols>0,1:1</growablecols>
-								<growablerows></growablerows>
-								<object class="sizeritem">
-									<option>0</option>
-									<flag>wxALL</flag>
-									<border>5</border>
-									<object class="wxStaticText" name="m_staticText6">
-										<label>Name</label>
-										<wrap>-1</wrap>
-									</object>
-								</object>
-								<object class="sizeritem">
-									<option>1</option>
-									<flag>wxALL|wxEXPAND</flag>
-									<border>5</border>
-									<object class="wxTextCtrl" name="commandNameEdit">
-										<value></value>
-									</object>
-								</object>
-								<object class="sizeritem">
-									<option>0</option>
-									<flag>wxALL</flag>
-									<border>5</border>
-									<object class="wxStaticText" name="m_staticText7">
-										<label>Text to activate</label>
-										<wrap>-1</wrap>
-									</object>
-								</object>
-								<object class="sizeritem">
-									<option>1</option>
-									<flag>wxALL|wxEXPAND</flag>
-									<border>5</border>
-									<object class="wxTextCtrl" name="commandText">
-										<value></value>
-									</object>
-								</object>
-								<object class="sizeritem">
-									<option>0</option>
-									<flag>wxALL</flag>
-									<border>5</border>
-									<object class="wxStaticText" name="m_staticText8">
-										<label>Where</label>
-										<wrap>-1</wrap>
-									</object>
-								</object>
-								<object class="sizeritem">
-									<option>1</option>
-									<flag>wxALL|wxEXPAND</flag>
-									<border>5</border>
-									<object class="wxChoice" name="commandWhere">
-										<selection>0</selection>
-										<content />
-									</object>
-								</object>
-								<object class="sizeritem">
-									<option>0</option>
-									<flag>wxALL</flag>
-									<border>5</border>
-									<object class="wxStaticText" name="m_staticText9">
-										<label></label>
-										<wrap>-1</wrap>
-									</object>
-								</object>
-								<object class="sizeritem">
-									<option>0</option>
-									<flag>wxALL</flag>
-									<border>5</border>
-									<object class="wxCheckBox" name="commandEnabled">
-										<label>Enabled</label>
-										<checked>0</checked>
-									</object>
-								</object>
-							</object>
-						</object>
-					</object>
-				</object>
-			</object>
-			<object class="sizeritem">
-				<option>0</option>
-				<flag>wxALL|wxEXPAND</flag>
-				<border>5</border>
-				<object class="wxStdDialogButtonSizer">
-					<object class="button">
-						<flag>wxALIGN_CENTER_HORIZONTAL|wxALL</flag>
-						<border>5</border>
-						<object class="wxButton" name="wxID_OK">
-							<label>&amp;OK</label>
-						</object>
-					</object>
-					<object class="button">
-						<flag>wxALIGN_CENTER_HORIZONTAL|wxALL</flag>
-						<border>5</border>
-						<object class="wxButton" name="wxID_CANCEL">
-							<label>&amp;Cancel</label>
 						</object>
 					</object>
 				</object>
