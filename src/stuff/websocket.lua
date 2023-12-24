@@ -120,7 +120,8 @@ function Websocket:connect()
         end
     end
     self:setState("connecting")
-
+    
+    self.logger.log("url", self.url)
     local sock = pollnet.open_ws(self.url)
     if sock then
         self.socket.sock = sock

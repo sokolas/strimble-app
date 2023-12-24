@@ -188,6 +188,10 @@ local function saveConfig()
         userId = Twitch.userId,
     })
     
+    SaveToCfg("vts", {
+        token = vts.getToken()
+    })
+    
     Gui.statusbar:SetStatusText("Config saved", 0)
 end
 
@@ -223,6 +227,10 @@ local function loadConfig()
     Twitch.token = Gui.twitch.token:GetValue()
     Twitch.username = Gui.twitch.username:GetValue()
     Twitch.channel = Gui.twitch.channel:GetValue()
+
+    -- set up vts
+    vts.setToken(ReadFromCfg("vts", "token", ""))
+    vts.setAutoReconnect(Gui.vts.autoconnect:GetValue())
 
     LoadDb()
     
@@ -575,14 +583,51 @@ function main()
 
     -- VTube Studio
     findWindow("vtsConnectBtn", "wxButton", "connect", "vts")
+    findWindow("vtsRefresh", "wxButton", "refresh", "vts")
     findWindow("vtsAddress", "wxTextCtrl", "address", "vts")
-    vts.init(vts.setAddress)    -- default url for now
+    findWindow("vtsStatusText", "wxStaticText", "status", "vts")
+    findWindow("vtsHotkeysLabel", "wxStaticText", "hotkeys", "vts")
+    findWindow("vtsAutoconnect", "wxCheckBox", "autoconnect", "vts")
+    -- findWindow("vtsStatusPanel")
+
+    local function vtsStateListener(state, icon)
+        Gui.vts.status:SetLabel("Status: " .. (state or "unknown"))
+        -- twitchWnd.appendTwitchMessage("*** status: " .. newState)
+        
+        if not icon then
+            iconsHelper.setStatus("vts", nil)
+        elseif icon == "error" then
+            iconsHelper.setStatus("vts", "fail")
+        elseif icon == "retry" then
+            iconsHelper.setStatus("vts", "retry")
+        else
+            iconsHelper.setStatus("vts", "ok")
+        end
+    end
+
+    local function vtsDataChangeListener()
+        local hotkeys = vts.getHotkeys()
+        if not hotkeys then
+            Gui.vts.hotkeys:SetLabel("Hotkeys: N/A")
+        else
+            Gui.vts.hotkeys:SetLabel("Hotkeys: " .. tostring(#hotkeys))
+        end
+    end
+    
+    vts.init(Gui.vts.address:GetValue(), nil, vtsStateListener, vtsDataChangeListener)    -- default url for now
     frame:Connect(Gui.vts.connect:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, evtHandler(function(event)
         local url = Gui.vts.address:GetValue()
         if url and url ~= "" then
             vts.setAddress(url)
         end
         vts.connect()
+    end))
+    frame:Connect(Gui.vts.autoconnect:GetId(), wx.wxEVT_CHECKBOX, evtHandler(function(event)
+        vts.setAddress(Gui.vts.address:GetValue())
+        vts.setAutoReconnect(event:IsChecked())
+    end))
+    frame:Connect(Gui.vts.refresh:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, evtHandler(function(event)
+        vts.refreshHotkeys()
     end))
 
     -- actions
@@ -712,6 +757,9 @@ function main()
 
     if Gui.twitch.autoconnect:GetValue() then
         wx.wxPostEvent(frame, wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, Gui.twitch.connectBtn:GetId()))
+    end
+    if Gui.vts.autoconnect:GetValue() then
+        wx.wxPostEvent(frame, wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, Gui.vts.connect:GetId()))
     end
     -- collectgarbage("collect")
     

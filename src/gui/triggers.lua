@@ -434,18 +434,6 @@ local function load()
         end
     end
 
-    -- timers
-    local timersGuiItem, timersTreeItem = timers.createTimersFolder(triggerListCtrl, triggerListCtrl:GetRootItem(), onTrigger)
-    _M.treedata[timersTreeItem.id] = timersTreeItem
-    for row in Db:nrows("SELECT * FROM triggers WHERE type = 'timer'") do
-        local result = json.decode(row.data)
-        result.dbId = row.id
-        addChild(timersGuiItem, result)
-        if not triggerListCtrl:IsExpanded(timersGuiItem) then
-            triggerListCtrl:Expand(timersGuiItem)
-        end
-    end
-
     -- EventSub
     local eventsubGuiItem, eventsubTreeItem = eventsub.createEventSubFolder(triggerListCtrl, triggerListCtrl:GetRootItem())
     _M.treedata[eventsubTreeItem.id] = eventsubTreeItem
@@ -455,6 +443,18 @@ local function load()
         addChild(eventsubGuiItem, result)
         if not triggerListCtrl:IsExpanded(eventsubGuiItem) then
             triggerListCtrl:Expand(eventsubGuiItem)
+        end
+    end
+
+    -- timers
+    local timersGuiItem, timersTreeItem = timers.createTimersFolder(triggerListCtrl, triggerListCtrl:GetRootItem(), onTrigger)
+    _M.treedata[timersTreeItem.id] = timersTreeItem
+    for row in Db:nrows("SELECT * FROM triggers WHERE type = 'timer'") do
+        local result = json.decode(row.data)
+        result.dbId = row.id
+        addChild(timersGuiItem, result)
+        if not triggerListCtrl:IsExpanded(timersGuiItem) then
+            triggerListCtrl:Expand(timersGuiItem)
         end
     end
 

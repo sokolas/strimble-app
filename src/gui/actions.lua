@@ -6,6 +6,7 @@ local dataHelper = require("src/stuff/data_helper")
 -- steps helpers
 local twitchStepsHelper = require("src/stuff/steps/twitch_steps")
 local generalStepsHelper = require("src/stuff/steps/general_steps")
+local vtsStepsHelper = require("src/stuff/steps/vts_steps")
 
 local actionsListCtrl = nil
 local stepsListCtrl = nil
@@ -448,6 +449,20 @@ local function editStep(m, selected, stepHandler, result, step, actionData, step
     end
 end
 
+local function callEditStepDialog(actionData, stepIndex, selected)
+    local step = actionData.steps[stepIndex]
+    local stepHandler = step.prototype
+    if not stepHandler then return end
+
+    local data = step.params
+    if stepHandler.preProcess then
+        data = stepHandler.preProcess(step.params)
+    end
+    local m, result = stepHandler.dialogItem.executeModal("Edit " .. stepHandler.name, data, stepHandler.init)
+    editStep(m, selected, stepHandler, result, step, actionData, stepIndex)
+end
+
+
 -- creates
 --      gui.actions.actionsList
 --      gui.actions.stepsList
@@ -692,6 +707,7 @@ function _M.init()
 
     twitchStepsHelper.init(stepMenu, stepsHandlers)
     generalStepsHelper.init(stepMenu, stepsHandlers)
+    vtsStepsHelper.init(stepMenu, stepsHandlers)
 
     stepsListCtrl:Connect(wx.wxEVT_TREELIST_ITEM_CONTEXT_MENU, function(e) -- right click on a step
         if not actionsListCtrl:GetSelection():IsOk() then
@@ -722,16 +738,7 @@ function _M.init()
         local menuSelection = Gui.frame:GetPopupMenuSelectionFromUser(Gui.menus.stepMenu, wx.wxDefaultPosition)
 
         if menuSelection == stepEditItem:GetId() then
-            local step = actionData.steps[stepIndex]
-            local stepHandler = step.prototype
-            if not stepHandler then return end
-
-            local data = step.params
-            if stepHandler.preProcess then
-                data = stepHandler.preProcess(step.params)
-            end
-            local m, result = stepHandler.dialogItem.executeModal("Edit " .. stepHandler.name, data)
-            editStep(m, selected, stepHandler, result, step, actionData, stepIndex)
+            callEditStepDialog(actionData, stepIndex, selected)
             return
         end
 
@@ -747,7 +754,7 @@ function _M.init()
         local stepHandler = stepsHandlers[menuSelection]
         if not stepHandler then return end
         -- add step
-        local m, result = stepHandler.dialogItem.executeModal("Add " .. stepHandler.name, stepHandler.data)
+        local m, result = stepHandler.dialogItem.executeModal("Add " .. stepHandler.name, stepHandler.data, stepHandler.init)
         if m == wx.wxID_OK then
             local item = stepsListCtrl:AppendItem(rootStepItem, stepHandler.name, stepHandler.icon or iconsHelper.pages.actions, stepHandler.icon or iconsHelper.pages.actions)
             stepsListCtrl:SetItemText(item, 1, stepHandler.getDescription(result))
@@ -787,18 +794,7 @@ function _M.init()
         end
         logger.log("step index", stepIndex)
 
-        local step = actionData.steps[stepIndex]
-        local stepHandler = step.prototype
-        if not stepHandler then return end
-
-        local data = step.params
-        if stepHandler.preProcess then
-            logger.log("preprocessing")
-            data = stepHandler.preProcess(step.params)
-        end
-        local m, result = stepHandler.dialogItem.executeModal("Edit " .. stepHandler.name, data)
-        
-        editStep(m, selected, stepHandler, result, step, actionData, stepIndex)
+        callEditStepDialog(actionData, stepIndex, selected)
     end)
 
     local upBtn = Gui.findWindow("stepMoveUp", "wxButton", "stepMoveUp", "actions", true)

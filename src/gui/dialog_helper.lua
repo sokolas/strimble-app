@@ -202,6 +202,7 @@ local function createDataDialog(gui, dlgName, controls, validate)
                 return nil
             end
             if widget then
+                logger.log("init", v.init)
                 if v.init then
                     v.init(widget)
                 end
