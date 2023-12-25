@@ -8,6 +8,7 @@ local actionsHelper = require("src/gui/actions")
 local dataHelper = require("src/stuff/data_helper")
 local audio = require("src/stuff/audio")
 local vts = require("src/integrations/vts")
+local obs = require("src/integrations/obs")
 
 local ThingsToKeep = {} -- variable to store references to various stuff that needs to be kept
 local accelTable = {}
@@ -629,6 +630,42 @@ function main()
     frame:Connect(Gui.vts.refresh:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, evtHandler(function(event)
         vts.refreshHotkeys()
     end))
+
+    -- OBS
+    findWindow("obsConnect", "wxButton", "connect", "obs")
+    findWindow("obsAddress", "wxTextCtrl", "address", "obs")
+    findWindow("obsPassword", "wxTextCtrl", "password", "obs")
+    findWindow("obsStatusLabel", "wxStaticText", "status", "obs")
+    findWindow("obsAutoconnect", "wxCheckBox", "autoconnect", "obs")
+
+    local function obsStateListener(state, icon)
+        Gui.obs.status:SetLabel("Status: " .. (state or "unknown"))
+        
+        if not icon then
+            iconsHelper.setStatus("obs", nil)
+        elseif icon == "error" then
+            iconsHelper.setStatus("obs", "fail")
+        elseif icon == "retry" then
+            iconsHelper.setStatus("obs", "retry")
+        else
+            iconsHelper.setStatus("obs", "ok")
+        end
+    end
+    obs.init(Gui.obs.address:GetValue(), nil, obsStateListener, nil)    -- default url for now
+    frame:Connect(Gui.obs.connect:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, evtHandler(function(event)
+        local url = Gui.obs.address:GetValue()
+        if url and url ~= "" then
+            obs.setUrl(url)
+        end
+        local pass = Gui.obs.password:GetValue()
+        obs.setPasword(pass)
+        obs.connect()
+    end))
+    frame:Connect(Gui.obs.autoconnect:GetId(), wx.wxEVT_CHECKBOX, evtHandler(function(event)
+        obs.setUrl(Gui.obs.address:GetValue())
+        obs.setAutoReconnect(event:IsChecked())
+    end))
+
 
     -- actions
     actionsHelper.init()
