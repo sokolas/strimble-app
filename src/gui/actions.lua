@@ -570,6 +570,11 @@ function _M.init()
     local actionEditItem = actionMenu:Append(wx.wxID_ANY, "Edit...")
     local actionToggleItem = actionMenu:AppendCheckItem(wx.wxID_ANY, "Enabled")
     actionMenu:AppendSeparator()
+    local triggeredByMenu = wx.wxMenu()
+    -- triggeredByMenu:SetTitle("Go to...")
+    local triggeredByItem = actionMenu:AppendSubMenu(triggeredByMenu, "Triggered by")
+    Gui.menus.triggeredByMenu = triggeredByMenu
+    actionMenu:AppendSeparator()
     local actionDeleteItem = actionMenu:Append(wx.wxID_ANY, "Delete")
     Gui.menus.actionMenu = actionMenu
 
@@ -617,7 +622,21 @@ function _M.init()
         Gui.menus.actionMenu:Enable(actionEditItem:GetId(), treeItem.canEdit == true)
         Gui.menus.actionMenu:Enable(actionDeleteItem:GetId(), treeItem.canDelete == true)
         Gui.menus.actionMenu:Enable(actionToggleItem:GetId(), (not treeItem.isGroup))    -- disable toggling for whole groups for now
+        Gui.menus.actionMenu:Enable(triggeredByItem:GetId(), (not treeItem.isGroup))
         Gui.menus.actionMenu:Check(actionToggleItem:GetId(), treeItem.data.enabled == true)
+
+        local triggerItems = {}
+        while Gui.menus.triggeredByMenu:GetMenuItemCount() > 0 do
+            local it = Gui.menus.triggeredByMenu:FindItemByPosition(0);
+            Gui.menus.triggeredByMenu:Destroy(it)
+        end
+        if not treeItem.isGroup then
+            local triggeredBy = dataHelper.findTriggers(function(t) return t.data.action == treeItem.dbId end)
+            for k, v in ipairs(triggeredBy) do
+                local item = Gui.menus.triggeredByMenu:Append(wx.wxID_ANY, v.name)
+                triggerItems[item:GetId()] = v.id
+            end
+        end
 
         local menuSelection = Gui.frame:GetPopupMenuSelectionFromUser(Gui.menus.actionMenu, wx.wxDefaultPosition)
         -- logger.log(menuSelection)
@@ -641,6 +660,16 @@ function _M.init()
             deleteItem(e:GetItem(), true)
         elseif menuSelection == actionToggleItem:GetId() then
             toggleItem(e:GetItem(), actionToggleItem:IsChecked())
+        elseif triggerItems[menuSelection] then
+            logger.log("goto trigger")
+            local lblv = Gui.listbook:GetListView()
+            local itemFound = Gui.triggers.triggersList:GetRootItem()
+            while itemFound:GetValue() ~= triggerItems[menuSelection] do
+                itemFound = Gui.triggers.triggersList:GetNextItem(itemFound)
+            end
+            lblv:Select(4)
+            Gui.triggers.triggersList:Select(itemFound)
+            -- wx.wxPostEvent(Gui.frame, wx.wxListbookEvent(wx.wxEVT_LISTBOOK_PAGE_CHANGED, 1))
         end
     end)
 
