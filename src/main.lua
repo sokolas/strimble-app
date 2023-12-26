@@ -62,6 +62,7 @@ package.cpath = 'bin/clibs/?.dll;' .. package.cpath
 package.path  = 'lualibs/?.lua;lualibs/?/?.lua;lualibs/?/init.lua;' .. package.path
 
 if jit and jit.on then jit.on() end -- turn jit "on" as "mobdebug" may turn it off for LuaJIT
+-- require("winapi")
 require("wx")
 -- wx.wxSplashScreen(wx.wxBitmap("starter/resources/res/bug-256.png"), wx.wxSPLASH_CENTRE_ON_SCREEN + wx.wxSPLASH_TIMEOUT, 1000, wx.NULL, wx.wxID_ANY)
 -- dofile "src/util.lua"

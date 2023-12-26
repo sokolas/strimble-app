@@ -1,6 +1,7 @@
 local base64 = require("base64")
 local sha2 = require("sha2")
 local Websocket = require("src/stuff/websocket")
+local timers = require("src/stuff/wxtimers")
 
 local logger = Logger.create("OBS")
 local ws_logger = Logger.create("OBS-ws")
@@ -16,6 +17,13 @@ local state = "offline"
 local userStateListener = nil
 local userMessageListener = nil
 local dataChangeListener = nil
+
+local req_id = 0
+local requests = {}
+local requestsTimer = nil
+local timeout = 5000
+
+local stopwatch = wx.wxStopWatch()  -- we need a strictly monotonous source of milliseconds
 
 local function getIcon(state)
     if state == "ready" then
@@ -46,6 +54,45 @@ local function send(message)
     end
 end
 
+local function onRequest()
+    local ok, res = coroutine.yield()
+    return ok, res
+end
+
+local function nextRequest(type, data)
+    req_id = req_id + 1
+    local id = tostring(req_id)
+    return id, {
+        op = 6,
+        d = {
+            requestType = type,
+            requestId = id,
+            requestData = data
+        }
+    }
+end
+
+local function request(type, data)
+    local this, main_thread = coroutine.running()
+    if main_thread then
+        logger.err("Can't call suspendable 'request' from non-coroutine", debug.traceback())
+        return false
+    end
+    if state == "connected" or state == "ready" and socket then
+        local id, msg = nextRequest(type, data)
+        logger.log(id, msg)
+        socket:send(Json.encode(msg))
+        requests[id] = {
+            co = this,
+            time = stopwatch:Time()
+        }
+        logger.log("suspending")
+        local ok, res = coroutine.yield()
+        logger.log("got", ok, res)
+        return ok, res
+    end
+end
+
 local function identify(auth)
     local msg = {
         op = 1,
@@ -73,11 +120,22 @@ local function wsMessageListener(msg)
             send(identify(m.d.authentication))
     elseif m.op == 2 then   -- IDENTIFIED
         setState("ready")
+    elseif m.op == 7 then   -- RESPONSE
+        local req = requests[m.d.requestId]
+        logger.log(req)
+        if req then
+            logger.log("resuming")
+            requests[m.d.requestId] = nil
+            coroutine.resume(req.co, true, m.d)
+        end
     end
 end
 
 local function wsStateListener(oldState, newState)
     setState(newState)
+    if oldState == "ready" then
+        -- invalidate cache
+    end
 end
 
 local function connect()
@@ -131,12 +189,26 @@ local function setAutoReconnect(a)
     end
 end
 
+local function handleRequestTimer(event)
+    local time = stopwatch:Time()
+    for k, v in pairs(requests) do
+        if time - v.time >= timeout then
+            local co = v.co
+            requests[k] = nil
+            logger.err("request timeout", k)
+            coroutine.resume(co, false, {})
+        end
+    end
+end
+
 local function init(a, messageListener, stateListener, dataChangeListener)
     setUrl(a)
     setUserMessageListener(messageListener)
     setUserStateListener(stateListener)
     setDataChangeListener(dataChangeListener)
     socket = Websocket:create("obs-ws", url, reconnect_interval, auto_reconnect, nil, wsMessageListener, wsStateListener, ws_logger, false)
+    requestsTimer = timers.addTimer(1000, handleRequestTimer, true)
+    stopwatch:Start(0)
 end
 
 local _M = {
@@ -151,6 +223,7 @@ local _M = {
     setUrl = setUrl,
     connect = connect,
     send = send,
+    request = request
 }
 
 return _M

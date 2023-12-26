@@ -233,6 +233,9 @@ local function loadConfig()
     vts.setToken(ReadFromCfg("vts", "token", ""))
     vts.setAutoReconnect(Gui.vts.autoconnect:GetValue())
 
+    -- set up obs
+    obs.setAutoReconnect(Gui.obs.autoconnect:GetValue())
+
     LoadDb()
     
     actionsHelper.load()
@@ -535,9 +538,9 @@ function main()
         local triggered = triggersHelper.onTrigger("twitch_privmsg", {channel = message.channel, user = user, text = message.text})
     end
     
-    local function twitchStateListener(chatState, chatIcon, esState, esIcon)
+    local function twitchStateListener(chatState, chatIcon, esState, esIcon, additional)
         Gui.twitch.chatStatus:SetLabel("Chat: " .. (chatState or "unknown"))
-        Gui.twitch.esStatus:SetLabel("EventSub: " .. (esState or "unknown"))
+        Gui.twitch.esStatus:SetLabel("EventSub: " .. (esState or "unknown") .. (additional or ""))
         Gui.twitch.statusPanel:Layout();
         -- twitchWnd.appendTwitchMessage("*** status: " .. newState)
         
@@ -663,6 +666,7 @@ function main()
     end))
     frame:Connect(Gui.obs.autoconnect:GetId(), wx.wxEVT_CHECKBOX, evtHandler(function(event)
         obs.setUrl(Gui.obs.address:GetValue())
+        obs.setPasword(Gui.obs.password:GetValue())
         obs.setAutoReconnect(event:IsChecked())
     end))
 
@@ -753,12 +757,12 @@ function main()
         end
     end)
 
-    --[[eventsub.setStateListener(function(oldState, newState)
-        logger.log("eventsub state changed", oldState, newState)
-    end)]]
-    --[[Gui.misc.button5:SetLabel("connect eventsub")
+    
+    Gui.misc.button5:SetLabel("obs version")
     frame:Connect(Gui.misc.button5:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, evtHandler(function(event)
-    end))]]
+        local ok, res = obs.request("GetVersion")
+        logger.log(ok, res)
+    end))
     
     --[[Gui.misc.button6:SetLabel("toggle reconnect")
     frame:Connect(Gui.misc.button6:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, evtHandler(function(event)
@@ -797,6 +801,9 @@ function main()
     end
     if Gui.vts.autoconnect:GetValue() then
         wx.wxPostEvent(frame, wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, Gui.vts.connect:GetId()))
+    end
+    if Gui.obs.autoconnect:GetValue() then
+        wx.wxPostEvent(frame, wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, Gui.obs.connect:GetId()))
     end
     -- collectgarbage("collect")
     

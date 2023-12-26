@@ -158,19 +158,23 @@ local function createDataDialog(gui, dlgName, controls, validate)
     for groupName, controlGroup in pairs(controls) do
         local controlsBox = wx.wxStaticBox(bgPanel, wx.wxID_ANY, groupName)
         local listBoxStaticBoxSizer = wx.wxStaticBoxSizer(controlsBox, wx.wxVERTICAL);
-        listBoxStaticBoxSizer:SetMinSize(wx.wxSize(300, -1))
+        listBoxStaticBoxSizer:SetMinSize(wx.wxSize(400, -1))
         -- local fgSizer = wx.wxFlexGridSizer(#controls, 2)
         local fgSizer = wx.wxFlexGridSizer(0, 2)
-        -- fgSizer:AddGrowableCol(0, 0)
         fgSizer:AddGrowableCol(1, 1)
-        fgSizer:SetFlexibleDirection(wx.wxHORIZONTAL)
+        fgSizer:SetFlexibleDirection(wx.wxHORIZONTAL)   -- by default, grow only horizontally
         fgSizer:SetNonFlexibleGrowMode(wx.wxFLEX_GROWMODE_ALL)
 
         for i, v in ipairs(controlGroup) do
+            local grow = nil
             local label = wx.wxStaticText(controlsBox, wx.wxID_ANY, v.label or "")
             local widget = nil
             if v.type == "text" then
                 widget = wx.wxTextCtrl(controlsBox, wx.wxID_ANY, v.value or "", wx.wxDefaultPosition, wx.wxDefaultSize)
+            elseif v.type == "multiline" then
+                widget = wx.wxTextCtrl(controlsBox, wx.wxID_ANY, v.value or "", wx.wxDefaultPosition, wx.wxDefaultSize, wx.wxTE_MULTILINE + wx.wxTE_BESTWRAP)
+                grow = true
+                fgSizer:SetFlexibleDirection(wx.wxBOTH) -- grow the sizer inside static panel in both directions
             elseif v.type == "check" then
                 widget = wx.wxCheckBox(controlsBox, wx.wxID_ANY, v.text or "check", wx.wxDefaultPosition,
                     wx.wxDefaultSize)
@@ -202,12 +206,14 @@ local function createDataDialog(gui, dlgName, controls, validate)
                 return nil
             end
             if widget then
-                logger.log("init", v.init)
                 if v.init then
                     v.init(widget)
                 end
                 widget:SetName(dlgName .. "__" .. v.name)
                 addToDlg(gui, widget, v.name, dlgName)
+                if grow then
+                    fgSizer:AddGrowableRow(i-1, 1)  -- grow multiline vertically
+                end
                 fgSizer:Add(label, (i - 1) * 2, wx.wxALL, 5)
                 fgSizer:Add(widget, (i - 1) * 2 + 1, wx.wxALL + wx.wxEXPAND, 5)
             end
@@ -218,8 +224,9 @@ local function createDataDialog(gui, dlgName, controls, validate)
     end
 
     local outerSizer = wx.wxFlexGridSizer(1, #sizers, 0, 5)
-    outerSizer:SetFlexibleDirection(wx.wxHORIZONTAL)
+    outerSizer:SetFlexibleDirection(wx.wxBOTH)
     outerSizer:SetNonFlexibleGrowMode(wx.wxFLEX_GROWMODE_ALL)
+    outerSizer:AddGrowableRow(0, 1) -- set the static boxes row growable
     for i = 1, #sizers do
         outerSizer:AddGrowableCol(i - 1, 1)
         outerSizer:Add(sizers[i], 1, wx.wxEXPAND, 0)

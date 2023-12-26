@@ -73,6 +73,7 @@ end
 local function subscribe()
     local err = false
     local scopes = es_helper.scopes(session_id, broadcaster_id)
+    local total = #scopes
     for i = 1, #scopes do
         logger.log("Subscribing to ", scopes[i].type)
         local body = Json.encode(scopes[i])
@@ -84,6 +85,9 @@ local function subscribe()
         if websocket:getState() ~= "subscribing" or (not ok) or res.status ~= "202 Accepted" then -- the state may have changed, the subscription may have not worked, etc. Abort the subscriptions process
             err = true
             break
+        end
+        if onStateChange then
+            onStateChange("subscribing", "subscribing", string.format(" (%d/%d)", i, total))
         end
     end
     if err then

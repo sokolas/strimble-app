@@ -31,6 +31,8 @@ local function createCommandDlg()
                 type = "choice",
                 choices = commandWhere
             },
+        },
+        ["other"] = {
             {
                 name = "action",
                 label = "Action",

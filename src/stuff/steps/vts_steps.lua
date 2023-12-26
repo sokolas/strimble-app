@@ -27,7 +27,7 @@ local function init(menu, dialogs)
             {
                 name = "comment",
                 label = "Comment",
-                type = "text"
+                type = "multiline"
             }
         }
     },

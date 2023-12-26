@@ -4,9 +4,10 @@ local json = require("json")
 local dataHelper = require("src/stuff/data_helper")
 
 -- steps helpers
-local twitchStepsHelper = require("src/stuff/steps/twitch_steps")
-local generalStepsHelper = require("src/stuff/steps/general_steps")
-local vtsStepsHelper = require("src/stuff/steps/vts_steps")
+local twitchSteps = require("src/stuff/steps/twitch_steps")
+local generalSteps = require("src/stuff/steps/general_steps")
+local vtsSteps = require("src/stuff/steps/vts_steps")
+local obsSteps = require("src/stuff/steps/obs_steps")
 
 local actionsListCtrl = nil
 local stepsListCtrl = nil
@@ -487,7 +488,7 @@ function _M.init()
                 {
                     name = "description",
                     label = "Description",
-                    type = "text"
+                    type = "multiline"
                 },
                 {
                     name = "queue",
@@ -734,9 +735,10 @@ function _M.init()
         logger.log("steps selection changed", stepsListCtrl:GetItemText(stepsListCtrl:GetSelection(), 1))
     end)
 
-    twitchStepsHelper.init(stepMenu, stepsHandlers)
-    generalStepsHelper.init(stepMenu, stepsHandlers)
-    vtsStepsHelper.init(stepMenu, stepsHandlers)
+    twitchSteps.init(stepMenu, stepsHandlers)
+    generalSteps.init(stepMenu, stepsHandlers)
+    vtsSteps.init(stepMenu, stepsHandlers)
+    obsSteps.init(stepMenu, stepsHandlers)
 
     stepsListCtrl:Connect(wx.wxEVT_TREELIST_ITEM_CONTEXT_MENU, function(e) -- right click on a step
         if not actionsListCtrl:GetSelection():IsOk() then

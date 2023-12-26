@@ -102,7 +102,7 @@ local function getEsIcon(state)
     end
 end
 
-_M.setState = function(component, newState)
+_M.setState = function(component, newState, additional)
     logger.log("component", component, "state", newState)
     if component == "chat" then
         _M.state = newState
@@ -112,7 +112,7 @@ _M.setState = function(component, newState)
     else
         _M.es_state = newState
         if _M.userStateListener then
-            _M.userStateListener(_M.state, getChatIcon(_M.state), newState, getEsIcon(newState))
+            _M.userStateListener(_M.state, getChatIcon(_M.state), newState, getEsIcon(newState), additional)
         end
     end
 end
@@ -501,8 +501,8 @@ _M.sendToChannel = function(text, channel)
     sendRaw("PRIVMSG " .. toChannel(c) .. " :" .. text)   -- todo: escape
 end
 
-_M.esStateListener = function(oldState, newState)
-    _M.setState("eventsub", newState)
+_M.esStateListener = function(oldState, newState, additional)
+    _M.setState("eventsub", newState, additional)
 end
 
 _M.init = function(esMessageListener, chatMessageListener, stateListener)
