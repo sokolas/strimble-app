@@ -1,4 +1,5 @@
 local logger = Logger.create("dialogs")
+local iconsHelper = require("src/gui/icons")
 
 -- if control is text or checkbox: set the value directly
 -- if control is choice: set the selected as the value number
@@ -322,6 +323,26 @@ _M.loadMainWindow = function()
     frame:SetSize(size)
 
     return xmlResource, frame
+end
+
+_M.loadPanel = function(src, name, pageName)
+    local xmlResource = nil
+    xmlResource = wx.wxXmlResource()
+    xmlResource:InitAllHandlers()
+
+    xmlResource:Load(src)
+    local panel = xmlResource:LoadPanel(Gui.listbook, name)
+    if not panel then
+        wx.wxMessageBox("Error loading xrc resources!",
+                        "Strimble Error",
+                        wx.wxOK + wx.wxICON_EXCLAMATION,
+                        wx.NULL)
+        return -- quit program
+    else
+        Gui.listbook:InsertPage(iconsHelper.int_pos - 1, panel, pageName)
+    end
+
+    return xmlResource, panel
 end
 
 _M.loadDialog = loadDialog

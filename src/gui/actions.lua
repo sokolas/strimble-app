@@ -6,7 +6,6 @@ local dataHelper = require("src/stuff/data_helper")
 -- steps helpers
 local twitchSteps = require("src/stuff/steps/twitch_steps")
 local generalSteps = require("src/stuff/steps/general_steps")
-local vtsSteps = require("src/stuff/steps/vts_steps")
 local obsSteps = require("src/stuff/steps/obs_steps")
 
 local actionsListCtrl = nil
@@ -18,6 +17,7 @@ local currentAction = {}
 local logger = Logger.create("actions_gui")
 
 local stepsHandlers = {}
+local pages = {}
 
 local _M = {
     actionsData = {}
@@ -108,7 +108,7 @@ function _M.addAction(groupGuiItem, data)
     local parentTreeItem = _M.actionsData[groupGuiItem:GetValue()]
     data.group = parentTreeItem.name    -- forcibly set the group to the one that was used during creation
 
-    local guiItem = actionsListCtrl:AppendItem(groupGuiItem, data.name, iconsHelper.pages.actions, iconsHelper.pages.actions)
+    local guiItem = actionsListCtrl:AppendItem(groupGuiItem, data.name, pages.actions, pages.actions)
     local item = {
         id = guiItem:GetValue(),
         dbId = data.dbId,   -- only present if loaded from DB
@@ -247,7 +247,7 @@ local function updateActionItem(item, result)
         actionsListCtrl:SetItemText(item, 2, result.description or "")
         actionsListCtrl:SetItemText(item, 3, result.queue or "")
     else
-        local newItem = actionsListCtrl:AppendItem(groupItem, result.name, iconsHelper.pages.actions, iconsHelper.pages.actions)
+        local newItem = actionsListCtrl:AppendItem(groupItem, result.name, pages.actions, pages.actions)
         -- update UI
         actionsListCtrl:SetItemText(newItem, 0, result.name)
         actionsListCtrl:SetItemText(newItem, 1, (result.enabled and "Yes" or "No"))
@@ -330,10 +330,10 @@ function _M.addActionGroup(name, rootActionItem)
     local currentGroup = getNextGroupItem()
     local groupItem = nil
     if not currentGroup then
-        groupItem = actionsListCtrl:AppendItem(rootActionItem, name, iconsHelper.pages.folder, iconsHelper.pages.folder)
+        groupItem = actionsListCtrl:AppendItem(rootActionItem, name, pages.folder, pages.folder)
     else
         if _M.actionsData[currentGroup:GetValue()].name >= name then
-            groupItem = actionsListCtrl:PrependItem(rootActionItem, name, iconsHelper.pages.folder, iconsHelper.pages.folder)
+            groupItem = actionsListCtrl:PrependItem(rootActionItem, name, pages.folder, pages.folder)
         else
             local lastGroup = currentGroup
             while _M.actionsData[currentGroup:GetValue()].name < name do
@@ -343,7 +343,7 @@ function _M.addActionGroup(name, rootActionItem)
                     break;
                 end
             end
-            groupItem = actionsListCtrl:InsertItem(rootActionItem, lastGroup, name, iconsHelper.pages.folder, iconsHelper.pages.folder)
+            groupItem = actionsListCtrl:InsertItem(rootActionItem, lastGroup, name, pages.folder, pages.folder)
         end
     end
     
@@ -354,7 +354,7 @@ function _M.addActionGroup(name, rootActionItem)
         canEdit = false,
         canAddChildren = true,
         persistChildren = true,
-        icon = iconsHelper.pages.actions, -- for children
+        icon = pages.actions, -- for children
         -- canDeleteChildren = true,
         add = function(id, data)
             local groups = {}
@@ -471,7 +471,8 @@ end
 --      gui.menus.stepMenu
 --      gui.dialogs.ActionDialog
 --      gui.ActionDialog.* fields
-function _M.init()
+function _M.init(integrations)
+    pages = iconsHelper.getPages()
     local actionDlg = dialogHelper.createDataDialog(Gui, "ActionDialog", {
             ["Action properties"] = {
                 {
@@ -668,7 +669,7 @@ function _M.init()
             while itemFound:GetValue() ~= triggerItems[menuSelection] do
                 itemFound = Gui.triggers.triggersList:GetNextItem(itemFound)
             end
-            lblv:Select(4)
+            lblv:Select(pages.triggers)
             Gui.triggers.triggersList:Select(itemFound)
             -- wx.wxPostEvent(Gui.frame, wx.wxListbookEvent(wx.wxEVT_LISTBOOK_PAGE_CHANGED, 1))
         end
@@ -712,7 +713,7 @@ function _M.init()
         if steps and #steps > 0 then
             local stepRoot = stepsListCtrl:GetRootItem()
             for j, step in ipairs(steps) do
-                local stepItem = stepsListCtrl:AppendItem(stepRoot, step.prototype.name, step.prototype.icon or iconsHelper.pages.actions, step.prototype.icon or iconsHelper.pages.actions)
+                local stepItem = stepsListCtrl:AppendItem(stepRoot, step.prototype.name, step.prototype.icon or pages.actions, step.prototype.icon or pages.actions)
                 stepsListCtrl:SetItemText(stepItem, 1, step.description)
             end
         end
@@ -737,8 +738,11 @@ function _M.init()
 
     twitchSteps.init(stepMenu, stepsHandlers)
     generalSteps.init(stepMenu, stepsHandlers)
-    vtsSteps.init(stepMenu, stepsHandlers)
     obsSteps.init(stepMenu, stepsHandlers)
+
+    for i, v in ipairs(integrations) do
+        v.init(stepMenu, stepsHandlers)
+    end
 
     stepsListCtrl:Connect(wx.wxEVT_TREELIST_ITEM_CONTEXT_MENU, function(e) -- right click on a step
         if not actionsListCtrl:GetSelection():IsOk() then
@@ -787,7 +791,7 @@ function _M.init()
         -- add step
         local m, result = stepHandler.dialogItem.executeModal("Add " .. stepHandler.name, stepHandler.data, stepHandler.init)
         if m == wx.wxID_OK then
-            local item = stepsListCtrl:AppendItem(rootStepItem, stepHandler.name, stepHandler.icon or iconsHelper.pages.actions, stepHandler.icon or iconsHelper.pages.actions)
+            local item = stepsListCtrl:AppendItem(rootStepItem, stepHandler.name, stepHandler.icon or pages.actions, stepHandler.icon or pages.actions)
             stepsListCtrl:SetItemText(item, 1, stepHandler.getDescription(result))
             local params = result
             if stepHandler.postProcess then
@@ -863,7 +867,7 @@ function _M.init()
 
         stepsListCtrl:DeleteAllItems()
         for i, v in ipairs(actionData.steps) do
-            local item = stepsListCtrl:AppendItem(rootStepItem, v.prototype.name, v.prototype.icon or iconsHelper.pages.actions, v.prototype.icon or iconsHelper.pages.actions)
+            local item = stepsListCtrl:AppendItem(rootStepItem, v.prototype.name, v.prototype.icon or pages.actions, v.prototype.icon or pages.actions)
             stepsListCtrl:SetItemText(item, 1, v.description)
             if i == stepIndex - 1 then
                 stepsListCtrl:Select(item)
@@ -904,7 +908,7 @@ function _M.init()
 
         stepsListCtrl:DeleteAllItems()
         for i, v in ipairs(actionData.steps) do
-            local item = stepsListCtrl:AppendItem(rootStepItem, v.prototype.name, v.prototype.icon or iconsHelper.pages.actions, v.prototype.icon or iconsHelper.pages.actions)
+            local item = stepsListCtrl:AppendItem(rootStepItem, v.prototype.name, v.prototype.icon or pages.actions, v.prototype.icon or pages.actions)
             stepsListCtrl:SetItemText(item, 1, v.description)
             if i == stepIndex + 1 then
                 stepsListCtrl:Select(item)

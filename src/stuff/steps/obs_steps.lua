@@ -16,6 +16,7 @@ local function sendRequest(ctx, params)
 end
 
 local function init(menu, dialogs)
+    local pages = iconsHelper.getPages()
     -- send message
     steps.sendRequest = submenu:Append(wx.wxID_ANY, "send request")
 
@@ -56,7 +57,7 @@ local function init(menu, dialogs)
         name = "Send custom OBS request",
         dialog = steps.sendRequestDialog,
         dialogItem = Gui.dialogs.SendObsRequestDlg,
-        icon = iconsHelper.pages.obs,
+        icon = pages.obs,
         getDescription = function(result) return (result.requestType or "") .. " / " .. (result.comment or "") end,
         code = sendRequest,
         data = {

@@ -1,6 +1,6 @@
 local Websocket = require("src/stuff/websocket")
 local timers = require("src/stuff/wxtimers")
-local image_str = require("src/integrations/bug_image")
+local image_str = require("src/integrations/vts/icons/bug_image")
 local logger = Logger.create("vts")
 local ws_logger = Logger.create("vts-ws")
 local Socket = require("winsocket")
@@ -277,6 +277,7 @@ _M.setAutoReconnect = setAutoReconnect
 _M.sendHotkey = sendHotkey
 _M.refreshHotkeys = refreshHotkeys
 _M.init = init
-_M.vts_addresses = function() return vts_addresses end
+
+-- _M.vts_addresses = function() return vts_addresses end
 
 return _M

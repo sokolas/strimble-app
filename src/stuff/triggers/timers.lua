@@ -100,7 +100,9 @@ local function addOrEdit(title, mode)
 end
 
 local function createTimersFolder(triggerListCtrl, rootTriggerItem, onTrigger)
-    local timersFolder = triggerListCtrl:AppendItem(rootTriggerItem, "Timers", iconsHelper.pages.timer, iconsHelper.pages.timer)
+    local pages = iconsHelper.getPages()
+
+    local timersFolder = triggerListCtrl:AppendItem(rootTriggerItem, "Timers", pages.timer, pages.timer)
     
     local function timerHandler(item, guiItem)
         return function(event)
@@ -115,7 +117,7 @@ local function createTimersFolder(triggerListCtrl, rootTriggerItem, onTrigger)
         canAddChildren = true,
         childrenType = "timer",
         persistChildren = true,
-        icon = iconsHelper.pages.scripts, -- for children
+        icon = pages.scripts, -- for children
         getDescription = function(result)
             return result.time .. "ms"
         end,

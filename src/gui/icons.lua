@@ -1,8 +1,12 @@
+local logger = Logger.create("icons")
 local icons = {
     {path = "images/icons/twitch.png", page = "twitch"},
     {path = "images/icons/obs.png", page = "obs"},
     {path = "images/icons/dollar-sign-solid.png", page = "da"},
-    {path = "images/icons/vts.png", page = "vts"},
+    
+    -- insert integrations here, at pos=4
+    -- {path = "images/icons/vts.png", page = "vts"},
+
     {path = "images/icons/bolt-solid.png", page = "triggers"},
     {path = "images/icons/play-solid.png", page = "actions"},
     {path = "images/icons/code-solid.png", page = "scripts"},
@@ -18,17 +22,22 @@ local icons = {
     {path = "images/icons/check_ok.png"},
     {path = "images/icons/warning.png"}
 }
-local retry = #icons-3
-local ok = #icons-2
-local fail = #icons-1
+local int_pos = 4
 
 local pages = {}
 
-for i, v in ipairs(icons) do
-    if v.page then
-        pages[v.page] = i-1
+local function getPages()
+    local p = {}
+    for i, v in ipairs(icons) do
+        -- logger.log(i, v.page, v.path)
+        if v.page then
+            p[v.page] = i-1
+        end
     end
+    return p
 end
+
+pages = getPages()
 
 local function createImageList()
     local imageList = wx.wxImageList(16, 16, true)
@@ -47,7 +56,12 @@ end
 local lb = nil
 local _M = {
     pages = pages,
+    getPages = getPages,
     setStatus = function(page, status)
+        local pages = getPages()
+        local retry = #icons-3
+        local ok = #icons-2
+        local fail = #icons-1
         if pages[page] then
             if status == nil then
                 lb:SetItem(pages[page], 1, "", -1)
@@ -60,6 +74,12 @@ local _M = {
             end
         end
     end,
+
+    registerPage = function(name, icon)
+        table.insert(icons, int_pos, {page = name, path = icon})
+    end,
+    int_pos = int_pos,
+
     createImageList = createImageList,
     initializeListbook = function(listbook)
         lb = listbook

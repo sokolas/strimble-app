@@ -1,7 +1,7 @@
 local logger = Logger.create("vts_steps")
 local dialogHelper = require("src/gui/dialog_helper")
 local iconsHelper = require("src/gui/icons")
-local vts = require("src/integrations/vts")
+local vts = require("src/integrations/vts/vts")
 
 local _M = {}
 
@@ -14,6 +14,7 @@ local function sendHotkey(ctx, params)
 end
 
 local function init(menu, dialogs)
+    local pages = iconsHelper.getPages()
     -- send message
     steps.sendHotkeyItem = submenu:Append(wx.wxID_ANY, "send hotkey")
 
@@ -43,7 +44,7 @@ local function init(menu, dialogs)
         name = "Send VTube Studio Hotkey",
         dialog = steps.sendHotkeyDialog,
         dialogItem = Gui.dialogs.SendVtsHotkeyDlg,
-        icon = iconsHelper.pages.vts,
+        icon = pages.vts,
         getDescription = function(result) return (result.comment or "") .. "(" .. result.hotkey .. ")" end,
         init = {
             hotkey = function(c)

@@ -168,9 +168,10 @@ int WINAPI WinMain(HINSTANCE hInstance,  HINSTANCE hPrevInstance,  LPSTR lpCmdLi
   if(AllocConsole()) {
     SetConsoleCP(CP_UTF8);
     SetConsoleOutputCP(CP_UTF8);
-    freopen("CONOUT$", "wt", stdout);
-    freopen("CONOUT$", "wt", stderr);
-    freopen("CONIN$", "rt", stdin);
+    FILE *file = NULL;
+    freopen_s(&file, "CONOUT$", "wt", stdout);
+    freopen_s(&file, "CONOUT$", "wt", stderr);
+    freopen_s(&file, "CONIN$", "rt", stdin);
     SetConsoleTitle("Debug Console");
     SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_RED);
     SetConsoleTextAttribute(GetStdHandle(STD_ERROR_HANDLE), FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_RED);
@@ -185,7 +186,7 @@ int WINAPI WinMain(HINSTANCE hInstance,  HINSTANCE hPrevInstance,  LPSTR lpCmdLi
   if (GetCurrentDirectoryW(MAX_PATH, path) == 0) {
     MessageBox(NULL,
       TEXT("Couldn't find the current working directory"),
-      TEXT("Failed to start editor"),
+      TEXT("Failed to start application "),
       MB_OK|MB_ICONERROR);
     return 0;
   }
@@ -193,7 +194,7 @@ int WINAPI WinMain(HINSTANCE hInstance,  HINSTANCE hPrevInstance,  LPSTR lpCmdLi
   if (!GetModuleFileNameW(NULL, buffer, MAX_PATH)) {
     MessageBox(NULL,
       TEXT("Couldn't find the executable path"),
-      TEXT("Failed to start editor"),
+      TEXT("Failed to start application "),
       MB_OK|MB_ICONERROR);
     return 0;
   }
@@ -253,17 +254,17 @@ int WINAPI WinMain(HINSTANCE hInstance,  HINSTANCE hPrevInstance,  LPSTR lpCmdLi
         else
           MessageBox(NULL,
             TEXT("An unexpected error occured while loading the lua chunk."),
-            TEXT("Failed to start editor"),
+            TEXT("Failed to start application "),
             MB_OK|MB_ICONERROR);
       } else
         MessageBox(NULL,
           TEXT("Couldn't initialize a luastate"),
-          TEXT("Failed to start editor"),
+          TEXT("Failed to start application "),
           MB_OK|MB_ICONERROR);
     } else {
       MessageBox(NULL,
         TEXT("Could not load all functions that are supposed to be located in lua51.dll."),
-        TEXT("Failed to start editor"),
+        TEXT("Failed to start application "),
         MB_OK|MB_ICONERROR);
     }
 
@@ -272,7 +273,7 @@ int WINAPI WinMain(HINSTANCE hInstance,  HINSTANCE hPrevInstance,  LPSTR lpCmdLi
   } else {
     MessageBox(NULL,
       TEXT("lua51.dll could not be found or loaded, please check the working directory of the application."),
-      TEXT("Failed to initialize editor"),
+      TEXT("Failed to initialize application"),
       MB_OK|MB_ICONERROR);
   }
 

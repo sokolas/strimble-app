@@ -124,8 +124,8 @@ local function addOrEdit(title, mode)
 end
 
 local function createEventSubFolder(triggerListCtrl, rootTriggerItem)
-    local eventSubEvents = triggerListCtrl:AppendItem(rootTriggerItem, "Twitch EventSub", iconsHelper.pages.twitch,
-        iconsHelper.pages.twitch)
+    local pages = iconsHelper.getPages()
+    local eventSubEvents = triggerListCtrl:AppendItem(rootTriggerItem, "Twitch EventSub", pages.twitch, pages.twitch)
     
     local treeItem = {
         id = eventSubEvents:GetValue(),
@@ -133,7 +133,7 @@ local function createEventSubFolder(triggerListCtrl, rootTriggerItem)
         canAddChildren = true,
         childrenType = "twitch_eventsub",
         persistChildren = true,
-        icon = iconsHelper.pages.scripts, -- for children
+        icon = pages.scripts, -- for children
         getDescription = function(result)
             return result.type
         end,

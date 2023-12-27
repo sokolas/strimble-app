@@ -16,6 +16,7 @@ local function sendMessage(ctx, params)
 end
 
 local function init(menu, dialogs)
+    local pages = iconsHelper.getPages()
     -- send message
     steps.sendMessageItem = submenu:Append(wx.wxID_ANY, "send message")
 
@@ -45,7 +46,7 @@ local function init(menu, dialogs)
         name = "Send Twitch Message",
         dialog = steps.sendMessageDialog,
         dialogItem = Gui.dialogs.SendTwitchMessageStepDlg,
-        icon = iconsHelper.pages.twitch,
+        icon = pages.twitch,
         getDescription = function(result) return '"' .. result.message .. '"' end,
         postProcess = function(result) return result end,
         code = sendMessage,

@@ -144,8 +144,9 @@ local function addOrEdit(title, mode)
 end
 
 local function createTwitchCmdsFolder(triggerListCtrl, rootTriggerItem)
-    local twitchCmds = triggerListCtrl:AppendItem(rootTriggerItem, "Twitch commands", iconsHelper.pages.twitch,
-        iconsHelper.pages.twitch)
+    local pages = iconsHelper.getPages()
+    local twitchCmds = triggerListCtrl:AppendItem(rootTriggerItem, "Twitch commands", pages.twitch,
+        pages.twitch)
     
     local treeItem = {
         id = twitchCmds:GetValue(),
@@ -153,7 +154,7 @@ local function createTwitchCmdsFolder(triggerListCtrl, rootTriggerItem)
         canAddChildren = true,
         childrenType = "twitch_command",
         persistChildren = true,
-        icon = iconsHelper.pages.scripts, -- for children
+        icon = pages.scripts, -- for children
         getDescription = function(result)
             return result.text .. " (" .. commandWhere[result.where + 1] ..")"
         end,

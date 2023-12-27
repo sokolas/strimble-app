@@ -41,6 +41,8 @@ local function playSound(ctx, params)
 end
 
 local function init(menu, dialogs)
+    local pages = iconsHelper.getPages()
+
     -- delay
     steps.delayItem = submenu:Append(wx.wxID_ANY, "Delay")
 
@@ -67,7 +69,7 @@ local function init(menu, dialogs)
         name = "Delay",
         dialog = steps.delayDialog,
         dialogItem = Gui.dialogs.DelayStepDialog,
-        icon = iconsHelper.pages.timer,
+        icon = pages.timer,
         getDescription = function(result) return result.delay .. 'ms' end,
         preProcess = function(params)
             return {
@@ -121,7 +123,7 @@ local function init(menu, dialogs)
         name = "Log",
         dialog = steps.logDialog,
         dialogItem = Gui.dialogs.LogStepDialog,
-        icon = iconsHelper.pages.logs,
+        icon = pages.logs,
         getDescription = function(result) return result.message end,
         code = log,
         data = {
@@ -153,7 +155,7 @@ local function init(menu, dialogs)
         name = "Play sound",
         dialog = steps.soundDialog,
         dialogItem = Gui.dialogs.PlaySoundStepDialog,
-        icon = iconsHelper.pages.logs,
+        icon = pages.logs,
         getDescription = function(result) return result.filename end,
         code = playSound,
         data = {

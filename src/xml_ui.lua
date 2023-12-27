@@ -7,7 +7,11 @@ local triggersHelper = require("src/gui/triggers")
 local actionsHelper = require("src/gui/actions")
 local dataHelper = require("src/stuff/data_helper")
 local audio = require("src/stuff/audio")
-local vts = require("src/integrations/vts")
+
+local integrations = {
+    {src = "src/integrations/vts/init"}
+}
+
 local obs = require("src/integrations/obs")
 
 local ThingsToKeep = {} -- variable to store references to various stuff that needs to be kept
@@ -123,7 +127,7 @@ end
 
 local twitchWnd = require("src.gui.twitch_gui") -- don't forget to init
 
-local function evtHandler(f)
+function EvtHandler(f)
     return function(event)
         local co = coroutine.wrap(f)
         -- table.insert(coros, co)
@@ -133,6 +137,8 @@ local function evtHandler(f)
         -- end
     end
 end
+
+local evtHandler = EvtHandler   -- TODO rename
 
 local function getData(ok, result)
     if ok then
@@ -189,9 +195,10 @@ local function saveConfig()
         userId = Twitch.userId,
     })
     
-    SaveToCfg("vts", {
-        token = vts.getToken()
-    })
+    for i, v in ipairs(integrations) do
+        v.m.saveConfig()
+    end
+    
     
     Gui.statusbar:SetStatusText("Config saved", 0)
 end
@@ -230,8 +237,9 @@ local function loadConfig()
     Twitch.channel = Gui.twitch.channel:GetValue()
 
     -- set up vts
-    vts.setToken(ReadFromCfg("vts", "token", ""))
-    vts.setAutoReconnect(Gui.vts.autoconnect:GetValue())
+    for i, v in ipairs(integrations) do
+        v.m.loadConfig()
+    end
 
     -- set up obs
     obs.setAutoReconnect(Gui.obs.autoconnect:GetValue())
@@ -396,10 +404,19 @@ function main()
         restart(event:GetId())
     end)
 
+    -- for integration in integrations: require()
     -- set up listbook
     findWindow("listbook", "wxListbook", "listbook")
     local lblv = Gui.listbook:GetListView()
+
+    for i, v in ipairs(integrations) do
+        v.m = require(v.src)
+        iconsHelper.registerPage(v.m.page, v.m.icon)
+        v.m.initializeUi()
+    end
+
     iconsHelper.initializeListbook(lblv)
+    
 
     -- set up main loop
     local function event_loop(event)
@@ -585,54 +602,10 @@ function main()
         Twitch.setAutoReconnect(event:IsChecked())
     end))
 
-    -- VTube Studio
-    findWindow("vtsConnectBtn", "wxButton", "connect", "vts")
-    findWindow("vtsRefresh", "wxButton", "refresh", "vts")
-    findWindow("vtsAddress", "wxTextCtrl", "address", "vts")
-    findWindow("vtsStatusText", "wxStaticText", "status", "vts")
-    findWindow("vtsHotkeysLabel", "wxStaticText", "hotkeys", "vts")
-    findWindow("vtsAutoconnect", "wxCheckBox", "autoconnect", "vts")
-    -- findWindow("vtsStatusPanel")
-
-    local function vtsStateListener(state, icon)
-        Gui.vts.status:SetLabel("Status: " .. (state or "unknown"))
-        -- twitchWnd.appendTwitchMessage("*** status: " .. newState)
-        
-        if not icon then
-            iconsHelper.setStatus("vts", nil)
-        elseif icon == "error" then
-            iconsHelper.setStatus("vts", "fail")
-        elseif icon == "retry" then
-            iconsHelper.setStatus("vts", "retry")
-        else
-            iconsHelper.setStatus("vts", "ok")
-        end
+    -- VTube Studio, etc
+    for i, v in ipairs(integrations) do
+        v.m.initializeIntegration()
     end
-
-    local function vtsDataChangeListener()
-        local hotkeys = vts.getHotkeys()
-        if not hotkeys then
-            Gui.vts.hotkeys:SetLabel("Hotkeys: N/A")
-        else
-            Gui.vts.hotkeys:SetLabel("Hotkeys: " .. tostring(#hotkeys))
-        end
-    end
-    
-    vts.init(Gui.vts.address:GetValue(), nil, vtsStateListener, vtsDataChangeListener)    -- default url for now
-    frame:Connect(Gui.vts.connect:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, evtHandler(function(event)
-        local url = Gui.vts.address:GetValue()
-        if url and url ~= "" then
-            vts.setAddress(url)
-        end
-        vts.connect()
-    end))
-    frame:Connect(Gui.vts.autoconnect:GetId(), wx.wxEVT_CHECKBOX, evtHandler(function(event)
-        vts.setAddress(Gui.vts.address:GetValue())
-        vts.setAutoReconnect(event:IsChecked())
-    end))
-    frame:Connect(Gui.vts.refresh:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, evtHandler(function(event)
-        vts.refreshHotkeys()
-    end))
 
     -- OBS
     findWindow("obsConnect", "wxButton", "connect", "obs")
@@ -672,7 +645,11 @@ function main()
 
 
     -- actions
-    actionsHelper.init()
+    local stepsInitializers = {}
+    for i, v in ipairs(integrations) do
+        table.insert(stepsInitializers, {init = v.m.initializeSteps})
+    end
+    actionsHelper.init(stepsInitializers)
 
     -- triggers
     triggersHelper.init()
@@ -758,10 +735,19 @@ function main()
     end)
 
     
-    Gui.misc.button5:SetLabel("obs version")
+    Gui.misc.button5:SetLabel("list scripts")
     frame:Connect(Gui.misc.button5:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, evtHandler(function(event)
-        local ok, res = obs.request("GetVersion")
-        logger.log(ok, res)
+        local dir = wx.wxDir("src/integrations")
+        if dir:IsOpened() then
+            logger.log(dir:GetName())
+            local i, v = dir:GetFirst("", wx.wxDIR_DIRS)
+            while i do
+                logger.log(i, v)
+                i, v = dir:GetNext()
+            end
+        else
+            logger.err("can't open dir")
+        end
     end))
     
     --[[Gui.misc.button6:SetLabel("toggle reconnect")
@@ -799,9 +785,11 @@ function main()
     if Gui.twitch.autoconnect:GetValue() then
         wx.wxPostEvent(frame, wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, Gui.twitch.connectBtn:GetId()))
     end
-    if Gui.vts.autoconnect:GetValue() then
-        wx.wxPostEvent(frame, wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, Gui.vts.connect:GetId()))
+
+    for i, v in ipairs(integrations) do
+        v.m.postProcess()
     end
+
     if Gui.obs.autoconnect:GetValue() then
         wx.wxPostEvent(frame, wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, Gui.obs.connect:GetId()))
     end
