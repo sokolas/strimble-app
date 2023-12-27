@@ -744,7 +744,7 @@ function _M.init(integrations)
     defaultStep.init(stepMenu, stepsHandlers)   -- for unknown steps
 
     for i, v in ipairs(integrations) do
-        v.init(stepMenu, stepsHandlers)
+        v.m.initializeSteps(stepMenu, stepsHandlers)
     end
 
     logger.log("initialized actions")

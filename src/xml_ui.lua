@@ -627,11 +627,7 @@ function main()
 
 
     -- actions
-    local stepsInitializers = {}
-    for i, v in ipairs(integrations) do
-        table.insert(stepsInitializers, {init = v.m.initializeSteps})
-    end
-    actionsHelper.init(stepsInitializers)
+    actionsHelper.init(integrations)
 
     -- triggers
     triggersHelper.init()

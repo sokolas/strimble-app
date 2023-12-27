@@ -1,3 +1,22 @@
+--[[
+    An example of pluggable integration
+    All the paths must be relative to the app directory (for example, "src/integrations/...") in this file and all the other related to this integration
+    The app looks for init.lua file in the integration directory, `require`s it and then call several predefined functions you should expose:
+
+
+    functions call order:
+
+    (read page and icon properties to add to the UI pages)
+    initializeUi (load controls)
+    initializeIntegration (wire up UI events, set up listeners, create websockets, connect triggers, etc)
+    initializeSteps (add custom steps for this integration, their dialogs, menu, etc)
+    initializeTriggers (TBD)
+    (read config properties and set the corresponding UI values)
+    loadConfig (read additional data from config)
+    postProcess (call automatic actions that should be called on startup, when everything else is ready, like hitting the connect button)
+    
+    saveConfig (when the UI values are already saved, use this to store additional values)
+]]
 local logger = Logger.create("vts")
 local dialogHelper = require("src/gui/dialog_helper")
 local iconsHelper = require("src/gui/icons")
