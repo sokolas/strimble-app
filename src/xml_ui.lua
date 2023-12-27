@@ -140,24 +140,6 @@ end
 
 local evtHandler = EvtHandler   -- TODO rename
 
-local function getData(ok, result)
-    if ok then
-        logger.log(result.status)
-        logger.log(result.body)
-        local status = string.sub(result.status, 1, 3)
-        if status == "200" and result.body and result.body ~= "" then
-            print(result.status, result.body)
-            return (Json.decode(result.body)).data
-            --print(data[1].display_name)
-        elseif status == "401" then
-            twitchWnd.appendTwitchMessage("Token is invalid, press Auth")
-            if result.body then twitchWnd.appendTwitchMessage(result.body) end
-        end
-    else
-        logger.err("error: ", result)
-    end
-end
-
 local function isIncludedInConfig(group)
     return group ~= "menus" and group ~= "dialogs"and group ~= "tools" and group ~= "transient"
 end

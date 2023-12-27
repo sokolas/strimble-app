@@ -7,6 +7,7 @@ local dataHelper = require("src/stuff/data_helper")
 local twitchSteps = require("src/stuff/steps/twitch_steps")
 local generalSteps = require("src/stuff/steps/general_steps")
 local obsSteps = require("src/stuff/steps/obs_steps")
+local defaultStep = require("src/stuff/steps/default_step")
 
 local actionsListCtrl = nil
 local stepsListCtrl = nil
@@ -740,10 +741,16 @@ function _M.init(integrations)
     generalSteps.init(stepMenu, stepsHandlers)
     obsSteps.init(stepMenu, stepsHandlers)
 
+    defaultStep.init(stepMenu, stepsHandlers)   -- for unknown steps
+
     for i, v in ipairs(integrations) do
         v.init(stepMenu, stepsHandlers)
     end
 
+    logger.log("initialized actions")
+    for i, v in pairs(stepsHandlers) do
+        logger.log(i, v.name)
+    end
     stepsListCtrl:Connect(wx.wxEVT_TREELIST_ITEM_CONTEXT_MENU, function(e) -- right click on a step
         if not actionsListCtrl:GetSelection():IsOk() then
             logger.log("no action selected")
@@ -765,12 +772,13 @@ function _M.init(integrations)
                 stepIndex = stepIndex + 1
             end
         end
-        logger.log("step index", stepIndex)
+        -- logger.log("step index", stepIndex)
 
         Gui.menus.stepMenu:Enable(stepEditItem:GetId(), stepIndex > 0)
         Gui.menus.stepMenu:Enable(stepDeleteItem:GetId(), stepIndex > 0)
 
         local menuSelection = Gui.frame:GetPopupMenuSelectionFromUser(Gui.menus.stepMenu, wx.wxDefaultPosition)
+        logger.log(menuSelection)
 
         if menuSelection == stepEditItem:GetId() then
             callEditStepDialog(actionData, stepIndex, selected)
@@ -974,7 +982,15 @@ function _M.load()
                 }
                 addStep(row.id, actionItem, stepData)
             else
-                logger.err("unknown step name", row.name)
+                prototype = stepsHandlers["default"]
+                local data = json.decode(row.data)
+                local stepData = {
+                    dbId = row.id,
+                    prototype = prototype,
+                    description = row.description,
+                    params = data
+                }
+                addStep(row.id, actionItem, stepData)
             end
         end
 
