@@ -434,6 +434,7 @@ end
 local function editStep(m, selected, stepHandler, result, step, actionData, stepIndex)
     if m == wx.wxID_OK then
         stepsListCtrl:SetItemText(selected, 1, stepHandler.getDescription(result))
+        stepsListCtrl:SetItemText(selected, 2, result.saveVar or "")
         local params = result
         logger.log(stepHandler.postProcess)
         if stepHandler.postProcess then
@@ -722,6 +723,7 @@ function _M.init(integrations)
             for j, step in ipairs(steps) do
                 local stepItem = stepsListCtrl:AppendItem(stepRoot, step.prototype.name, step.prototype.icon or pages.actions, step.prototype.icon or pages.actions)
                 stepsListCtrl:SetItemText(stepItem, 1, step.description)
+                stepsListCtrl:SetItemText(stepItem, 2, step.params.saveVar or "")
             end
         end
     end)
@@ -733,6 +735,7 @@ function _M.init(integrations)
     
     stepsListCtrl:AppendColumn("Type")
     stepsListCtrl:AppendColumn("Description")
+    stepsListCtrl:AppendColumn("Save to")
 
     imageList = iconsHelper.createImageList()   -- despite the docs, imagelist is not transferred to the tree control, so we use SetImageList and keep the ref
     stepsListCtrl:SetImageList(imageList)
@@ -807,6 +810,7 @@ function _M.init(integrations)
         if m == wx.wxID_OK then
             local item = stepsListCtrl:AppendItem(rootStepItem, stepHandler.name, stepHandler.icon or pages.actions, stepHandler.icon or pages.actions)
             stepsListCtrl:SetItemText(item, 1, stepHandler.getDescription(result))
+            stepsListCtrl:SetItemText(item, 2, result.saveVar or "")
             local params = result
             if stepHandler.postProcess then
                 params = stepHandler.postProcess(result)
@@ -883,6 +887,7 @@ function _M.init(integrations)
         for i, v in ipairs(actionData.steps) do
             local item = stepsListCtrl:AppendItem(rootStepItem, v.prototype.name, v.prototype.icon or pages.actions, v.prototype.icon or pages.actions)
             stepsListCtrl:SetItemText(item, 1, v.description)
+            stepsListCtrl:SetItemText(item, 2, v.params.saveVar or "")
             if i == stepIndex - 1 then
                 stepsListCtrl:Select(item)
             end
@@ -924,6 +929,7 @@ function _M.init(integrations)
         for i, v in ipairs(actionData.steps) do
             local item = stepsListCtrl:AppendItem(rootStepItem, v.prototype.name, v.prototype.icon or pages.actions, v.prototype.icon or pages.actions)
             stepsListCtrl:SetItemText(item, 1, v.description)
+            stepsListCtrl:SetItemText(item, 2, v.params.saveVar or "")
             if i == stepIndex + 1 then
                 stepsListCtrl:Select(item)
             end

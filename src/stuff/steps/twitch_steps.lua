@@ -12,11 +12,7 @@ local userQueryTypes = {
 }
 
 local function sendMessage(ctx, params)
-    if params.interpolate then
-        Twitch.sendToChannel(ctx:interpolate(params.message), ctx.data.channel)
-    else
-        Twitch.sendToChannel(params.message, ctx.data.channel)
-    end
+    Twitch.sendToChannel(ctx:interpolate(params.message), ctx.data.channel)
     return true
 end
 
@@ -40,11 +36,6 @@ local function init(menu, stepHandlers)
                     name = "message",
                     label = "Message",
                     type = "text"
-                },
-                {
-                    name = "interpolate",
-                    text = "Use variables",
-                    type = "check"
                 }
             }
         }
@@ -66,8 +57,7 @@ local function init(menu, stepHandlers)
         postProcess = function(result) return result end,
         code = sendMessage,
         data = {
-            message = "hello world",
-            interpolate = false
+            message = "hello world"
         }
     }
 

@@ -62,6 +62,19 @@ local function addToDlg(gui, widget, guiName, group)
     return widget
 end
 
+local function defaultValue(control)
+    local c = control:GetClassInfo():GetClassName()
+    if c == "wxTextCtrl" or c == "wxComboBox" then
+        return ""
+    elseif c == "wxCheckBox" then
+        control:SetValue(false)
+    elseif c == "wxChoice" then
+        control:SetSelection(-1)
+    else
+        logger.err("Error! can't set value to " .. c)
+    end
+end
+
 local function createDlgItem(gui, dlg, validate, dlgName)
     local res = {
         dlg = dlg,
@@ -79,12 +92,15 @@ local function createDlgItem(gui, dlg, validate, dlgName)
                 end
             end
         end
-        for k, v in pairs(data) do
-            -- logger.log(k, v, gui[name], gui[name][k])
-            if gui[dlgName][k] and v ~= nil then
-                setControlValue(gui[dlgName][k], v)
-            end
+        for k, v in pairs(gui[dlgName]) do
+            setControlValue(v, data[k] or defaultValue(v))
         end
+        -- for k, v in pairs(data) do
+        --     -- logger.log(k, v, gui[name], gui[name][k])
+        --     if gui[dlgName][k] and v ~= nil then
+        --         setControlValue(gui[dlgName][k], v)
+        --     end
+        -- end
         -- collectgarbage("collect")
         local m = dlg:ShowModal()
         return m, res.returnData
