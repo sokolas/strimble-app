@@ -9,27 +9,35 @@ local _M = {}
 
 local function createTimerDialog()
     local commandDlg = dialogHelper.createDataDialog(Gui, "TimerDialog", {
-        ["Trigger properties"] = {
-            {
-                name = "name",
-                label = "Name",
-                type = "text"
-            },
-            {
-                name = "time",
-                label = "Time(ms)",
-                type = "text"
-            },
-            {
-                name = "action",
-                label = "Action",
-                type = "combo"
-            },
-            {
-                name = "enabled",
-                text = "Enabled",
-                type = "check",
-                value = true
+        {
+            name = "Trigger properties",
+            controls = {
+                {
+                    name = "name",
+                    label = "Name",
+                    type = "text"
+                },
+                {
+                    name = "time",
+                    label = "Time(ms)",
+                    type = "text"
+                }
+            }
+        },
+        {
+            name = "Common",
+            controls = {
+                {
+                    name = "action",
+                    label = "Action",
+                    type = "combo"
+                },
+                {
+                    name = "enabled",
+                    text = "Enabled",
+                    type = "check",
+                    value = true
+                }
             }
         }
     },

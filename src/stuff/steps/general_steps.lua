@@ -2,6 +2,7 @@ local dialogHelper = require("src/gui/dialog_helper")
 local iconsHelper = require("src/gui/icons")
 local wxtimers = require("src/stuff/wxtimers")
 local audio = require("src/stuff/audio")
+local actionContext = require("src/stuff/action_context")
 
 local _M = {}
 
@@ -30,7 +31,7 @@ local function delay(ctx, params)
 end
 
 local function log(ctx, params)
-    local output = ctx:interpolate(params.message)
+    local output = ctx:interpolate(params.message, params.asJson)
     logger.force(output)
     return true
 end
@@ -47,11 +48,14 @@ local function init(menu, dialogs)
     steps.delayItem = submenu:Append(wx.wxID_ANY, "Delay")
 
     steps.delayDialog = dialogHelper.createDataDialog(Gui, "DelayStepDialog", {
-        ["Delay"] = {
-            {
-                name = "delay",
-                label = "Delay (ms)",
-                type = "text"
+        {
+            name = "Delay",
+            controls = {
+                {
+                    name = "delay",
+                    label = "Delay (ms)",
+                    type = "text"
+               }
             }
         }
     },
@@ -93,11 +97,19 @@ local function init(menu, dialogs)
     steps.logItem = submenu:Append(wx.wxID_ANY, "Log")
 
     steps.logDialog = dialogHelper.createDataDialog(Gui, "LogStepDialog", {
-        ["Log"] = {
-            {
-                name = "message",
-                label = "Message",
-                type = "text"
+        {
+            name = "Log",
+            controls = {
+                {
+                    name = "message",
+                    label = "Message",
+                    type = "text"
+                },
+                {
+                    name = "asJson",
+                    text = "Encode to JSON",
+                    type = "check"
+                }
             }
         }
     },
@@ -105,16 +117,6 @@ local function init(menu, dialogs)
         if not data.message or data.message == "" then
             return false, "Message can't be empty"
         else
-            local start, finish = Lutf8.find(data.message, var_pattern)
-            while start do
-                local var_expr = Lutf8.sub(data.message, start, finish)
-                if not string.startsWith(var_expr, '$$') then
-                    local var = Lutf8.sub(var_expr, 2)
-                    logger.log("var", var)
-                end
-                start, finish = Lutf8.find(data.message, var_pattern, finish)
-            end
-            
             return true
         end
     end)
@@ -134,19 +136,22 @@ local function init(menu, dialogs)
     --sound
     steps.playSoundItem = submenu:Append(wx.wxID_ANY, "Play sound")
     steps.soundDialog = dialogHelper.createDataDialog(Gui, "PlaySoundStepDialog", {
-        ["PlaySound"] = {
-            {
-                name = "filename",
-                label = "File name",
-                type = "text"
-            },
-            {
-                name = "file_selector",
-                label = "",
-                value = "Select file...",
-                type = "file",
-                ref = "filename",
-                wildcard = "Audio files (MP3, WAV, OGG)|*.mp3;*.wav;*.ogg"
+        {
+            name = "Play Sound",
+            controls = {
+                {
+                    name = "filename",
+                    label = "File name",
+                    type = "text"
+                },
+                {
+                    name = "file_selector",
+                    label = "",
+                    value = "Select file...",
+                    type = "file",
+                    ref = "filename",
+                    wildcard = "Audio files (MP3, WAV, OGG)|*.mp3;*.wav;*.ogg"
+                }
             }
         }
     })

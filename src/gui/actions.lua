@@ -475,34 +475,37 @@ end
 function _M.init(integrations)
     pages = iconsHelper.getPages()
     local actionDlg = dialogHelper.createDataDialog(Gui, "ActionDialog", {
-            ["Action properties"] = {
-                {
-                    name = "name",
-                    label = "Name",
-                    type = "text"
-                },
-                {
-                    name = "group",
-                    label = "Group",
-                    type = "combo",
-                    value = "Default"
-                },
-                {
-                    name = "description",
-                    label = "Description",
-                    type = "multiline"
-                },
-                {
-                    name = "queue",
-                    label = "Queue",
-                    type = "combo",
-                    value = "Default"
-                },
-                {
-                    name = "enabled",
-                    text = "Enabled",
-                    type = "check",
-                    value = true
+            {
+                name = "Action properties",
+                controls = {
+                    {
+                        name = "name",
+                        label = "Name",
+                        type = "text"
+                    },
+                    {
+                        name = "group",
+                        label = "Group",
+                        type = "combo",
+                        value = "Default"
+                    },
+                    {
+                        name = "description",
+                        label = "Description",
+                        type = "multiline"
+                    },
+                    {
+                        name = "queue",
+                        label = "Queue",
+                        type = "combo",
+                        value = "Default"
+                    },
+                    {
+                        name = "enabled",
+                        text = "Enabled",
+                        type = "check",
+                        value = true
+                    }
                 }
             }
         },
@@ -531,16 +534,19 @@ function _M.init(integrations)
     if not actionDlg then return end
 
     local actionGroupDlg = dialogHelper.createDataDialog(Gui, "ActionGroupDialog", {
-        ["Group properties"] = {
-            {
-                name = "name",
-                label = "Name",
-                type = "text"
-            },
-            {
-                name = "description",
-                label = "Description",
-                type = "text"
+        {
+            name = "Group properties",
+            controls = {
+                {
+                    name = "name",
+                    label = "Name",
+                    type = "text"
+                },
+                {
+                    name = "description",
+                    label = "Description",
+                    type = "text"
+                }
             }
         }
     },

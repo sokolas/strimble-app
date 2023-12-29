@@ -18,17 +18,20 @@ local function init(menu, dialogs)
     -- send message
     steps.sendHotkeyItem = submenu:Append(wx.wxID_ANY, "send hotkey")
 
-    steps.sendHotkeyDialog = dialogHelper.createDataDialog(Gui, "SendVtsHotkeyDlg", {
-        ["Send Hotkey"] = {
-            {
-                name = "hotkey",
-                label = "Name or ID",
-                type = "combo"
-            },
-            {
-                name = "comment",
-                label = "Comment",
-                type = "multiline"
+    steps.sendHotkeyDialog = dialogHelper.createStepDialog(Gui, "SendVtsHotkeyDlg", {
+        {
+            name = "Send Hotkey",
+            controls = {
+                {
+                    name = "hotkey",
+                    label = "Name or ID",
+                    type = "combo"
+                },
+                {
+                    name = "comment",
+                    label = "Comment",
+                    type = "multiline"
+                }
             }
         }
     },

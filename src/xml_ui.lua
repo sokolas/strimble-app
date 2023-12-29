@@ -438,11 +438,16 @@ function main()
                     local exec = function()
                         for i, step in ipairs(ctx.steps) do
                             logger.log("step", i, step.name)
-                            local ok = step.f(ctx, step.params)
-                            logger.log("step", i, "result", ok)
+                            local ok, stepResult = step.f(ctx, step.params)
+                            logger.log("step", i, "result", ok, stepResult)
                             if not ok then
                                 logger.log("step returned false, aborting action")
                                 return  -- TODO false?
+                            else
+                                if step.params.saveVar and step.params.saveVar ~= "" then
+                                    logger.log("saving to", step.params.saveVar)
+                                    ctx.data[step.params.saveVar] = stepResult
+                                end
                             end
                         end
                     end
@@ -632,6 +637,22 @@ function main()
     -- triggers
     triggersHelper.init()
 
+    -- scripts/integrations
+    findWindow("integrationsPlaceholderPanel", "wxPanel", "panel", "scripts")
+    local ilpg = wx.wxPropertyGrid(Gui.scripts.panel, wx.wxID_ANY, wx.wxDefaultPosition, wx.wxDefaultSize, wx.wxPG_SPLITTER_AUTO_CENTER + wx.wxPG_BOLD_MODIFIED)
+    ilpg:Append(wx.wxPropertyCategory("Built-in", wx.wxPG_LABEL))
+    for i, v in ipairs(integrations) do
+        local prop = wx.wxBoolProperty(v.m.displayName, wx.wxPG_LABEL)
+        prop:SetValueFromString("true")
+        ilpg:Append(prop)
+    end
+    local ilpg_sizer = wx.wxBoxSizer(wx.wxVERTICAL)
+    ilpg_sizer:Add(ilpg:GetPanel(), 1, wx.wxALL + wx.wxEXPAND, 5)
+    Gui.scripts.panel:SetSizer(ilpg_sizer)
+    Gui.scripts.panel:Layout()
+    Gui.scripts.grid = ilpg
+    Gui.transient["scripts.grid"] = true
+
     -- misc buttons for debugging
     findWindow("m_button3", "wxButton", "button3", "misc")
     findWindow("m_button4", "wxButton", "button4", "misc")
@@ -660,33 +681,17 @@ function main()
         prop:SetValueFromString(tostring(Logger.loggers[name].enabled))
         lpg:Append(prop)
     end
-
+    
     Gui.logging.panel:SetSizer(fgSizer)
     Gui.logging.panel:Layout()
     Gui.logging.grid = lpg
     Gui.transient["logging.grid"] = true
 
-    frame:Connect(wx.wxID_ANY, wx.wxEVT_PG_CHANGED, function(event)
+    -- hack: we can't GetId of the property grid for some reason so we connect it to the containing panel
+    Gui.logging.panel:Connect(wx.wxID_ANY, wx.wxEVT_PG_CHANGED, function(event)
         local p = event:GetProperty()
         Logger.loggers[p:GetName()].enabled = p:GetValue():GetBool()
     end)
-
-    --[[local fgSizer = wx.wxBoxSizer(wx.wxVERTICAL)
-    local loggingLabel = wx.wxStaticText(Gui.logging.panel, wx.wxID_ANY, "Logging")
-    fgSizer:Add(loggingLabel, 0, wx.wxALL + wx.wxEXPAND, 5)
-    for i, name in ipairs(loggers) do
-        local v = Logger.loggers[name]
-        local widget = wx.wxCheckBox(Gui.logging.panel, wx.wxID_ANY, name, wx.wxDefaultPosition, wx.wxDefaultSize)
-        widget:SetValue(v.enabled)
-        fgSizer:Add(widget, 0, wx.wxALL + wx.wxEXPAND, 5)
-        Gui:insert(widget, name, "logging")
-        frame:Connect(widget:GetId(), wx.wxEVT_CHECKBOX, function(event)
-            local enabled = widget:GetValue()
-            Logger.loggers[name].enabled = enabled
-        end)
-    end
-    Gui.logging.panel:SetSizer(fgSizer)
-    Gui.logging.panel:Layout() ]]
 
     local twitchDebug = false
     Gui.misc.button3:SetLabel("twitch debug")
@@ -728,9 +733,56 @@ function main()
         end
     end))
     
-    --[[Gui.misc.button6:SetLabel("toggle reconnect")
+    Gui.misc.button6:SetLabel("dialog")
+    local function createCollapsibleDlg()
+        local dlg = wx.wxDialog(frame, wx.wxID_ANY, "sample dialog", wx.wxDefaultPosition, wx.wxDefaultSize, wx.wxDEFAULT_DIALOG_STYLE + wx.wxRESIZE_BORDER, "wxDialog")
+        local topLevelSizer = wx.wxBoxSizer(wx.wxVERTICAL);
+        local bgPanel = wx.wxPanel(dlg, wx.wxID_ANY, wx.wxDefaultPosition, wx.wxDefaultSize)
+        local outerSizer = wx.wxFlexGridSizer(2, 1, 0, 5)
+
+        bgPanel:SetSizer(outerSizer)
+
+        local p1 = wx.wxCollapsiblePane(bgPanel, wx.wxID_ANY, "panel 1")
+        local sizer1 = wx.wxBoxSizer(wx.wxVERTICAL)
+        local t1 = wx.wxStaticText(p1:GetPane(), wx.wxID_ANY, "text1")
+        sizer1:Add(t1, 0, wx.wxGROW + wx.wxALL, 2)
+        local t2 = wx.wxTextCtrl(p1:GetPane(), wx.wxID_ANY, "very very long text can't fit into single row dskldsa d asds a", wx.wxDefaultPosition, wx.wxDefaultSize, wx.wxTE_MULTILINE + wx.wxTE_BESTWRAP)
+        sizer1:Add(t2, 1, wx.wxGROW + wx.wxALL, 2)
+        p1:GetPane():SetSizer(sizer1)
+        sizer1:SetSizeHints(p1:GetPane())
+
+        outerSizer:Add(p1, 1, wx.wxGROW + wx.wxALL, 5)
+
+        local p2 = wx.wxCollapsiblePane(bgPanel, wx.wxID_ANY, "panel 2")
+        outerSizer:Add(p2, 0, wx.wxGROW + wx.wxALL, 5)
+
+        bgPanel:Layout()
+        outerSizer:Fit(bgPanel)
+
+        topLevelSizer:Add(bgPanel, 1, wx.wxALL + wx.wxEXPAND, 5)
+
+        local btnSizer = wx.wxStdDialogButtonSizer()
+        local okBtn = wx.wxButton(dlg, wx.wxID_OK, "")
+        okBtn:SetDefault()
+        local cancelBtn = wx.wxButton(dlg, wx.wxID_CANCEL, "")
+    -- btnSizer:SetMinSize( wx.wxSize( 300,-1 ) )
+        btnSizer:SetAffirmativeButton(okBtn)
+        btnSizer:SetCancelButton(cancelBtn)
+        btnSizer:Realize()
+        topLevelSizer:Add(btnSizer, 0, wx.wxALL + wx.wxEXPAND, 5)
+
+        dlg:SetSizer(topLevelSizer)
+        topLevelSizer:SetSizeHints(dlg)
+        dlg:Layout()
+        dlg:Centre()
+
+        return dlg
+    end
+    local collapsibleDlg = createCollapsibleDlg()
+
     frame:Connect(Gui.misc.button6:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, evtHandler(function(event)
-    end))]]
+        collapsibleDlg:ShowModal()
+    end))
     -- Gui.misc.button7:SetLabel("persist db")
     -- frame:Connect(Gui.misc.button7:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, evtHandler(function(event)
         -- local m = dialogHelper.showOkCancel(Gui.frame, "text", "caption")

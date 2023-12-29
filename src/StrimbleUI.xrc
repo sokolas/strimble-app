@@ -67,7 +67,7 @@
 								<style>wxLB_LEFT</style>
 								<object class="listbookpage">
 									<label>Twitch</label>
-									<selected>1</selected>
+									<selected>0</selected>
 									<object class="wxPanel" name="twitchPanel">
 										<style>wxTAB_TRAVERSAL</style>
 										<object class="wxBoxSizer">
@@ -526,9 +526,20 @@
 								</object>
 								<object class="listbookpage">
 									<label>Scripts</label>
-									<selected>0</selected>
+									<selected>1</selected>
 									<object class="wxPanel" name="scriptsPanel">
 										<style>wxTAB_TRAVERSAL</style>
+										<object class="wxBoxSizer">
+											<orient>wxVERTICAL</orient>
+											<object class="sizeritem">
+												<option>1</option>
+												<flag>wxEXPAND | wxALL</flag>
+												<border>5</border>
+												<object class="wxPanel" name="integrationsPlaceholderPanel">
+													<style>wxTAB_TRAVERSAL</style>
+												</object>
+											</object>
+										</object>
 									</object>
 								</object>
 								<object class="listbookpage">

@@ -11,27 +11,35 @@ local event_names = es_helper.scope_names
 local function createEventSubDlg()
     local esDlg = dialogHelper.createDataDialog(Gui, "EventSubDialog", 
         {
-            ["Event properties"] = {
-                {
-                    name = "name",
-                    label = "Name",
-                    type = "text"
-                },
-                {
-                    name = "type",
-                    label = "Type",
-                    type = "combo"
-                },
-                {
-                    name = "action",
-                    label = "Action",
-                    type = "combo"
-                },
-                {
-                    name = "enabled",
-                    text = "Enabled",
-                    type = "check",
-                    value = true
+            {
+                name = "Event properties",
+                controls = {
+                    {
+                        name = "name",
+                        label = "Name",
+                        type = "text"
+                    },
+                    {
+                        name = "type",
+                        label = "Type",
+                        type = "combo"
+                    }
+                }
+            },
+            {
+                name = "Common",
+                controls = {
+                    {
+                        name = "action",
+                        label = "Action",
+                        type = "combo"
+                    },
+                    {
+                        name = "enabled",
+                        text = "Enabled",
+                        type = "check",
+                        value = true
+                    }
                 }
             }
         },

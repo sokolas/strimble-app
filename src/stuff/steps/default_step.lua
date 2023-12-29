@@ -22,12 +22,15 @@ local function init(menu, dialogs)
     local pages = iconsHelper.getPages()
 
     steps.editDialog = dialogHelper.createDataDialog(Gui, "DefaultStepDialog", {
-        ["Unknown step"] = {
+        {
+            name = "Unknown step",
+            controls = {
             {
                 name = "info",
                 label = "Info",
                 type = "multiline"
             }
+        }
         }
     },
     function(data, context)

@@ -11,8 +11,8 @@ local steps = {}
 local function sendRequest(ctx, params)
     local d = Json.decode(params.requestData)
     local ok, res = obs.request(params.requestType, d)
-    logger.log(res)
-    return ok
+    logger.log("send request result", res)
+    return ok, res
 end
 
 local function init(menu, dialogs)
@@ -20,22 +20,25 @@ local function init(menu, dialogs)
     -- send message
     steps.sendRequest = submenu:Append(wx.wxID_ANY, "send request")
 
-    steps.sendRequestDialog = dialogHelper.createDataDialog(Gui, "SendObsRequestDlg", {
-        ["Send Hotkey"] = {
-            {
-                name = "requestType",
-                label = "Request type",
-                type = "text"
-            },
-            {
-                name = "requestData",
-                label = "Request data",
-                type = "multiline"
-            },
-            {
-                name = "comment",
-                label = "Comment",
-                type = "text"
+    steps.sendRequestDialog = dialogHelper.createStepDialog(Gui, "SendObsRequestDlg", {
+        {
+            name = "Send Hotkey",
+            controls = {
+                {
+                    name = "requestType",
+                    label = "Request type",
+                    type = "text"
+                },
+                {
+                    name = "requestData",
+                    label = "Request data",
+                    type = "multiline"
+                },
+                {
+                    name = "comment",
+                    label = "Comment",
+                    type = "text"
+                }
             }
         }
     },

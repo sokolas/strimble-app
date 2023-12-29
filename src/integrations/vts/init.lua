@@ -23,8 +23,10 @@ local iconsHelper = require("src/gui/icons")
 local vts = require("src/integrations/vts/vts")
 local vtsSteps = require("src/integrations/vts/vts_steps")
 
+local display_name = "VTube Studio"
+
 local function initializeUi()
-    local panelResource, tmpPanel = dialogHelper.loadPanel("src/integrations/vts/vtsUi.xrc", "vtsPanel", "VTube Studio")
+    local panelResource, tmpPanel = dialogHelper.loadPanel("src/integrations/vts/vtsUi.xrc", "vtsPanel", display_name)
     logger.log(tmpPanel)
     Gui.findWindow("vtsConnectBtn", "wxButton", "connect", "vts")
     Gui.findWindow("vtsRefresh", "wxButton", "refresh", "vts")
@@ -97,6 +99,7 @@ local _M = {}
 
 _M.icon = "src/integrations/vts/icons/vts.png"
 _M.page = "vts"
+_M.displayName = display_name
 _M.initializeUi = initializeUi
 _M.initializeIntegration = initializeIntegration
 _M.initializeSteps = vtsSteps.init

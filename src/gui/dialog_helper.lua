@@ -155,39 +155,74 @@ local function createDataDialog(gui, dlgName, controls, validate)
     local topLevelSizer = wx.wxBoxSizer(wx.wxVERTICAL);
     local bgPanel = wx.wxPanel(dlg, wx.wxID_ANY, wx.wxDefaultPosition, wx.wxDefaultSize)
 
-    local sizers = {}
-    for groupName, controlGroup in pairs(controls) do
-        local controlsBox = wx.wxStaticBox(bgPanel, wx.wxID_ANY, groupName)
-        local listBoxStaticBoxSizer = wx.wxStaticBoxSizer(controlsBox, wx.wxVERTICAL);
-        listBoxStaticBoxSizer:SetMinSize(wx.wxSize(400, -1))
-        -- local fgSizer = wx.wxFlexGridSizer(#controls, 2)
-        local fgSizer = wx.wxFlexGridSizer(0, 2)
-        fgSizer:AddGrowableCol(1, 1)
-        fgSizer:SetFlexibleDirection(wx.wxHORIZONTAL)   -- by default, grow only horizontally
-        fgSizer:SetNonFlexibleGrowMode(wx.wxFLEX_GROWMODE_ALL)
+    local bottomPane = nil
+    local bottomSizer = nil
 
-        for i, v in ipairs(controlGroup) do
+    local function addBottomPane(name)
+        local p1 = wx.wxCollapsiblePane(bgPanel, wx.wxID_ANY, name or "More")
+        local bottomSizer = wx.wxFlexGridSizer(0, 2)
+        bottomSizer:AddGrowableCol(1, 1)
+        bottomSizer:SetFlexibleDirection(wx.wxHORIZONTAL)   -- by default, grow only horizontally
+        return p1, bottomSizer
+    end
+
+    local sizers = {}
+    for c, controlGroup in ipairs(controls) do
+        
+        local groupName = controlGroup.name
+        local bottom = controlGroup.bottom
+
+        if bottom then
+            if not bottomPane then
+                bottomPane, bottomSizer = addBottomPane(groupName)
+            end
+        end
+
+        local controlsPanel = nil
+        if not bottom then
+            controlsPanel = wx.wxStaticBox(bgPanel, wx.wxID_ANY, groupName)
+        else
+            controlsPanel = bottomPane:GetPane()
+        end
+
+        local listBoxStaticBoxSizer = nil
+        if not bottom then
+            listBoxStaticBoxSizer = wx.wxStaticBoxSizer(controlsPanel, wx.wxVERTICAL);
+            listBoxStaticBoxSizer:SetMinSize(wx.wxSize(400, -1))
+        end
+        -- local fgSizer = wx.wxFlexGridSizer(#controls, 2)
+        local fgSizer = nil
+        if not bottom then
+            fgSizer = wx.wxFlexGridSizer(0, 2)
+            fgSizer:AddGrowableCol(1, 1)
+            fgSizer:SetFlexibleDirection(wx.wxHORIZONTAL)   -- by default, grow only horizontally
+            fgSizer:SetNonFlexibleGrowMode(wx.wxFLEX_GROWMODE_ALL)
+        else
+            fgSizer = bottomSizer
+        end
+
+        for i, v in ipairs(controlGroup.controls) do
             local grow = nil
-            local label = wx.wxStaticText(controlsBox, wx.wxID_ANY, v.label or "")
+            local label = wx.wxStaticText(controlsPanel, wx.wxID_ANY, v.label or "")
             local widget = nil
             if v.type == "text" then
-                widget = wx.wxTextCtrl(controlsBox, wx.wxID_ANY, v.value or "", wx.wxDefaultPosition, wx.wxDefaultSize)
+                widget = wx.wxTextCtrl(controlsPanel, wx.wxID_ANY, v.value or "", wx.wxDefaultPosition, wx.wxDefaultSize)
             elseif v.type == "multiline" then
-                widget = wx.wxTextCtrl(controlsBox, wx.wxID_ANY, v.value or "", wx.wxDefaultPosition, wx.wxDefaultSize, wx.wxTE_MULTILINE + wx.wxTE_BESTWRAP)
+                widget = wx.wxTextCtrl(controlsPanel, wx.wxID_ANY, v.value or "", wx.wxDefaultPosition, wx.wxDefaultSize, wx.wxTE_MULTILINE + wx.wxTE_BESTWRAP)
                 grow = true
                 fgSizer:SetFlexibleDirection(wx.wxBOTH) -- grow the sizer inside static panel in both directions
             elseif v.type == "check" then
-                widget = wx.wxCheckBox(controlsBox, wx.wxID_ANY, v.text or "check", wx.wxDefaultPosition,
+                widget = wx.wxCheckBox(controlsPanel, wx.wxID_ANY, v.text or "check", wx.wxDefaultPosition,
                     wx.wxDefaultSize)
                 widget:SetValue(v.value or false)
             elseif v.type == "choice" then
-                widget = wx.wxChoice(controlsBox, wx.wxID_ANY, wx.wxDefaultPosition, wx.wxDefaultSize, v.choices)
+                widget = wx.wxChoice(controlsPanel, wx.wxID_ANY, wx.wxDefaultPosition, wx.wxDefaultSize, v.choices)
             elseif v.type == "combo" then
-                widget = wx.wxComboBox(controlsBox, wx.wxID_ANY, v.value or "", wx.wxDefaultPosition, wx.wxDefaultSize,
+                widget = wx.wxComboBox(controlsPanel, wx.wxID_ANY, v.value or "", wx.wxDefaultPosition, wx.wxDefaultSize,
                     v.choices or {})
             elseif v.type == "file" then
                 -- fields: value - button name and file dialog title; wildcard - file masks; ref - widget to set the filename to
-                widget = wx.wxButton(controlsBox, wx.wxID_ANY, v.value or "Open file")
+                widget = wx.wxButton(controlsPanel, wx.wxID_ANY, v.value or "Open file")
                 dlg:Connect(widget:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, function(event)
                     local fileDialog = wx.wxFileDialog(wx.NULL,
                         v.value or "Open file",
@@ -219,9 +254,10 @@ local function createDataDialog(gui, dlgName, controls, validate)
                 fgSizer:Add(widget, (i - 1) * 2 + 1, wx.wxALL + wx.wxEXPAND, 5)
             end
         end
-
-        listBoxStaticBoxSizer:Add(fgSizer, 1, wx.wxEXPAND, 5)
-        table.insert(sizers, listBoxStaticBoxSizer)
+        if listBoxStaticBoxSizer then   -- not bottom
+            listBoxStaticBoxSizer:Add(fgSizer, 1, wx.wxEXPAND, 5)
+            table.insert(sizers, listBoxStaticBoxSizer)
+        end
     end
 
     local outerSizer = wx.wxFlexGridSizer(1, #sizers, 0, 5)
@@ -232,7 +268,13 @@ local function createDataDialog(gui, dlgName, controls, validate)
         outerSizer:AddGrowableCol(i - 1, 1)
         outerSizer:Add(sizers[i], 1, wx.wxEXPAND, 0)
     end
-    
+
+    if bottomPane then
+        bottomPane:GetPane():SetSizer(bottomSizer)
+        bottomSizer:SetSizeHints(bottomPane:GetPane())
+
+        outerSizer:Add(bottomPane, 0, wx.wxGROW + wx.wxALL, 5)
+    end
 
     bgPanel:SetSizer(outerSizer)
     bgPanel:Layout()
@@ -255,9 +297,52 @@ local function createDataDialog(gui, dlgName, controls, validate)
     dlg:Layout()
     dlg:Centre()
 
+    --[[
+        dlg:topLevelSizer(box, vertical, 2x1)
+            panel:outerSizer(flex, 1 x sizers)
+                controlBox:staticBoxSizer(box, vertical)
+                    :fgSizer(flex, widgets x 2)
+            buttons:btnSizer()
+
+    ]]
+
     gui.dialogs[dlgName] = createDlgItem(gui, dlg, validate, dlgName)
     connectOkBtn(gui, dlg, validate, dlgName)
-    
+
+    return dlg
+end
+
+--[[
+    adds predefined bottom pane with controls:
+        saveVar (save step result into a context variable)
+]]
+local function createStepDialog(gui, dlgName, controls, validate)
+    local controls_full = {}
+    for i, v in ipairs(controls) do
+        table.insert(controls_full, v)
+    end
+
+    table.insert(controls_full, {
+        name = "More...",
+        bottom = true,
+        controls = {
+            {
+                name = "saveVar",
+                label = "Save to variable",
+                type = "text"
+            }
+        }
+    })
+
+    local function validate_full(data, context)
+        if data.saveVar ~= nil and data.saveVar ~= "" and (not Lutf8.find(data.saveVar, "^[%w_]+$")) then
+            return false, "Variable name must be empty or contain letters, numbers and underscores"
+        else
+            return validate(data, context)
+        end
+    end
+
+    local dlg = createDataDialog(gui, dlgName, controls_full, validate_full)
     return dlg
 end
 
@@ -347,6 +432,7 @@ end
 
 _M.loadDialog = loadDialog
 _M.createDataDialog = createDataDialog
+_M.createStepDialog = createStepDialog
 _M.replaceElement = replaceElement
 _M.getControlValue = getControlValue
 _M.setControlValue = setControlValue

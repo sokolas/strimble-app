@@ -496,7 +496,10 @@ _M.sendToChannel = function(text, channel)
         logger.err("No channel specified")
         return
     end
-    if _M.chat_socket.state ~= "ready" then logger.err("Not joined any channel") end
+    if _M.chat_socket.state ~= "ready" then
+        logger.err("Not joined any channel")
+        return
+    end
     local c = channel or _M.channel
     sendRaw("PRIVMSG " .. toChannel(c) .. " :" .. text)   -- todo: escape
 end

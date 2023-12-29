@@ -6,8 +6,9 @@ local _M = {}
 local Mt = {}
 
 local var_pattern = "%$+[%w%._]+"
+local integer_pattern = "^%d+$"
 
-Mt.interpolate = function(self, message)
+Mt.interpolate = function(self, message, asJson)
     if not message or message == '' then
         return message
     end
@@ -24,7 +25,11 @@ Mt.interpolate = function(self, message)
             for i, v in ipairs(paths) do
                 if v and v ~= '' then
                     if value then
-                        value = value[v]
+                        if Lutf8.find(v, integer_pattern) then
+                            value = value[tonumber(v)]
+                        else
+                            value = value[v]
+                        end
                     end
                 else
                     valid = false
@@ -32,7 +37,7 @@ Mt.interpolate = function(self, message)
                 end
             end
             if valid then
-                local target = tostring(value)
+                local target = asJson and Json.encode(value) or tostring(value)
                 output = Lutf8.sub(output, 1, start-1) .. target .. Lutf8.sub(output, finish+1)
                 finish = finish - Lutf8.len(var_expr) + Lutf8.len(target)
             else
@@ -68,5 +73,22 @@ _M.create = function(data, action)
     setmetatable(ctx, Mt)
     return ctx
 end
+
+_M.var_pattern = var_pattern
+
+--[[
+    for user access:
+
+    data: set by a trigger; contains all the information it's willing to pass. Can be modified by the steps, so they should properly handle any errors.
+
+
+    used internally (should not be called or modified by steps):
+
+    action: action object
+    steps: resolved steps with their params
+
+    execute() - runs the steps
+    interpolate() - uses data field as the source of values to substitube; all the indices are separated by dots (numbers, too). Example: $users.0.name
+]]
 
 return _M
