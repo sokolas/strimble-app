@@ -280,13 +280,28 @@ _M.apiGet = function(url)
     return NetworkManager.get(url, {["Authorization"] = "Bearer " .. _M.token, ["Client-Id"] = client_id})
 end
 
-_M.getUserInfo = function(callback) -- unused
+_M.getUserInfo = function(id, type)
     if not _M.token then
         return false, "token is not set"
     end
-    local ok, res = NetworkManager.get("https://api.twitch.tv/helix/users", {["Authorization"] = "Bearer " .. _M.token, ["Client-Id"] = client_id})
+    if (not id) or id == "" then
+        return false, "empty id or login"
+    end
+    local ok, res
+    if type == 0 then   -- by id
+        local url = "https://api.twitch.tv/helix/users?id=" .. id
+        -- logger.log(url)
+        ok, res = NetworkManager.get(url, {["Authorization"] = "Bearer " .. _M.token, ["Client-Id"] = client_id})
+    else -- by login
+        local url = "https://api.twitch.tv/helix/users?login=" .. id
+        -- logger.log(url)
+        ok, res = NetworkManager.get(url, {["Authorization"] = "Bearer " .. _M.token, ["Client-Id"] = client_id})
+    end
     if ok then
-        callback(res)
+        local valid, d = pcall(Json.decode, res.body)
+        return valid, d
+    else
+        return false, res
     end
 end
 

@@ -49,6 +49,43 @@ Mt.interpolate = function(self, message, asJson)
     return output
 end
 
+local function validateJson(message)
+    if not message or message == '' then
+        return false, "can't be empty"
+    end
+
+    local output = message
+    local start, finish = Lutf8.find(output, var_pattern)
+    while start do
+        local sub = Lutf8.sub(output, start, finish)
+        if not string.startsWith(sub, '$$') then
+            local var_expr = Lutf8.sub(sub, 2, finish)
+            local paths = SplitMessage(var_expr, ".")
+            local valid = true
+            for i, v in ipairs(paths) do
+                if (not v) or v == "" then
+                    valid = false
+                    break
+                end
+            end
+            if valid then
+                local target = "0"  -- some dummy value to satisfy the parser
+                output = Lutf8.sub(output, 1, start-1) .. target .. Lutf8.sub(output, finish+1)
+                finish = finish - Lutf8.len(var_expr) + Lutf8.len(target)
+            else
+                logger.err("invalid variable", var_expr)
+            end
+        end
+        start, finish = Lutf8.find(output, var_pattern, finish)
+    end
+    local ok, err = pcall(Json.decode, output)
+    if ok then
+        return true
+    else
+        return false, "invalid JSON: " .. err
+    end
+end
+
 Mt.execute = function(self)
     for i, f in ipairs(self.steps) do
         local res = f(self)
@@ -73,6 +110,8 @@ _M.create = function(data, action)
     setmetatable(ctx, Mt)
     return ctx
 end
+
+_M.validateJson = validateJson
 
 _M.var_pattern = var_pattern
 

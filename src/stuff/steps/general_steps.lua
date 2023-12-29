@@ -41,7 +41,7 @@ local function playSound(ctx, params)
     return true
 end
 
-local function init(menu, dialogs)
+local function init(menu, stepHandlers)
     local pages = iconsHelper.getPages()
 
     -- delay
@@ -69,7 +69,7 @@ local function init(menu, dialogs)
         end
     end)
     
-    dialogs[steps.delayItem:GetId()] = {
+    stepHandlers[steps.delayItem:GetId()] = {
         name = "Delay",
         dialog = steps.delayDialog,
         dialogItem = Gui.dialogs.DelayStepDialog,
@@ -121,7 +121,7 @@ local function init(menu, dialogs)
         end
     end)
     
-    dialogs[steps.logItem:GetId()] = {
+    stepHandlers[steps.logItem:GetId()] = {
         name = "Log",
         dialog = steps.logDialog,
         dialogItem = Gui.dialogs.LogStepDialog,
@@ -156,7 +156,7 @@ local function init(menu, dialogs)
         }
     })
 
-    dialogs[steps.playSoundItem:GetId()] = {
+    stepHandlers[steps.playSoundItem:GetId()] = {
         name = "Play sound",
         dialog = steps.soundDialog,
         dialogItem = Gui.dialogs.PlaySoundStepDialog,

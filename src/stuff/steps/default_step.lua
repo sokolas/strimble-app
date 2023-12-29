@@ -18,7 +18,7 @@ local function skip(ctx, params)
     return true
 end
 
-local function init(menu, dialogs)
+local function init(menu, stepHandlers)
     local pages = iconsHelper.getPages()
 
     steps.editDialog = dialogHelper.createDataDialog(Gui, "DefaultStepDialog", {
@@ -37,7 +37,7 @@ local function init(menu, dialogs)
         return false, "Can't edit this action"
     end)
     
-    dialogs["default"] = {
+    stepHandlers["default"] = {
         name = "<Unknown - Abort>",
         dialog = steps.editDialog,
         dialogItem = Gui.dialogs.DefaultStepDialog,
