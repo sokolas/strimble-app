@@ -39,7 +39,6 @@ local function init(menu, stepHandlers)
     
     stepHandlers["default"] = {
         name = "<Unknown - Abort>",
-        dialog = steps.editDialog,
         dialogItem = Gui.dialogs.DefaultStepDialog,
         icon = pages.question,
         -- getDescription = function(result) return result.description end,

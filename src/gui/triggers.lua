@@ -8,7 +8,6 @@ local dataHelper = require("src/stuff/data_helper")
 local ctxHelper = require("src/stuff/action_context")
 
 local triggerListCtrl = nil
-local commandWhere = commands.commandsWhere
 
 local logger = Logger.create("triggers_gui")
 
@@ -272,7 +271,7 @@ local function onTrigger(type, data)
                             logger.log("context created")
                             Gui.frame:QueueEvent(wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, ACTION_DISPATCH))
                         else
-                            logger.log("action mapped but not found for command", cmd.name)
+                            logger.log("action mapped but not found for event", event.name)
                         end
                     end
                 end

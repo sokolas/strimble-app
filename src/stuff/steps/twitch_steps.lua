@@ -50,7 +50,6 @@ local function init(menu, stepHandlers)
     
     stepHandlers[steps.sendMessageItem:GetId()] = {
         name = "Send Twitch Message",
-        dialog = steps.sendMessageDialog,
         dialogItem = Gui.dialogs.SendTwitchMessageStepDlg,
         icon = pages.twitch,
         getDescription = function(result) return '"' .. result.message .. '"' end,
@@ -94,7 +93,6 @@ local function init(menu, stepHandlers)
 
     stepHandlers[steps.getUserItem:GetId()] = {
         name = "Get user",
-        dialog = steps.getUserDialog,
         dialogItem = Gui.dialogs.GetTwitchUserStepDlg,
         icon = pages.twitch,
         getDescription = function(result) return string.format("%s: %s", userQueryTypes[result.type + 1], result.user_id) end,

@@ -59,7 +59,6 @@ local function init(menu, stepHandlers)
     
     stepHandlers[steps.sendRequest:GetId()] = {
         name = "Send custom OBS request",
-        dialog = steps.sendRequestDialog,
         dialogItem = Gui.dialogs.SendObsRequestDlg,
         icon = pages.obs,
         getDescription = function(result) return (result.requestType or "") .. " / " .. (result.comment or "") end,

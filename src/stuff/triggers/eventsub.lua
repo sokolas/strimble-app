@@ -133,7 +133,7 @@ end
 
 local function createEventSubFolder(triggerListCtrl, rootTriggerItem)
     local pages = iconsHelper.getPages()
-    local eventSubEvents = triggerListCtrl:AppendItem(rootTriggerItem, "Twitch EventSub", pages.twitch, pages.twitch)
+    local eventSubEvents = triggerListCtrl:AppendItem(rootTriggerItem, "Twitch Events", pages.twitch, pages.twitch)
     
     local treeItem = {
         id = eventSubEvents:GetValue(),

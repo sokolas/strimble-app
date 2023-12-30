@@ -71,7 +71,6 @@ local function init(menu, stepHandlers)
     
     stepHandlers[steps.delayItem:GetId()] = {
         name = "Delay",
-        dialog = steps.delayDialog,
         dialogItem = Gui.dialogs.DelayStepDialog,
         icon = pages.timer,
         getDescription = function(result) return result.delay .. 'ms' end,
@@ -123,7 +122,6 @@ local function init(menu, stepHandlers)
     
     stepHandlers[steps.logItem:GetId()] = {
         name = "Log",
-        dialog = steps.logDialog,
         dialogItem = Gui.dialogs.LogStepDialog,
         icon = pages.logs,
         getDescription = function(result) return result.message end,
@@ -158,7 +156,6 @@ local function init(menu, stepHandlers)
 
     stepHandlers[steps.playSoundItem:GetId()] = {
         name = "Play sound",
-        dialog = steps.soundDialog,
         dialogItem = Gui.dialogs.PlaySoundStepDialog,
         icon = pages.logs,
         getDescription = function(result) return result.filename end,
