@@ -1,5 +1,6 @@
 local dataHelper = require("src/stuff/data_helper")
 local logger = Logger.create("context")
+local actionLogger = Logger.create("actions")
 
 local _M = {}
 
@@ -86,17 +87,70 @@ local function validateJson(message)
     end
 end
 
-Mt.execute = function(self)
-    for i, f in ipairs(self.steps) do
-        local res = f(self)
-        if not res then
-            return false
+Mt.__index = Mt
+
+local function exec(ctx)
+    for i, step in ipairs(ctx.steps) do
+        actionLogger.log("step", i, step.name)
+        local ok, stepResult = step.f(ctx, step.params)
+        actionLogger.log("step", i, "result", ok, stepResult)
+        if not ok then
+            actionLogger.log("step returned false, aborting action")
+            return  -- TODO false?
+        else
+            if step.params.saveVar and step.params.saveVar ~= "" then
+                actionLogger.log("saving to", step.params.saveVar)
+                ctx.data[step.params.saveVar] = stepResult
+            end
         end
     end
-    return true
 end
 
-Mt.__index = Mt
+local function exec_wrapper(queue, ctx)
+    -- try
+    xpcall(exec,
+        function(err)
+            actionLogger.err("Action execution failed", debug.traceback(err))
+        end,
+    ctx)
+    -- finally
+    actionLogger.log("action co finished", ctx.action)
+    queue.running = false
+    queue.co = nil
+    table.remove(queue, 1)
+    if #queue > 0 then
+        Gui.frame:QueueEvent(wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, ACTION_DISPATCH))
+    else
+        actionLogger.log(queue.name, "is empty")
+    end
+end
+
+local function dispatchActions()
+    local queues = dataHelper.getActionQueues()
+    for k, queue in pairs(queues) do
+        if #queue > 0 then
+            if not queue.running then
+                actionLogger.log("Processing queue", k, #queue)
+                queue.running = true
+                local ctx = queue[1]
+                actionLogger.log("action", ctx.action)
+                
+                queue.co = coroutine.create(exec_wrapper)
+                -- logger.log(coroutine.status(queue.co))
+                actionLogger.log("executing steps for", ctx.action)
+                local ok, res = coroutine.resume(queue.co, queue, ctx)
+                actionLogger.log("co result", ok, res, queue.co)
+                if queue.co then
+                    actionLogger.log(coroutine.status(queue.co))
+                end
+            else
+                actionLogger.log(k, "is still running")
+            end
+        else
+            actionLogger.log(k, "is empty")
+        end
+    end
+end
 
 _M.create = function(data, action)
     local ctx = {}
@@ -112,6 +166,7 @@ _M.create = function(data, action)
 end
 
 _M.validateJson = validateJson
+_M.dispatchActions = dispatchActions
 
 _M.var_pattern = var_pattern
 
@@ -126,7 +181,6 @@ _M.var_pattern = var_pattern
     action: action object
     steps: resolved steps with their params
 
-    execute() - runs the steps
     interpolate() - uses data field as the source of values to substitube; all the indices are separated by dots (numbers, too). Example: $users.0.name
 ]]
 

@@ -5,7 +5,7 @@ local wxTimers = require("src/stuff/wxtimers")
 local dialogHelper = require("src/gui/dialog_helper")
 local triggersHelper = require("src/gui/triggers")
 local actionsHelper = require("src/gui/actions")
-local dataHelper = require("src/stuff/data_helper")
+local Ctx = require("src/stuff/action_context")
 local audio = require("src/stuff/audio")
 
 local integrations = {
@@ -18,7 +18,6 @@ local ThingsToKeep = {} -- variable to store references to various stuff that ne
 local accelTable = {}
 local accelMenu = {}
 local logger = Logger.create("main")
-local actionLogger = Logger.create("actions")
 
 ACTION_DISPATCH = wx.wxID_HIGHEST + 1   -- the wx id for "dispatch actions" message command
 TIMER_ADD       = wx.wxID_HIGHEST + 2   -- the wx id for "add timer" message command
@@ -425,66 +424,7 @@ function main()
     end
     wxTimers.addTimer(50, event_loop, true)
 
-    local function dispatchActions()
-        local logger = actionLogger
-        local queues = dataHelper.getActionQueues()
-        for k, queue in pairs(queues) do
-            if #queue > 0 then
-                if not queue.running then
-                    logger.log("Processing queue", k, #queue)
-                    queue.running = true
-                    local ctx = queue[1]
-                    logger.log("action", ctx.action)
-                    local exec = function()
-                        for i, step in ipairs(ctx.steps) do
-                            logger.log("step", i, step.name)
-                            local ok, stepResult = step.f(ctx, step.params)
-                            logger.log("step", i, "result", ok, stepResult)
-                            if not ok then
-                                logger.log("step returned false, aborting action")
-                                return  -- TODO false?
-                            else
-                                if step.params.saveVar and step.params.saveVar ~= "" then
-                                    logger.log("saving to", step.params.saveVar)
-                                    ctx.data[step.params.saveVar] = stepResult
-                                end
-                            end
-                        end
-                    end
-                    queue.co = coroutine.create(function()
-                        -- try
-                        xpcall(exec,
-                            function(err)
-                                logger.err("Action execution failed", debug.traceback(err))
-                            end)
-                        -- finally
-                        logger.log("action co finished", ctx.action)
-                        queue.running = false
-                        queue.co = nil
-                        table.remove(queue, 1)
-                        if #queue > 0 then
-                            Gui.frame:QueueEvent(wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, ACTION_DISPATCH))
-                        else
-                            logger.log(k, "is empty")
-                        end
-                    end)
-                    logger.log(coroutine.status(queue.co))
-                    logger.log("executing steps for", ctx.action)
-                    local ok, res = coroutine.resume(queue.co)
-                    logger.log("co result", ok, res, queue.co)
-                    if queue.co then
-                        logger.log(coroutine.status(queue.co))
-                    end
-                else
-                    logger.log(k, "is still running")
-                end
-            else
-                logger.log(k, "is empty")
-            end
-        end
-    end
-
-    frame:Connect(ACTION_DISPATCH, wx.wxEVT_COMMAND_BUTTON_CLICKED, dispatchActions)
+    frame:Connect(ACTION_DISPATCH, wx.wxEVT_COMMAND_BUTTON_CLICKED, Ctx.dispatchActions)
     frame:Connect(TIMER_ADD, wx.wxEVT_COMMAND_BUTTON_CLICKED, function(event)
         for id, v in pairs(wxTimers.handlers) do
             logger.log("connecting timer", id)

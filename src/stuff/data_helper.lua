@@ -84,7 +84,8 @@ end
 local function getActionQueue(name)
     if not actionQueues[name] then
         actionQueues[name] = {
-            queue = {}
+            queue = {},
+            name = name
         }
     end
     return actionQueues[name]

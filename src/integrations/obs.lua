@@ -90,6 +90,8 @@ local function request(type, data)
         local ok, res = coroutine.yield()
         logger.log("got", ok, res)
         return ok, res
+    else
+        return false, "OBS is not ready"
     end
 end
 
