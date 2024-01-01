@@ -38,8 +38,11 @@ local function addTimer(interval, handler, continous)
     return id
 end
 
-local function resetTimer(id)
+local function resetTimer(id, interval)
     local option = options[id]
+    if interval then
+        option.interval = interval
+    end
     logger.log("Resetting timer", id, option)
     timers[id]:Start(option.interval, option.mode)
 end

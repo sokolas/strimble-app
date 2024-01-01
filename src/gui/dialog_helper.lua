@@ -1,5 +1,6 @@
 local logger = Logger.create("dialogs")
 local iconsHelper = require("src/gui/icons")
+local dataHelper = require("src/stuff/data_helper")
 
 -- if control is text or checkbox: set the value directly
 -- if control is choice: set the selected as the value number
@@ -362,6 +363,99 @@ local function createStepDialog(gui, dlgName, controls, validate)
     return dlg
 end
 
+local function createTriggerDialog(gui, dlgName, controls, validate)
+    local controls_full = {}
+    for i, v in ipairs(controls) do
+        table.insert(controls_full, v)
+    end
+
+    table.insert(controls_full, {
+        name = "Common",
+        controls = {
+            {
+                name = "action",
+                label = "Action",
+                type = "combo"
+            },
+            {
+                name = "enabled",
+                text = "Enabled",
+                type = "check",
+                value = true
+            }
+        }
+    })
+
+    local function validate_full(data, context)
+        if not data.name or data.name == "" then
+            return false, "Name can't be empty"
+        else
+            if context and context.id then
+                local duplicates = dataHelper.findTriggers(function(v)
+                    return v.id ~= context.id and (not v.isGroup) and v.name == data.name
+                end)
+                if #duplicates > 0 then
+                    return false, "Name must be unique"
+                end
+            else
+                local duplicates = dataHelper.findTriggers(function(v)
+                    return (not v.isGroup) and v.name == data.name
+                end)
+                if #duplicates > 0 then
+                    return false, "Name must be unique"
+                end
+            end
+            return validate(data, context)
+        end
+    end
+
+    local dlg = createDataDialog(gui, dlgName, controls_full, validate_full)
+    return dlg
+end
+
+local function addOrEditTrigger(dialog, init, preProcess, postProcess)
+    return function(id, title, mode, data)
+        local actionIds, actionNames = dataHelper.getActionData()
+        local init_full = { action = function(c) c:Set(actionNames) end }
+        if init then
+            for k, v in pairs(init) do
+                init_full[k] = v
+            end
+        end
+        local dlgData = CopyTable(data)
+        if preProcess then
+            preProcess(dlgData)
+        end
+
+        dlgData.action = nil
+        for i = 1, #actionIds do
+            if actionIds[i] == data.action then
+                dlgData.action = actionNames[i]
+                break
+            end
+        end
+        local ctx = nil
+        if mode == "edit" then
+            ctx = { id = id }
+        end
+        local m, result = dialog.executeModal(title, dlgData, init_full, ctx)
+        if m == wx.wxID_OK then
+            local actionName = result.action
+            result.action = nil
+            for i = 1, #actionNames do
+                if actionNames[i] == actionName then
+                    result.action = actionIds[i]
+                    break
+                end
+            end
+            if postProcess then
+                postProcess(result)
+            end
+            return result
+        end
+    end
+end
+
 local function replaceElement(gui, name, constructor, guiName, group)
     local wnd = gui.frame:FindWindow(name)
     if not wnd then
@@ -449,6 +543,8 @@ end
 _M.loadDialog = loadDialog
 _M.createDataDialog = createDataDialog
 _M.createStepDialog = createStepDialog
+_M.createTriggerDialog = createTriggerDialog
+_M.addOrEditTrigger = addOrEditTrigger
 _M.replaceElement = replaceElement
 _M.getControlValue = getControlValue
 _M.setControlValue = setControlValue

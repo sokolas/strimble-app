@@ -32,7 +32,7 @@ local function findStepByName(name)
     end
 end
 
-local function deleteItem(item, deleteFromDb)
+local function deleteAction(item, deleteFromDb)
     logger.log("Deleting " .. tostring(item:GetValue()))
     local treeItem = _M.actionsData[item:GetValue()]
     logger.log(treeItem.name)
@@ -51,19 +51,35 @@ local function deleteItem(item, deleteFromDb)
         stepsListCtrl:DeleteAllItems()
     end
 
+
     -- persist
     if deleteFromDb then
+        -- delete action
         local deleteStmt = Db:prepare("DELETE FROM actions WHERE id=:id;")
         deleteStmt:bind_names({
             id = dbId
         })
         local res = deleteStmt:step()
         if res ~= Sqlite.DONE then
-            logger.err("Delete error", res, Db:errmsg())
+            logger.err("Delete action error", res, Db:errmsg())
         end
         res = deleteStmt:finalize()
         if res ~= Sqlite.OK then
-            logger.err("Finalize error", res, Db:errmsg())
+            logger.err("Finalize action error", res, Db:errmsg())
+        end
+
+        -- delete steps
+        local deleteStepsStmt = Db:prepare("DELETE FROM steps WHERE action=:id;")
+        deleteStepsStmt:bind_names({
+            id = dbId
+        })
+        local res = deleteStepsStmt:step()
+        if res ~= Sqlite.DONE then
+            logger.err("Delete steps error", res, Db:errmsg())
+        end
+        res = deleteStepsStmt:finalize()
+        if res ~= Sqlite.OK then
+            logger.err("Finalize steps error", res, Db:errmsg())
         end
 
         dataHelper.updateActions()  -- if we don't delete from db, then the action was not really deleted
@@ -588,15 +604,6 @@ function _M.init(integrations)
     local actionDeleteItem = actionMenu:Append(wx.wxID_ANY, "Delete")
     Gui.menus.actionMenu = actionMenu
 
-    local stepMenu = wx.wxMenu()
-    -- triggerMenu:SetTitle("ololo")
-    -- local stepAddItem = stepMenu:Append(wx.wxID_ANY, "Add...")
-    local stepEditItem = stepMenu:Append(wx.wxID_ANY, "Edit...")
-    stepMenu:AppendSeparator()
-    local stepDeleteItem = stepMenu:Append(wx.wxID_ANY, "Delete")
-    stepMenu:AppendSeparator()
-    Gui.menus.stepMenu = stepMenu
-
     -- actions
     actionsListCtrl = dialogHelper.replaceElement(Gui, "actionsPlaceholder", function(parent)
         return wx.wxTreeListCtrl(parent, wx.wxID_ANY, wx.wxDefaultPosition, wx.wxDefaultSize, wx.wxTL_DEFAULT_STYLE)
@@ -667,7 +674,7 @@ function _M.init(integrations)
                 updateActionItem(e:GetItem(), result)
             end
         elseif menuSelection == actionDeleteItem:GetId() then
-            deleteItem(e:GetItem(), true)
+            deleteAction(e:GetItem(), true)
         elseif menuSelection == actionToggleItem:GetId() then
             toggleItem(e:GetItem(), actionToggleItem:IsChecked())
         elseif triggerItems[menuSelection] then
@@ -729,6 +736,16 @@ function _M.init(integrations)
     end)
 
     -- steps
+
+    local stepMenu = wx.wxMenu()
+    local stepEditItem = stepMenu:Append(wx.wxID_ANY, "Edit...")
+    stepMenu:AppendSeparator()
+    local stepDeleteItem = stepMenu:Append(wx.wxID_ANY, "Delete")
+    stepMenu:AppendSeparator()
+    local stepCloneItem = stepMenu:Append(wx.wxID_ANY, "Clone")
+    stepMenu:AppendSeparator()
+    Gui.menus.stepMenu = stepMenu
+
     stepsListCtrl = dialogHelper.replaceElement(Gui, "stepsPlaceholder", function(parent)
         return wx.wxTreeListCtrl(parent, wx.wxID_ANY, wx.wxDefaultPosition, wx.wxDefaultSize, wx.wxTL_DEFAULT_STYLE)
     end, "stepsList", "steps")
@@ -760,6 +777,24 @@ function _M.init(integrations)
     for i, v in pairs(stepsHandlers) do
         logger.log(i, v.name)
     end
+
+    local function addStepWithGui(stepHandler, actionData, data)
+        local item = stepsListCtrl:AppendItem(rootStepItem, stepHandler.name, stepHandler.icon or pages.actions, stepHandler.icon or pages.actions)
+        stepsListCtrl:SetItemText(item, 1, stepHandler.getDescription(data))
+        stepsListCtrl:SetItemText(item, 2, data.saveVar or "")
+        local params = data
+        if stepHandler.postProcess then
+            params = stepHandler.postProcess(data)
+        end
+        local stepData = {
+            prototype = stepHandler,
+            description = stepHandler.getDescription(data),
+            params = params
+        }
+        addStep(nil, actionData, stepData)
+        stepsListCtrl:Select(item)
+    end
+
     stepsListCtrl:Connect(wx.wxEVT_TREELIST_ITEM_CONTEXT_MENU, function(e) -- right click on a step
         if not actionsListCtrl:GetSelection():IsOk() then
             logger.log("no action selected")
@@ -785,6 +820,7 @@ function _M.init(integrations)
 
         Gui.menus.stepMenu:Enable(stepEditItem:GetId(), stepIndex > 0)
         Gui.menus.stepMenu:Enable(stepDeleteItem:GetId(), stepIndex > 0)
+        Gui.menus.stepMenu:Enable(stepCloneItem:GetId(), stepIndex > 0)
 
         local menuSelection = Gui.frame:GetPopupMenuSelectionFromUser(Gui.menus.stepMenu, wx.wxDefaultPosition)
         logger.log(menuSelection)
@@ -802,25 +838,25 @@ function _M.init(integrations)
             updateStepsOrder(actionData)
         end
 
+        if menuSelection == stepCloneItem:GetId() then  -- clone the step
+            local step = actionData.steps[stepIndex]
+            local stepHandler = step.prototype
+            if not stepHandler then return end
+
+            local data = CopyTable(step.params)
+            data.dbId = nil
+    
+            addStepWithGui(stepHandler, actionData, data)
+        end
+
         -- add something was selected
         local stepHandler = stepsHandlers[menuSelection]
         if not stepHandler then return end
         -- add step
+
         local m, result = stepHandler.dialogItem.executeModal("Add " .. stepHandler.name, stepHandler.data, stepHandler.init)
         if m == wx.wxID_OK then
-            local item = stepsListCtrl:AppendItem(rootStepItem, stepHandler.name, stepHandler.icon or pages.actions, stepHandler.icon or pages.actions)
-            stepsListCtrl:SetItemText(item, 1, stepHandler.getDescription(result))
-            stepsListCtrl:SetItemText(item, 2, result.saveVar or "")
-            local params = result
-            if stepHandler.postProcess then
-                params = stepHandler.postProcess(result)
-            end
-            local stepData = {
-                prototype = stepHandler,
-                description = stepHandler.getDescription(result),
-                params = params
-            }
-            addStep(nil, actionData, stepData)
+            addStepWithGui(stepHandler, actionData, result)
         end
     end)
 

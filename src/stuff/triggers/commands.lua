@@ -13,7 +13,7 @@ local commandWhere = {
 local _M = {}
 
 local function createCommandDlg()
-    local commandDlg = dialogHelper.createDataDialog(Gui, "CommandDialog", {
+    local commandDlg = dialogHelper.createTriggerDialog(Gui, "CommandDialog", {
         {
             name = "Command properties",
             controls = {
@@ -34,49 +34,15 @@ local function createCommandDlg()
                     choices = commandWhere
                 },
             }
-        },
-        {
-            name = "Common",
-            -- bottom = true,
-            controls = {
-                {
-                    name = "action",
-                    label = "Action",
-                    type = "combo"
-                },
-                {
-                    name = "enabled",
-                    text = "Enabled",
-                    type = "check",
-                    value = true
-                }
-            }
         }
     },
     -- validation
     function(data, context)
-        if not data.name or data.name == "" then
-            return false, "Name can't be empty"
-        elseif data.where == -1 then
+        if data.where == -1 then
             return false, "'Where' should be specified"
         elseif not data.text or data.text == "" then
             return false, "Text can't be empty"
         else
-            if context and context.id then
-                local duplicates = dataHelper.findTriggers(function(v)
-                    return v.id ~= context.id and not v.isGroup and v.name == data.name
-                end)
-                if #duplicates > 0 then
-                    return false, "Name must be unique"
-                end
-            else
-                local duplicates = dataHelper.findTriggers(function(v)
-                    return not v.isGroup and v.name == data.name
-                end)
-                if #duplicates > 0 then
-                    return false, "Name must be unique"
-                end
-            end
             return true
         end
     end)
@@ -119,39 +85,9 @@ local function matchCommands(message)
     end
 end
 
-local function addOrEdit(title, mode)
-    return function(id, data)
-        local actionIds, actionNames = dataHelper.getActionData()
-        local init = { action = function(c) c:Set(actionNames) end }
-        local dlgData = CopyTable(data)
-        dlgData.action = nil
-        for i = 1, #actionIds do
-            if actionIds[i] == data.action then
-                dlgData.action = actionNames[i]
-                break
-            end
-        end
-        local ctx = nil
-        if mode == "edit" then
-            ctx = { id = id }
-        end
-        local m, result = Gui.dialogs.CommandDialog.executeModal(title, dlgData, init, ctx)
-        if m == wx.wxID_OK then
-            local actionName = result.action
-            result.action = nil
-            for i = 1, #actionNames do
-                if actionNames[i] == actionName then
-                    result.action = actionIds[i]
-                    break
-                end
-            end
-            return result
-        end
-    end
-end
-
-local function createTwitchCmdsFolder(triggerListCtrl, rootTriggerItem)
+local function createTwitchCmdsFolder(triggerListCtrl)
     local pages = iconsHelper.getPages()
+    local rootTriggerItem = triggerListCtrl:GetRootItem()
     local twitchCmds = triggerListCtrl:AppendItem(rootTriggerItem, "Twitch commands", pages.twitch,
         pages.twitch)
     
@@ -165,9 +101,9 @@ local function createTwitchCmdsFolder(triggerListCtrl, rootTriggerItem)
         getDescription = function(result)
             return result.text .. " (" .. commandWhere[result.where + 1] ..")"
         end,
-        -- canDeleteChildren = true,
-        add = addOrEdit("Add command", "add"),
-        childEdit = addOrEdit("Edit command", "edit"),
+        dialog = Gui.dialogs.CommandDialog,
+        add = "Add command",
+        childEdit = "Edit command",
         data = { -- default values for new children
             name = "Example command",
             text = "!hello",
@@ -175,13 +111,15 @@ local function createTwitchCmdsFolder(triggerListCtrl, rootTriggerItem)
             enabled = true
         }
     }
-    triggerListCtrl:SetItemText(twitchCmds, 1, "+") -- TODO make this dependent on canAddChildren
     return twitchCmds, treeItem
 end
 
 _M.commandsWhere = commandWhere
+_M.getTriggerTypes = function() return {"twitch_command"} end
+_M.createTriggerFolder = function(name, triggerListCtrl, onTrigger)
+    return createTwitchCmdsFolder(triggerListCtrl)
+end
 _M.createCommandDlg = createCommandDlg
-_M.createTwitchCmdsFolder = createTwitchCmdsFolder
 _M.matchCommands = matchCommands
 
 return _M

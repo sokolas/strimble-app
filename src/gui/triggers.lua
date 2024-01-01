@@ -3,9 +3,14 @@ local iconsHelper = require("src/gui/icons")
 local json = require("json")
 local commands = require("src/stuff/triggers/commands")
 local timers = require("src/stuff/triggers/timers")
+local defaultTrigger = require("src/stuff/triggers/default_trigger")
 local eventsub = require("src/stuff/triggers/eventsub")
 local dataHelper = require("src/stuff/data_helper")
 local ctxHelper = require("src/stuff/action_context")
+
+local builtInTriggers = {
+    commands, eventsub, timers
+}
 
 local triggerListCtrl = nil
 
@@ -23,6 +28,10 @@ local function addChild(parentItem, result)
         dbId = result.dbId,   -- only present if loaded from DB
         name = result.name,
         canEdit = true,
+        dialog = parentTreeItem.dialog,
+        init = parentTreeItem.init,
+        preProcess = parentTreeItem.preProcess,
+        postProcess = parentTreeItem.postProcess,
         edit = parentTreeItem.childEdit,
         getDescription = parentTreeItem.getDescription,
         canDelete = true,
@@ -62,12 +71,12 @@ local function addChild(parentItem, result)
     -- update UI
     local action = dataHelper.findAction(function(a) return a.dbId and a.dbId == item.data.action end)
     triggerListCtrl:SetItemText(cmd1, 0, result.name)
-    triggerListCtrl:SetItemText(cmd1, 2, (result.enabled and "Yes" or "No"))
-    triggerListCtrl:SetItemText(cmd1, 3, item.getDescription(result))
+    triggerListCtrl:SetItemText(cmd1, 1, (result.enabled and "Yes" or "No"))
+    triggerListCtrl:SetItemText(cmd1, 2, item.getDescription(result))
     if #action > 0 then
-        triggerListCtrl:SetItemText(cmd1, 4, (action[1].name or ""))
+        triggerListCtrl:SetItemText(cmd1, 3, (action[1].name or ""))
     else
-        triggerListCtrl:SetItemText(cmd1, 4, "")
+        triggerListCtrl:SetItemText(cmd1, 3, "")
     end
 
     if not triggerListCtrl:IsExpanded(parentItem) then
@@ -115,12 +124,12 @@ local function updateItem(item, result, getDescription)
     -- update UI
     local action = dataHelper.findAction(function(a) return a.dbId and a.dbId == result.action end)
     triggerListCtrl:SetItemText(item, 0, result.name)
-    triggerListCtrl:SetItemText(item, 2, (result.enabled and "Yes" or "No"))
-    triggerListCtrl:SetItemText(item, 3, getDescription(result))
+    triggerListCtrl:SetItemText(item, 1, (result.enabled and "Yes" or "No"))
+    triggerListCtrl:SetItemText(item, 2, getDescription(result))
     if #action > 0 then
-        triggerListCtrl:SetItemText(item, 4, (action[1].name or ""))
+        triggerListCtrl:SetItemText(item, 3, (action[1].name or ""))
     else
-        triggerListCtrl:SetItemText(item, 4, "")
+        triggerListCtrl:SetItemText(item, 3, "")
     end
 
     -- persist
@@ -169,7 +178,7 @@ local function toggleItem(item, enabled)
     treeItem.data.enabled = enabled
 
     -- update UI
-    triggerListCtrl:SetItemText(item, 2, (enabled and "Yes" or "No"))
+    triggerListCtrl:SetItemText(item, 1, (enabled and "Yes" or "No"))
     
     -- persist
     logger.log(treeItem.dbId, treeItem.data.name, "updating")
@@ -200,9 +209,9 @@ local function actionsUpdated()
         if treeItem and not treeItem.isGroup and treeItem.data.action then
             if not actionMap[treeItem.data.action] then
                 treeItem.data.action = nil
-                triggerListCtrl:SetItemText(item, 4, "")
+                triggerListCtrl:SetItemText(item, 3, "")
             else
-                triggerListCtrl:SetItemText(item, 4, (actionMap[treeItem.data.action].name or ""))
+                triggerListCtrl:SetItemText(item, 3, (actionMap[treeItem.data.action].name or ""))
             end
         end
         item = triggerListCtrl:GetNextItem(item)
@@ -295,6 +304,9 @@ local function init()
     local esDlg = eventsub.createEventSubDlg()
     if not esDlg then return end
 
+    local defaultDlg = defaultTrigger.createTriggerDialog()
+    if not defaultDlg then return end
+    
     local triggerMenu = wx.wxMenu()
     -- triggerMenu:SetTitle("ololo")
     local menuAddItem = triggerMenu:Append(wx.wxID_ANY, "Add...")
@@ -310,7 +322,6 @@ local function init()
     
     -- triggerListCtrl:AppendColumn("")
     triggerListCtrl:AppendColumn("Name")
-    triggerListCtrl:AppendColumn("Can create")
     triggerListCtrl:AppendColumn("Enabled")
     triggerListCtrl:AppendColumn("Description")
     triggerListCtrl:AppendColumn("Action")
@@ -329,9 +340,6 @@ local function init()
         }
     }
 
-    local twitchCmdsGuiItem, twitchCmdsTreeItem = commands.createTwitchCmdsFolder(triggerListCtrl, rootTriggerItem)
-    _M.treedata[twitchCmdsTreeItem.id] = twitchCmdsTreeItem
-
     -- adding and editing events
     triggerListCtrl:Connect(wx.wxEVT_TREELIST_ITEM_CONTEXT_MENU, function(e) -- right click
         local i = e:GetItem():GetValue()
@@ -347,15 +355,16 @@ local function init()
         local menuSelection = Gui.frame:GetPopupMenuSelectionFromUser(Gui.menus.triggerMenu, wx.wxDefaultPosition)
         logger.log(menuSelection)
         
+        local addOrEdit = dialogHelper.addOrEditTrigger(treeItem.dialog, treeItem.init, treeItem.preProcess, treeItem.postProcess)
         if menuSelection == menuAddItem:GetId() then    -- add new item
-            local result = treeItem.add(i, treeItem.data)
+            local result = addOrEdit(i, treeItem.add, "add", treeItem.data)
             if not result then
                 logger.err("'Add item' error")
             else
                 addChild(e:GetItem(), result)
             end
         elseif menuSelection == menuEditItem:GetId() then   -- edit item TODO move to a function
-            local result = treeItem.edit(i, treeItem.data)
+            local result = addOrEdit(i, treeItem.edit, "edit", treeItem.data)
             if not result then
                 logger.err("'Edit item' error")
             else
@@ -380,7 +389,8 @@ local function init()
             end
         else
             if treeItem.canEdit then  -- edit item TODO move to a function
-                local result = treeItem.edit(i, treeItem.data)
+                local addOrEdit = dialogHelper.addOrEditTrigger(treeItem.dialog, treeItem.init, treeItem.preProcess, treeItem.postProcess)
+                local result = addOrEdit(i, treeItem.edit, "edit", treeItem.data)
                 if not result then
                     logger.log("'Edit item' cancelled or error")
                 else
@@ -419,41 +429,40 @@ local function load()
 
     triggerListCtrl:DeleteAllItems()
 
-    -- recreate predefined folders
     
-    -- twitch commands
-    local twitchCmdsGuiItem, twitchCmdsTreeItem = commands.createTwitchCmdsFolder(triggerListCtrl, triggerListCtrl:GetRootItem())
-    _M.treedata[twitchCmdsTreeItem.id] = twitchCmdsTreeItem
-    for row in Db:nrows("SELECT * FROM triggers WHERE type = 'twitch_command'") do
-        local result = json.decode(row.data)
-        result.dbId = row.id
-        addChild(twitchCmdsGuiItem, result)
-        if not triggerListCtrl:IsExpanded(twitchCmdsGuiItem) then
-            triggerListCtrl:Expand(twitchCmdsGuiItem)
+    -- create built-in folders
+    local knownTriggers = {}
+    for j, integration in ipairs(builtInTriggers) do
+        for i, triggerType in ipairs(integration.getTriggerTypes()) do
+            local guiItem, treeItem = integration.createTriggerFolder(triggerType, triggerListCtrl, onTrigger)
+            _M.treedata[treeItem.id] = treeItem
+            knownTriggers[triggerType] = {
+                guiItem = guiItem,
+                treeItem = treeItem
+            }
         end
     end
 
-    -- EventSub
-    local eventsubGuiItem, eventsubTreeItem = eventsub.createEventSubFolder(triggerListCtrl, triggerListCtrl:GetRootItem())
-    _M.treedata[eventsubTreeItem.id] = eventsubTreeItem
-    for row in Db:nrows("SELECT * FROM triggers WHERE type = 'twitch_eventsub'") do
+    for row in Db:nrows("SELECT * FROM triggers") do
         local result = json.decode(row.data)
         result.dbId = row.id
-        addChild(eventsubGuiItem, result)
-        if not triggerListCtrl:IsExpanded(eventsubGuiItem) then
-            triggerListCtrl:Expand(eventsubGuiItem)
-        end
-    end
-
-    -- timers
-    local timersGuiItem, timersTreeItem = timers.createTimersFolder(triggerListCtrl, triggerListCtrl:GetRootItem(), onTrigger)
-    _M.treedata[timersTreeItem.id] = timersTreeItem
-    for row in Db:nrows("SELECT * FROM triggers WHERE type = 'timer'") do
-        local result = json.decode(row.data)
-        result.dbId = row.id
-        addChild(timersGuiItem, result)
-        if not triggerListCtrl:IsExpanded(timersGuiItem) then
-            triggerListCtrl:Expand(timersGuiItem)
+        -- logger.log(row.type)
+        local trigger = knownTriggers[row.type]
+        -- logger.log(trigger.guiItem)
+        if trigger then
+            addChild(trigger.guiItem, result)
+            if not triggerListCtrl:IsExpanded(trigger.guiItem) then
+                triggerListCtrl:Expand(trigger.guiItem)
+            end
+        else
+            logger.err("Unknown trigger type: " .. tostring(row.type))
+            local guiItem, treeItem = defaultTrigger.createTriggerFolder(row.type, triggerListCtrl)
+            _M.treedata[treeItem.id] = treeItem
+            knownTriggers[row.type] = {
+                guiItem = guiItem,
+                treeItem = treeItem
+            }
+            addChild(guiItem, result)
         end
     end
 
