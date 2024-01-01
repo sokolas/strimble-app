@@ -38,7 +38,16 @@ Mt.interpolate = function(self, message, asJson)
                 end
             end
             if valid then
-                local target = asJson and Json.encode(value) or tostring(value)
+                local target = value
+                if asJson then
+                    target = Json.encode(value)
+                else
+                    if value == nil then
+                        target = ""
+                    else
+                        target = tostring(value)
+                    end
+                end
                 output = Lutf8.sub(output, 1, start-1) .. target .. Lutf8.sub(output, finish+1)
                 finish = finish - Lutf8.len(var_expr) + Lutf8.len(target)
             else
