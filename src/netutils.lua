@@ -27,7 +27,91 @@ local function _resp_reader(caller)
     return coroutine.resume(caller, ok, res)
 end
 
+local _EXAMPLE_RESP = {
+    status = "200",
+    headers = {
+        ['content-type'] = "text/plain"
+    },
+    body = [[hello world]],
+    handler = function(req)
+        -- method, path, query, headers, body
+    end
+}
+
+local _FAVICON = {
+    status = "200",
+    headers = {
+      ['content-type'] = "image/svg+xml"
+    },
+    -- Note! SVG documents must have *no whitespace* at front!
+    body = [[]]
+}
+
 -- exports
+local function handleServerRequest(sock, responses)
+    -- TODO better error handling?
+    
+    local res = {}
+    local ok, msg = coroutine.yield()
+    -- logger.force(ok, msg)
+    if not ok then
+        res.error = msg
+        return res
+    end
+    local method, path, query = pollnet.parse_method(msg)
+    res.method = method
+    res.path = path
+    res.query = query
+
+    local ok, msg = coroutine.yield()
+    -- logger.force(ok, msg)
+    if not ok then
+        res.error = msg
+        return res
+    end
+    res.headers = pollnet.parse_headers(msg)
+
+    local ok, msg = coroutine.yield()
+    -- logger.force(ok, msg)
+    if not ok then
+        res.error = msg
+        return res
+    end
+    res.body = msg
+    logger.force("request read finished")
+
+    if responses then
+        if responses[method] then
+            if responses[method][path] then
+                logger.force("handler found", method, path)
+                sock:send(responses[method][path].status or "404")
+                sock:send(pollnet.format_headers(responses[method][path].headers or {}))
+                sock:send_binary(responses[method][path].body or "")
+                if responses[method][path].handler then
+                    responses[method][path].handler(res)
+                end
+            else
+                logger.force("handler not found", method, path)
+                sock:send("404")
+                sock:send(pollnet.format_headers({}))
+                sock:send_binary("no matching path")
+            end
+        else
+            logger.force("method not found", method, path)
+            sock:send("400")
+            sock:send(pollnet.format_headers({}))
+            sock:send({"no matching method"})
+            sock:send_binary("")
+        end
+    else
+        logger.force("nothing found", method, path)
+        sock:send("404")
+        sock:send(pollnet.format_headers({}))
+        sock:send({"no responses specified"})
+        sock:send_binary("")
+    end
+    -- req_sock:close()
+end
 
 local _M = {
     sockets = {}
@@ -64,7 +148,29 @@ local function addSocket(sock, handler, statusHandler, debug)
     return id
 end
 
--- does not call the status handler because this function is supposed to be calle dmanually
+local function createServer(addr, responses, debug)
+    local sock = pollnet.serve_dynamic_http(addr, false, function(req_sock, client_addr)
+        -- if debug then
+            logger.log("new client", client_addr)
+        -- end
+        local co = coroutine.create(handleServerRequest)
+        coroutine.resume(co, req_sock, responses)
+        addSocket(req_sock,
+        function(ok, msg)
+            -- if debug then
+                logger.log("new client message", addr, ok, msg)
+            -- end
+            coroutine.resume(co, ok, msg)
+        end,
+        function(ok, oldState, newState)
+            if debug then logger.log("server-client state change", ok, oldState, "->", newState) end
+        end)
+    end)
+    local id = addSocket(sock)
+    return id
+end
+
+-- does not call the status handler because this function is supposed to be called manually
 local function delSocket(id)
     logger.force("deleting and closing " .. id)
     if _M.sockets[id] then
@@ -172,5 +278,6 @@ _M.closeAll = closeAll
 _M.dispatch = dispatch
 _M.get = doGet
 _M.post = doPost
+_M.creareServer = createServer
 
 return _M

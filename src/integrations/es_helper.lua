@@ -473,10 +473,27 @@ local function user_update(sessionId, userId)
     }
 end
 
+local function chat_message(sessionId, userId)
+    return {
+        type = "channel.chat.message",
+        version = "1",
+        condition = {
+            user_id = userId,
+            broadcaster_user_id = userId
+        },
+        transport = {
+            method = "websocket",
+            session_id = sessionId
+        }
+    }
+end
+
 
 
 local function scopes(sessionId, userId)
     return {
+        chat_message(sessionId, userId),
+
         channel_follow(sessionId, userId),
         channel_update(sessionId, userId),
         ad_break_begin(sessionId, userId),
@@ -511,7 +528,7 @@ local function scopes(sessionId, userId)
         shoutout_receive(sessionId, userId),
         stream_online(sessionId, userId),
         stream_offline(sessionId, userId),
-        user_update(sessionId, userId)
+        user_update(sessionId, userId),
     }
 end
 

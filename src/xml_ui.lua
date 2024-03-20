@@ -41,13 +41,88 @@ Gui = {
     end
 }
 
+local twitchWnd = require("src.gui.twitch_gui") -- don't forget to init
+
+local function updateTwitchInfo(ok, data, token)
+    if token then
+        Gui.twitch.token:SetValue(token)
+        Twitch.setToken(token)
+    end
+    
+    if not ok then
+        if data.status or data.message then
+            twitchWnd.appendTwitchMessage("*** Auth unsuccessful; status: " .. tostring(data.status) .. "(" .. tostring(data.message) .. "). Please authenticate again")
+        else
+            twitchWnd.appendTwitchMessage("*** Auth unsuccessful - unknown error. Please authenticate again")
+        end
+    elseif data.login and data.login ~= "" then
+        Gui.twitch.username:SetValue(data.login)
+        Twitch.username = data.login
+        local chan = Gui.twitch.channel:GetValue()
+        if not chan or chan == "" then
+            Gui.twitch.channel:SetValue(data.login)
+            Twitch.channel = data.login
+        else
+            Twitch.channel = chan
+        end
+    else
+        twitchWnd.appendTwitchMessage("*** Auth unsuccessful - unknown error. Please authenticate again")
+    end
+end
+
 local function createAuthSock()
-    local pollnet_http_sock = pollnet.serve_http("0.0.0.0:10115")
+    
     local tw = assert(io.open("src/http_resp/tw.html", "r"))
-    local twitch_auth_resp = tw:read("*a")
+    local twitch_auth_resp_body = tw:read("*a")
     tw:close()
-    pollnet_http_sock:add_virtual_file("/tw_user", twitch_auth_resp)
-    return pollnet_http_sock
+
+    local favicon = assert(io.open("images/svg/bug.svg", "r"))
+    local favicon_resp_body = favicon:read("*a")
+    favicon:close()
+
+    local responses = {
+        GET = {
+            ["/tw_user"] = {
+                status = "200",
+                headers = {
+                    ['content-type'] = "text/html"
+                },
+                body = twitch_auth_resp_body,
+                handler = function(res)
+                    local query = (res.query or {})[1]
+                    logger.log("twitch auth request", res.path, query)
+                    local p = Twitch.parseAuth(res.path .. "?" .. query)
+                    if p then
+                        for i, v in pairs(p) do
+                            logger.log(i, v)
+                        end
+                        if p.access_token then
+                            local auth = coroutine.wrap(function()
+                                twitchWnd.appendTwitchMessage("twitch auth success")
+                                Gui.twitch.token:SetValue(p.access_token)
+                                Twitch.setToken(p.access_token)
+            
+                                local ok, data = Twitch.validateToken()
+                                updateTwitchInfo(ok, data)
+                            end)
+                            auth()
+                        else
+                            twitchWnd.appendTwitchMessage("twitch auth error: " .. tostring(p.error or '').. " - " .. tostring(p.error_description or ''))
+                        end
+                    end
+                end
+            },
+            ["/favicon.ico"] = {
+                status = "200",
+                headers = {
+                    ['content-type'] = "image/svg+xml"
+                  },
+                body = favicon_resp_body
+            }
+        }
+    }
+
+    NetworkManager.creareServer("0.0.0.0:10115", responses, true)
 end
 
 local function findWindow(name, type, guiName, group, transient)
@@ -123,8 +198,6 @@ local function findTool(name, guiName)
     end
     return res
 end
-
-local twitchWnd = require("src.gui.twitch_gui") -- don't forget to init
 
 function EvtHandler(f)
     return function(event)
@@ -239,72 +312,6 @@ local function setLoggingLevels()
     end
 end
 
-local authFrame = nil
-local webview = nil
-
-local function updateTwitchInfo(ok, data, token)
-    if token then
-        Gui.twitch.token:SetValue(token)
-        Twitch.setToken(token)
-    end
-    
-    if not ok then
-        if data.status or data.message then
-            twitchWnd.appendTwitchMessage("*** Auth unsuccessful; status: " .. tostring(data.status) .. "(" .. tostring(data.message) .. "). Please authenticate again")
-        else
-            twitchWnd.appendTwitchMessage("*** Auth unsuccessful - unknown error. Please authenticate again")
-        end
-    elseif data.login and data.login ~= "" then
-        Gui.twitch.username:SetValue(data.login)
-        Twitch.username = data.login
-        local chan = Gui.twitch.channel:GetValue()
-        if not chan or chan == "" then
-            Gui.twitch.channel:SetValue(data.login)
-            Twitch.channel = data.login
-        else
-            Twitch.channel = chan
-        end
-    else
-        twitchWnd.appendTwitchMessage("*** Auth unsuccessful - unknown error. Please authenticate again")
-    end
-end
-
-local function createAuthFrame()
-    if authFrame then
-        return
-    end
-    authFrame = wx.wxFrame(Gui.frame,
-        wx.wxID_ANY,
-        "Web Auth",
-        wx.wxDefaultPosition,
-        wx.wxSize(800, 600),
-        wx.wxDEFAULT_FRAME_STYLE)
-    
-    webview = wxwebview.wxWebView.New(authFrame, wx.wxID_ANY, "about:blank", wx.wxDefaultPosition, wx.wxDefaultSize, wxwebview.wxWebViewBackendEdge)
-    webview:Connect(wxwebview.wxEVT_WEBVIEW_NAVIGATED, evtHandler(function(event)
-        local u = event:GetURL()
-        if string.find(u, Twitch.redirect_url, 1, true) then
-            local p = Twitch.parseAuth(u)
-            if p then
-                if p.access_token then
-                    twitchWnd.appendTwitchMessage("twitch auth success")
-                    Gui.twitch.token:SetValue(p.access_token)
-                    Twitch.setToken(p.access_token)
-
-                    local ok, data = Twitch.validateToken()
-                    updateTwitchInfo(ok, data)
-                else
-                    twitchWnd.appendTwitchMessage("twitch auth error: " .. tostring(p.error or '').. " - " .. tostring(p.error_description or ''))
-                end
-            end
-        end
-    end))
-    authFrame:Connect(wx.wxEVT_CLOSE_WINDOW, function(event)
-        authFrame = nil
-        webview = nil
-        event:Skip()
-    end)
-end
 
 local function restart(id)
     local pid = wx.wxExecute(mainarg[1], wx.wxEXEC_ASYNC)
@@ -315,7 +322,9 @@ end
 
 function main()
     -- HideConsole()
-    NetworkManager.addSocket(createAuthSock()) -- no handler
+    -- NetworkManager.addSocket(createAuthSock()) -- no handler
+    createAuthSock()
+
     local xmlResource, frame = dialogHelper.loadMainWindow()
     if not xmlResource or not frame then return end
     Gui.frame = frame
@@ -444,62 +453,43 @@ function main()
     findWindow("twitchShowChatLogs", "wxCheckBox", "showChat", "twitch")
     findWindow("twitchAutoconnect", "wxCheckBox", "autoconnect", "twitch")
     findWindow("twitchAutoscroll", "wxCheckBox", "autoscroll", "twitch")
-    findWindow("twitchChatStatus", "wxStaticText", "chatStatus", "twitch", true)
     findWindow("twitchEsStatus", "wxStaticText", "esStatus", "twitch", true)
     findWindow("twitchStatusPanel", "wxPanel", "statusPanel", "twitch")
     twitchWnd.init(Gui.twitch.log)
     
     frame:Connect(Gui.twitch.authBtn:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, function(event)
         local url = Twitch.getAuthUrl();
-        createAuthFrame()
+        --[[createAuthFrame()
         if authFrame and webview then
             authFrame:Show(true)
             webview:LoadURL(url)
-        end
+        end]]
+        wx.wxLaunchDefaultBrowser(url);
     end)
     
-    local function eventSubMessageListener(msg)
-        local triggered = triggersHelper.onTrigger("twitch_eventsub", msg)
-    end
-
     local function twitchChatMessageListener(message)
         if Gui.twitch.showChat:GetValue() then
-            --[[if message.tags and #message.tags then
-                for k, v in pairs(message.tags) do
-                    twitchWnd.appendTwitchMessage(string.format("%s=%s", k, v))
-                end
-            end]]
             twitchWnd.appendTwitchMessage(string.format("%s/%s: %s", message.channel, message.user, message.text))
         end
-        local tags = message.tags or {}
-        local user = {
-            id = tags["user-id"],
-            displayName = tags["display-name"],
-            name = message.user,
-            subscriber = tags["subscriber"] == "1",
-            mod = tags["mod"] == "1"
-        }
-        local triggered = triggersHelper.onTrigger("twitch_privmsg", {channel = message.channel, user = user, text = message.text})
     end
     
-    local function twitchStateListener(chatState, chatIcon, esState, esIcon, additional)
-        Gui.twitch.chatStatus:SetLabel("Chat: " .. (chatState or "unknown"))
-        Gui.twitch.esStatus:SetLabel("EventSub: " .. (esState or "unknown") .. (additional or ""))
+    local function twitchStateListener(esState, esIcon, additional)
+        Gui.twitch.esStatus:SetLabel("Status: " .. (esState or "unknown") .. (additional or ""))
         Gui.twitch.statusPanel:Layout();
         -- twitchWnd.appendTwitchMessage("*** status: " .. newState)
         
-        if (not chatIcon) and (not esIcon) then -- both empty - set empty icon
+        if not esIcon then -- empty - set empty icon
             iconsHelper.setStatus("twitch", nil)
-        elseif chatIcon == "error" or esIcon == "error" then    -- any error
+        elseif esIcon == "error" then    -- any error
             iconsHelper.setStatus("twitch", "fail")
-        elseif chatIcon == "retry" or esIcon == "retry" then    -- any reconnecting, but no errors
+        elseif esIcon == "retry" then    -- any reconnecting, but no errors
             iconsHelper.setStatus("twitch", "retry")
         else
             iconsHelper.setStatus("twitch", "ok")
         end
     end
 
-    Twitch.init(eventSubMessageListener, twitchChatMessageListener, twitchStateListener)
+    Twitch.init(twitchStateListener, twitchChatMessageListener, nil)
 
     local function twitchConnectWithValidation(event)
         logger.log("connecting to twitch with validation")
@@ -509,7 +499,7 @@ function main()
         local ok, data = Twitch.validateToken()
         updateTwitchInfo(ok, data)
         if ok then
-            twitchWnd.appendTwitchMessage("*** token is OK, connecting to chat:" .. Twitch.channel)
+            twitchWnd.appendTwitchMessage("*** token is OK, connecting to twitch:" .. Twitch.channel)
             Twitch.connect()
         else
             iconsHelper.setStatus("twitch", false)
@@ -723,10 +713,11 @@ function main()
     frame:Connect(Gui.misc.button6:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, evtHandler(function(event)
         collapsibleDlg:ShowModal()
     end))
-    -- Gui.misc.button7:SetLabel("persist db")
-    -- frame:Connect(Gui.misc.button7:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, evtHandler(function(event)
-        -- local m = dialogHelper.showOkCancel(Gui.frame, "text", "caption")
-    -- end))
+
+    Gui.misc.button7:SetLabel("Send message")
+    frame:Connect(Gui.misc.button7:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, evtHandler(function(event)
+        Twitch.sendToChannel("test message\n2", "abcd")
+    end))
 
     -- actions
     -- local actionList = replaceElement("actionsPlaceholder", function(parent)
@@ -741,7 +732,7 @@ function main()
         logger.log("closing")
         xpcall(NetworkManager.closeAll, function(err) print(err) end)
         wxTimers.stopAll()
-        if authFrame then authFrame:Destroy() end
+        -- if authFrame then authFrame:Destroy() end
         event:Skip()
     end)
   

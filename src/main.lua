@@ -244,7 +244,7 @@ Json = require("json")
 require("winsock")
 
 -- local _sq = package.loadlib("bin/sqlite3.dll", "sqlite3_version") -- hack to preload sqlite3 dll
-local _vw2 = package.loadlib("bin/WebView2Loader.dll", "GetAvailableCoreWebView2BrowserVersionString")  -- hack to preload webview dll
+-- local _vw2 = package.loadlib("bin/WebView2Loader.dll", "GetAvailableCoreWebView2BrowserVersionString")  -- hack to preload webview dll
 Sqlite = require("lsqlite3complete")
 require("src/stuff/db_helper")  -- adds global Db
 DataDb = Sqlite.open("data/data.sqlite3")
@@ -284,10 +284,10 @@ dofile("src/migrations/migrations.lua")  -- do this for db file!
 
 Twitch = require("src/integrations/twitch")
 
+Integrations = {}
+
 -- UI init
 dofile("src/xml_ui.lua")
--- dofile("src/test/sqlite.lua")
--- dofile("src/timer.lua")
 local audio = require("src/stuff/audio")
 
 audio.init()

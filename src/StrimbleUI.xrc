@@ -221,25 +221,8 @@
 															<option>0</option>
 															<flag>wxALL</flag>
 															<border>5</border>
-															<object class="wxStaticText" name="twitchChatStatus">
-																<label>Chat: offline</label>
-																<wrap>-1</wrap>
-															</object>
-														</object>
-														<object class="sizeritem">
-															<option>0</option>
-															<flag>wxEXPAND | wxALL</flag>
-															<border>5</border>
-															<object class="wxStaticLine" name="m_staticline2">
-																<style>wxLI_VERTICAL</style>
-															</object>
-														</object>
-														<object class="sizeritem">
-															<option>0</option>
-															<flag>wxALL</flag>
-															<border>5</border>
 															<object class="wxStaticText" name="twitchEsStatus">
-																<label>EventSub: offline</label>
+																<label>Status: offline</label>
 																<wrap>-1</wrap>
 															</object>
 														</object>
@@ -531,6 +514,15 @@
 										<style>wxTAB_TRAVERSAL</style>
 										<object class="wxBoxSizer">
 											<orient>wxVERTICAL</orient>
+											<object class="sizeritem">
+												<option>0</option>
+												<flag>wxALL</flag>
+												<border>5</border>
+												<object class="wxStaticText" name="m_staticText131">
+													<label>Save and Restart to apply the changes. Load without restarting won&apos;t work!</label>
+													<wrap>-1</wrap>
+												</object>
+											</object>
 											<object class="sizeritem">
 												<option>1</option>
 												<flag>wxEXPAND | wxALL</flag>
