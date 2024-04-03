@@ -3,13 +3,14 @@ local iconsHelper = require("src/gui/icons")
 local json = require("json")
 local commands = require("src/stuff/triggers/commands")
 local timers = require("src/stuff/triggers/timers")
+local hotkeys = require("src/stuff/triggers/hotkeys")
 local defaultTrigger = require("src/stuff/triggers/default_trigger")
 local eventsub = require("src/stuff/triggers/eventsub")
 local dataHelper = require("src/stuff/data_helper")
 local ctxHelper = require("src/stuff/action_context")
 
 local builtInTriggers = {
-    commands, eventsub, timers
+    commands, eventsub, timers, hotkeys
 }
 
 local triggerListCtrl = nil
@@ -286,6 +287,21 @@ local function onTrigger(type, data)
                 end
             end
         end
+    elseif type == "hotkey" then
+        if data.action then
+            local actions = dataHelper.findAction(dataHelper.enabledByDbId(data.action))
+            local action = actions[1]
+            if action then
+                local queue = dataHelper.getActionQueue(action.data.queue)
+                logger.log("action found:", action.data.name, action.data.description, "queue:", action.data.queue, #queue)
+                local ctx = ctxHelper.create({}, data.action)
+                table.insert(queue, ctx)
+                logger.log("context created")
+                Gui.frame:QueueEvent(wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, ACTION_DISPATCH))
+            else
+                logger.log("action mapped but not found for hotkey", data.name)
+            end
+        end
     end
 end
 
@@ -294,7 +310,7 @@ end
 --      gui.dialogs.CommandDialog
 --      gui.menus.triggerMenu
 --      gui.CommandDialog.* fields
-local function init()
+local function init(integrations)
     local commandDlg = commands.createCommandDlg()
     if not commandDlg then return end
 
@@ -303,6 +319,9 @@ local function init()
 
     local esDlg = eventsub.createEventSubDlg()
     if not esDlg then return end
+
+    local hotkeyDlg = hotkeys.createHotkeyDialog()
+    if not hotkeyDlg then return end
 
     local defaultDlg = defaultTrigger.createTriggerDialog()
     if not defaultDlg then return end

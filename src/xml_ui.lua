@@ -9,10 +9,9 @@ local Ctx = require("src/stuff/action_context")
 local audio = require("src/stuff/audio")
 
 local integrations = {
-    {src = "src/integrations/vts/init"}
+    {src = "src/integrations/vts/init"},
+    {src = "src/integrations/obs/init"}
 }
-
-local obs = require("src/integrations/obs")
 
 local ThingsToKeep = {} -- variable to store references to various stuff that needs to be kept
 local accelTable = {}
@@ -250,7 +249,9 @@ local function saveConfig()
     })
     
     for i, v in ipairs(integrations) do
-        v.m.saveConfig()
+        if v.m.saveConfig then
+            v.m.saveConfig()
+        end
     end
     
     
@@ -292,11 +293,10 @@ local function loadConfig()
 
     -- set up vts
     for i, v in ipairs(integrations) do
-        v.m.loadConfig()
+        if v.m.loadConfig then
+            v.m.loadConfig()
+        end
     end
-
-    -- set up obs
-    obs.setAutoReconnect(Gui.obs.autoconnect:GetValue())
 
     LoadDb()
     
@@ -402,7 +402,13 @@ function main()
     for i, v in ipairs(integrations) do
         v.m = require(v.src)
         iconsHelper.registerPage(v.m.page, v.m.icon)
-        v.m.initializeUi()
+        if v.m.initializeUi then
+            local res = v.m.initializeUi()
+            if not res then
+                logger.err("Error initializing UI for", v.m.displayName, v.m.src)
+                return  -- quit the program
+            end
+        end
     end
 
     iconsHelper.initializeListbook(lblv)
@@ -521,51 +527,16 @@ function main()
 
     -- VTube Studio, etc
     for i, v in ipairs(integrations) do
-        v.m.initializeIntegration()
-    end
-
-    -- OBS
-    findWindow("obsConnect", "wxButton", "connect", "obs")
-    findWindow("obsAddress", "wxTextCtrl", "address", "obs")
-    findWindow("obsPassword", "wxTextCtrl", "password", "obs")
-    findWindow("obsStatusLabel", "wxStaticText", "status", "obs")
-    findWindow("obsAutoconnect", "wxCheckBox", "autoconnect", "obs")
-
-    local function obsStateListener(state, icon)
-        Gui.obs.status:SetLabel("Status: " .. (state or "unknown"))
-        
-        if not icon then
-            iconsHelper.setStatus("obs", nil)
-        elseif icon == "error" then
-            iconsHelper.setStatus("obs", "fail")
-        elseif icon == "retry" then
-            iconsHelper.setStatus("obs", "retry")
-        else
-            iconsHelper.setStatus("obs", "ok")
+        if v.m.initializeIntegration then
+            v.m.initializeIntegration()
         end
     end
-    obs.init(Gui.obs.address:GetValue(), nil, obsStateListener, nil)    -- default url for now
-    frame:Connect(Gui.obs.connect:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, evtHandler(function(event)
-        local url = Gui.obs.address:GetValue()
-        if url and url ~= "" then
-            obs.setUrl(url)
-        end
-        local pass = Gui.obs.password:GetValue()
-        obs.setPasword(pass)
-        obs.connect()
-    end))
-    frame:Connect(Gui.obs.autoconnect:GetId(), wx.wxEVT_CHECKBOX, evtHandler(function(event)
-        obs.setUrl(Gui.obs.address:GetValue())
-        obs.setPasword(Gui.obs.password:GetValue())
-        obs.setAutoReconnect(event:IsChecked())
-    end))
-
 
     -- actions
     actionsHelper.init(integrations)
 
     -- triggers
-    triggersHelper.init()
+    triggersHelper.init(integrations)
 
     -- scripts/integrations
     findWindow("integrationsPlaceholderPanel", "wxPanel", "panel", "scripts")
@@ -714,10 +685,20 @@ function main()
         collapsibleDlg:ShowModal()
     end))
 
-    Gui.misc.button7:SetLabel("Send message")
-    frame:Connect(Gui.misc.button7:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, evtHandler(function(event)
-        Twitch.sendToChannel("test message\n2", "abcd")
-    end))
+    Gui.misc.button7:SetLabel("Register hotkey")
+    frame:Connect(Gui.misc.button7:GetId(), wx.wxEVT_COMMAND_BUTTON_CLICKED, function(event)
+        local registered = frame:RegisterHotKey(2, wx.wxMOD_SHIFT + wx.wxMOD_WIN, wx.WXK_HOME)
+        logger.log(registered)
+    end)
+    -- frame:Connect(wx.wxID_ANY, wx.wxEVT_HOTKEY, function(event)
+        -- local keycode = event:GetKeyCode()
+        
+        -- logger.log("hotkey 1", keycode)
+    -- end)
+    -- frame:Connect(2, wx.wxEVT_HOTKEY, function(event)
+        -- local this, main_thread = coroutine.running()
+        -- logger.log("hotkey 2", main_thread)
+    -- end)
 
     -- actions
     -- local actionList = replaceElement("actionsPlaceholder", function(parent)
@@ -748,12 +729,11 @@ function main()
     end
 
     for i, v in ipairs(integrations) do
-        v.m.postProcess()
+        if v.m.postProcess then
+            v.m.postProcess()
+        end
     end
 
-    if Gui.obs.autoconnect:GetValue() then
-        wx.wxPostEvent(frame, wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, Gui.obs.connect:GetId()))
-    end
     -- collectgarbage("collect")
     
     frame:Show(true)

@@ -6,7 +6,6 @@ local dataHelper = require("src/stuff/data_helper")
 -- steps helpers
 local twitchSteps = require("src/stuff/steps/twitch_steps")
 local generalSteps = require("src/stuff/steps/general_steps")
-local obsSteps = require("src/stuff/steps/obs_steps")
 local defaultStep = require("src/stuff/steps/default_step")
 
 local actionsListCtrl = nil
@@ -765,12 +764,13 @@ function _M.init(integrations)
 
     twitchSteps.init(stepMenu, stepsHandlers)
     generalSteps.init(stepMenu, stepsHandlers)
-    obsSteps.init(stepMenu, stepsHandlers)
 
     defaultStep.init(stepMenu, stepsHandlers)   -- for unknown steps
 
     for i, v in ipairs(integrations) do
-        v.m.initializeSteps(stepMenu, stepsHandlers)
+        if v.m.initializeSteps then
+            v.m.initializeSteps(stepMenu, stepsHandlers)
+        end
     end
 
     logger.log("initialized actions")

@@ -28,12 +28,16 @@ local display_name = "VTube Studio"
 local function initializeUi()
     local panelResource, tmpPanel = dialogHelper.loadPanel("src/integrations/vts/vtsUi.xrc", "vtsPanel", display_name)
     logger.log(tmpPanel)
+    if not tmpPanel then
+        return false
+    end
     Gui.findWindow("vtsConnectBtn", "wxButton", "connect", "vts")
     Gui.findWindow("vtsRefresh", "wxButton", "refresh", "vts")
     Gui.findWindow("vtsAddress", "wxTextCtrl", "address", "vts")
     Gui.findWindow("vtsStatusText", "wxStaticText", "status", "vts")
     Gui.findWindow("vtsHotkeysLabel", "wxStaticText", "hotkeys", "vts")
     Gui.findWindow("vtsAutoconnect", "wxCheckBox", "autoconnect", "vts")
+    return true
 end
 
 local function initializeIntegration()

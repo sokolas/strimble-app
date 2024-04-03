@@ -1,11 +1,11 @@
 local logger = Logger.create("icons")
 local icons = {
     {path = "images/icons/twitch.png", page = "twitch"},
-    {path = "images/icons/obs.png", page = "obs"},
     {path = "images/icons/dollar-sign-solid.png", page = "da"},
     
-    -- insert integrations here, at pos=4
+    -- insert integrations here, at pos=3
     -- {path = "images/icons/vts.png", page = "vts"},
+    -- {path = "images/icons/obs.png", page = "obs"},
 
     {path = "images/icons/bolt-solid.png", page = "triggers"},
     {path = "images/icons/play-solid.png", page = "actions"},
@@ -18,11 +18,12 @@ local icons = {
     {path = "images/icons/timer_black.png", page = "timer"},
     {path = "images/icons/folder_open_black_18dp.png", page = "folder_open"},  -- not really a page
     {path = "images/icons/question_mark.png", page = "question"},   -- not really a page
+    {path = "images/icons/keyboard.png", page = "hotkeys"},   -- not really a page
     {path = "images/icons/check_reload.png"},
     {path = "images/icons/check_ok.png"},
     {path = "images/icons/warning.png"}
 }
-local int_pos = 4
+local int_pos = 3
 
 local pages = {}
 

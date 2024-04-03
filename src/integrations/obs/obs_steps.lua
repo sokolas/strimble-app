@@ -1,7 +1,7 @@
 local logger = Logger.create("obs_steps")
 local dialogHelper = require("src/gui/dialog_helper")
 local iconsHelper = require("src/gui/icons")
-local obs = require("src/integrations/obs")
+local obs = require("src/integrations/obs/obs")
 local Ctx = require("src/stuff/action_context")
 
 local _M = {}

@@ -16,6 +16,8 @@ local function setControlValue(control, value)
         control:SetValue(value)
     elseif c == "wxChoice" then
         control:SetSelection(value)
+    elseif c == "wxButton" then
+        -- skip buttons
     else
         logger.err("Error! can't set value to " .. c)
     end
@@ -71,6 +73,8 @@ local function defaultValue(control)
         control:SetValue(false)
     elseif c == "wxChoice" then
         control:SetSelection(-1)
+    elseif c == "wxButton" then
+        -- skip buttons
     else
         logger.err("Error! can't set value to " .. c)
     end
