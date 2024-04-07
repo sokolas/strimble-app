@@ -1,5 +1,6 @@
 .vscode
 src/test
+test
 data/*.ini
 data/lockfile.lfs
 bin/*.exe
