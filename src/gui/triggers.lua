@@ -28,6 +28,7 @@ local function addChild(parentItem, result)
         id = cmd1:GetValue(),
         dbId = result.dbId,   -- only present if loaded from DB
         name = result.name,
+        icon = parentTreeItem.icon or -1,
         canEdit = true,
         dialog = parentTreeItem.dialog,
         init = parentTreeItem.init,
@@ -73,6 +74,9 @@ local function addChild(parentItem, result)
     local action = dataHelper.findAction(function(a) return a.dbId and a.dbId == item.data.action end)
     triggerListCtrl:SetItemText(cmd1, 0, result.name)
     triggerListCtrl:SetItemText(cmd1, 1, (result.enabled and "Yes" or "No"))
+    if not result.enabled then
+        triggerListCtrl:SetItemImage(cmd1, iconsHelper.offIcon(), iconsHelper.offIcon())
+    end
     triggerListCtrl:SetItemText(cmd1, 2, item.getDescription(result))
     if #action > 0 then
         triggerListCtrl:SetItemText(cmd1, 3, (action[1].name or ""))
@@ -89,7 +93,7 @@ local function addChild(parentItem, result)
     end
 
     if result.enabled and item.onEnable then
-        item.onEnable(item, cmd1)
+        local ok = item.onEnable(item, cmd1)
     end
 end
 
@@ -115,8 +119,9 @@ local function updateItem(item, result, getDescription)
     local treeItem = _M.treedata[item:GetValue()]
 
     logger.log("onUpdate is", treeItem.onUpdate)
+    local ok = true
     if treeItem.onUpdate then
-        treeItem.onUpdate(treeItem, item, result)
+        ok = treeItem.onUpdate(treeItem, item, result)
     end
 
     treeItem.data = result
@@ -126,6 +131,15 @@ local function updateItem(item, result, getDescription)
     local action = dataHelper.findAction(function(a) return a.dbId and a.dbId == result.action end)
     triggerListCtrl:SetItemText(item, 0, result.name)
     triggerListCtrl:SetItemText(item, 1, (result.enabled and "Yes" or "No"))
+    if result.enabled then
+        if ok then
+            triggerListCtrl:SetItemImage(item, treeItem.icon, treeItem.icon)
+        else
+            triggerListCtrl:SetItemImage(item, iconsHelper.failIcon(), iconsHelper.failIcon())
+        end
+    else
+        triggerListCtrl:SetItemImage(item, iconsHelper.offIcon(), iconsHelper.offIcon())
+    end
     triggerListCtrl:SetItemText(item, 2, getDescription(result))
     if #action > 0 then
         triggerListCtrl:SetItemText(item, 3, (action[1].name or ""))
@@ -180,13 +194,23 @@ local function toggleItem(item, enabled)
 
     -- update UI
     triggerListCtrl:SetItemText(item, 1, (enabled and "Yes" or "No"))
-    
+    if enabled then
+        triggerListCtrl:SetItemImage(item, treeItem.icon, treeItem.icon)
+    else
+        triggerListCtrl:SetItemImage(item, iconsHelper.offIcon(), iconsHelper.offIcon())
+    end
+
     -- persist
     logger.log(treeItem.dbId, treeItem.data.name, "updating")
     updateItemInDb(treeItem)
 
     if enabled and treeItem.onEnable then
-        treeItem.onEnable(treeItem, item)
+        local ok = treeItem.onEnable(treeItem, item)
+        logger.log("onEnable result", ok)
+        if not ok then
+            logger.log("enable failed")
+            triggerListCtrl:SetItemImage(item, iconsHelper.failIcon(), iconsHelper.failIcon())
+        end
     end
 
     if not enabled and treeItem.onDisable then
@@ -345,7 +369,7 @@ local function init(integrations)
     triggerListCtrl:AppendColumn("Description")
     triggerListCtrl:AppendColumn("Action")
 
-    _M.imageList = iconsHelper.createImageList()   -- despite the docs, imagelist is not transferred to the tree control, so we use SetImageList and keep the ref
+    _M.imageList = iconsHelper.createImageList()   -- despite the docs, AssignImageList doesn't transfer imagelist to the tree control, so we use SetImageList and keep the ref
     triggerListCtrl:SetImageList(_M.imageList)
 
     local rootTriggerItem = triggerListCtrl:GetRootItem()

@@ -367,6 +367,7 @@ local function createHotkeysFolder(triggerListCtrl, onTrigger)
                 logger.log("Hotkey pressed", item.name, bit.tohex(id))
                 handler()
             end)
+            return ok
         end,
         onDisable = function(item, guiItem)
             logger.log("onDisable hotkey", item.name)
@@ -408,6 +409,7 @@ local function createHotkeysFolder(triggerListCtrl, onTrigger)
                 logger.log("Hotkey pressed", item.name, bit.tohex(id))
                 handler()
             end)
+            return ok
         end
     }
     return hotkeysFolder, treeItem

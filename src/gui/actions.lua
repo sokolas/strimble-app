@@ -164,6 +164,9 @@ function _M.addAction(groupGuiItem, data)
     -- update UI
     actionsListCtrl:SetItemText(guiItem, 0, data.name)
     actionsListCtrl:SetItemText(guiItem, 1, (data.enabled and "Yes" or "No"))
+    if not data.enabled then
+        actionsListCtrl:SetItemImage(guiItem, iconsHelper.pauseIcon(), iconsHelper.pauseIcon())
+    end
     actionsListCtrl:SetItemText(guiItem, 2, data.description or "")
     actionsListCtrl:SetItemText(guiItem, 3, data.queue or "")
 
@@ -256,17 +259,25 @@ local function updateActionItem(item, result)
     local parent = actionsListCtrl:GetItemParent(item)
     local groupItem, _ = findOrCreateGroup(result.group, actionsListCtrl:GetRootItem())
 
-    if parent:GetValue() == groupItem:GetValue() then
+    if parent:GetValue() == groupItem:GetValue() then   -- groups has not changed and exists
         -- update UI
         actionsListCtrl:SetItemText(item, 0, result.name)
         actionsListCtrl:SetItemText(item, 1, (result.enabled and "Yes" or "No"))
+        if result.enabled then
+            actionsListCtrl:SetItemImage(item, pages.actions, pages.actions)
+        else
+            actionsListCtrl:SetItemImage(item, iconsHelper.pauseIcon(), iconsHelper.pauseIcon())
+        end
         actionsListCtrl:SetItemText(item, 2, result.description or "")
         actionsListCtrl:SetItemText(item, 3, result.queue or "")
-    else
+    else    -- group was changed, create a new gui action item and delete the old one
         local newItem = actionsListCtrl:AppendItem(groupItem, result.name, pages.actions, pages.actions)
         -- update UI
         actionsListCtrl:SetItemText(newItem, 0, result.name)
         actionsListCtrl:SetItemText(newItem, 1, (result.enabled and "Yes" or "No"))
+        if not result.enabled then
+            actionsListCtrl:SetItemImage(newItem, iconsHelper.pauseIcon(), iconsHelper.pauseIcon())
+        end
         actionsListCtrl:SetItemText(newItem, 2, result.description or "")
         actionsListCtrl:SetItemText(newItem, 3, result.queue or "")
 
@@ -294,7 +305,12 @@ local function toggleItem(item, state)
 
     -- update UI
     actionsListCtrl:SetItemText(item, 1, (treeItem.data.enabled and "Yes" or "No"))
-    
+    if treeItem.data.enabled then
+        actionsListCtrl:SetItemImage(item, pages.actions, pages.actions)
+    else
+        actionsListCtrl:SetItemImage(item, iconsHelper.pauseIcon(), iconsHelper.pauseIcon())
+    end
+
     -- persist
     updateActionItemInDb(treeItem)
 end
@@ -614,7 +630,7 @@ function _M.init(integrations)
     actionsListCtrl:AppendColumn("Description")
     actionsListCtrl:AppendColumn("Queue")
 
-    _M.imageList = iconsHelper.createImageList()   -- despite the docs, imagelist is not transferred to the tree control, so we use SetImageList and keep the ref
+    _M.imageList = iconsHelper.createImageList()   -- despite the docs, AssignImageList doesn't transfer imagelist to the tree control, so we use SetImageList and keep the ref
     actionsListCtrl:SetImageList(_M.imageList)
 
     local rootActionItem = actionsListCtrl:GetRootItem()
@@ -753,7 +769,7 @@ function _M.init(integrations)
     stepsListCtrl:AppendColumn("Description")
     stepsListCtrl:AppendColumn("Save to")
 
-    imageList = iconsHelper.createImageList()   -- despite the docs, imagelist is not transferred to the tree control, so we use SetImageList and keep the ref
+    imageList = iconsHelper.createImageList()   -- despite the docs, AssignImageList doesn't transfer imagelist to the tree control, so we use SetImageList and keep the ref
     stepsListCtrl:SetImageList(imageList)
 
     local rootStepItem = stepsListCtrl:GetRootItem()

@@ -85,6 +85,7 @@ local function createTimersFolder(triggerListCtrl, onTrigger)
                 local timer = wxtimers.addTimer(item.data.time, timerHandler(item, guiItem), true)
                 item.timer = timer
             end
+            return true
         end,
         onDisable = function(item, guiItem)
             logger.log("onDisable", item.name)
@@ -112,17 +113,18 @@ local function createTimersFolder(triggerListCtrl, onTrigger)
                     local timer = wxtimers.addTimer(result.time, timerHandler(item, guiItem), true)
                     item.timer = timer
                 end
-                return
+                return true
             end
             
             if result.enabled and not prevState then
                 item.onEnable(item, guiItem)
-                return
+                return true
             end
             
             if not result.enabled and prevState then
                 item.onDisable(item, guiItem)
             end
+            return true
         end
     }
     return timersFolder, treeItem

@@ -9,7 +9,7 @@ local icons = {
 
     {path = "images/icons/bolt-solid.png", page = "triggers"},
     {path = "images/icons/play-solid.png", page = "actions"},
-    {path = "images/icons/code-solid.png", page = "scripts"},
+    {path = "images/icons/code.png", page = "scripts"},
     {path = "images/icons/settings.png", page = "misc"},
     {path = "images/icons/terminal-solid.png", page = "logs"},
     {path = "images/icons/bug_lines.png", page = "about"},
@@ -19,6 +19,8 @@ local icons = {
     {path = "images/icons/folder_open_black_18dp.png", page = "folder_open"},  -- not really a page
     {path = "images/icons/question_mark.png", page = "question"},   -- not really a page
     {path = "images/icons/keyboard.png", page = "hotkeys"},   -- not really a page
+    {path = "images/icons/pause.png"},
+    {path = "images/icons/code-off.png"},
     {path = "images/icons/check_reload.png"},
     {path = "images/icons/check_ok.png"},
     {path = "images/icons/warning.png"}
@@ -93,7 +95,12 @@ local _M = {
         end
         listbook:SetColumnWidth(0, -1)
         listbook:SetColumnWidth(1, 18)
-    end
+    end,
+    failIcon = function() return #icons-1 end,
+    okIcon   = function() return #icons-2 end,
+    retryIcon = function() return #icons-3 end,
+    offIcon = function() return #icons-4 end,
+    pauseIcon = function() return #icons-5 end
 }
 
 return _M
