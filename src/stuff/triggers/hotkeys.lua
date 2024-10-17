@@ -1,6 +1,7 @@
 local dataHelper = require("src/stuff/data_helper")
 local dialogHelper = require("src/gui/dialog_helper")
 local iconsHelper = require("src/gui/icons")
+local ctxHelper = require("src/stuff/action_context")
 -- local bit = require("bit")
 
 local logger = Logger.create("hotkey_triggers")
@@ -291,11 +292,14 @@ local function createHotkeysFolder(triggerListCtrl, onTrigger)
 
     local hotkeysFolder = triggerListCtrl:AppendItem(rootTriggerItem, "Hotkeys", pages.hotkeys, pages.hotkeys)
     
-    local function hotkeyHandler(item, guiItem)
+    local function createHotkeyHandler(item, guiItem)
         logger.log("Hotkey handler created")
+        local function buildContext()
+            return ctxHelper.create({}, item.data.action)
+        end
         return function(event)
             logger.log("hotkey triggering; action", item.data.action)
-            onTrigger("hotkey", {action = item.data.action, name = item.name})
+            onTrigger("hotkey", {action = item.data.action, name = item.name}, buildContext)
         end
     end
 
@@ -362,7 +366,7 @@ local function createHotkeysFolder(triggerListCtrl, onTrigger)
             local ok = Gui.frame:RegisterHotKey(id, mods, code)
             logger.log("Hotkey " .. bit.tohex(id) .. " code: " .. bit.tohex(code) .. " registration:", ok)
             
-            local handler = hotkeyHandler(item, guiItem)
+            local handler = createHotkeyHandler(item, guiItem)
             Gui.frame:Connect(id, wx.wxEVT_HOTKEY, function(event)
                 logger.log("Hotkey pressed", item.name, bit.tohex(id))
                 handler()
@@ -404,7 +408,7 @@ local function createHotkeysFolder(triggerListCtrl, onTrigger)
 
             local ok = Gui.frame:RegisterHotKey(id, mods, code)
             logger.log("Hotkey " .. bit.tohex(id) .. " code: " .. bit.tohex(code) .. " registration:", ok)
-            local handler = hotkeyHandler(item, guiItem)
+            local handler = createHotkeyHandler(item, guiItem)
             Gui.frame:Connect(id, wx.wxEVT_HOTKEY, function(event)
                 logger.log("Hotkey pressed", item.name, bit.tohex(id))
                 handler()

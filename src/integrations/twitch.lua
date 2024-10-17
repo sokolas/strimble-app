@@ -3,7 +3,10 @@ local logger = Logger.create("twitch")
 local twitch_chat_logger = Logger.create("twitch-chat-ws")
 local Websocket = require("src/stuff/websocket")
 local eventsub = require("src/integrations/eventsub")
+local esTrigger = require("src/stuff/triggers/eventsub")
 local triggersHelper = require("src/gui/triggers")
+local ctxHelper = require("src/stuff/action_context")
+local commands = require("src/stuff/triggers/commands")
 
 local scopes = {
     "bits:read",
@@ -291,9 +294,23 @@ _M.esStateListener = function(oldState, newState, additional)
 end
 
 _M.esMessageListener = function(esEvent)
-    local triggered = triggersHelper.onTrigger("twitch_eventsub", esEvent)
     if _M.userEsMessageListener then
         _M.userEsMessageListener(esEvent)
+    end
+    
+    --local triggered = triggersHelper.onTrigger("twitch_eventsub", esEvent)
+    if esEvent.payload and esEvent.payload.subscription and esEvent.payload.subscription.type then
+        local matchedEvents = esTrigger.matchTrigger(esEvent)
+        if matchedEvents then
+            for i, event in ipairs(matchedEvents) do
+                local function buildContext()
+                    return ctxHelper.create({
+                        payload = esEvent.payload
+                    }, event.action)
+                end
+                triggersHelper.onTrigger("twitch_eventsub", event, buildContext)
+            end
+        end
     end
 
     if esEvent.metadata.subscription_type == "channel.chat.message" then
@@ -321,7 +338,20 @@ _M.esMessageListener = function(esEvent)
             return
         end
         
-        local triggered_chat = triggersHelper.onTrigger("twitch_privmsg", {channel = message.channel, user = user, text = message.text})
+        --local triggered_chat = triggersHelper.onTrigger("twitch_privmsg", {channel = message.channel, user = user, text = message.text})
+        local matchedCommands = commands.matchCommands(message.text)
+        if matchedCommands then
+            for i, cmd in ipairs(matchedCommands) do
+                local function buildContext()
+                    return ctxHelper.create({
+                        user = user,
+                        value = message.text, -- TODO parse into command and params
+                        channel = message.channel
+                    }, cmd.action)
+                end
+                triggersHelper.onTrigger("twitch_privmsg", cmd, buildContext)
+            end
+        end
     end
 end
 

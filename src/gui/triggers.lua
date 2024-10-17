@@ -7,7 +7,6 @@ local hotkeys = require("src/stuff/triggers/hotkeys")
 local defaultTrigger = require("src/stuff/triggers/default_trigger")
 local eventsub = require("src/stuff/triggers/eventsub")
 local dataHelper = require("src/stuff/data_helper")
-local ctxHelper = require("src/stuff/action_context")
 
 local builtInTriggers = {
     commands, eventsub, timers, hotkeys
@@ -243,88 +242,19 @@ local function actionsUpdated()
     end
 end
 
-local function onTrigger(type, data)
-    if type == "twitch_privmsg" then    -- assume data has a text field
-        if data and data.text then
-            local matchedCommands = commands.matchCommands(data.text)
-            if matchedCommands then
-                for i, cmd in ipairs(matchedCommands) do
-                    if cmd.action then
-                        local actions = dataHelper.findAction(dataHelper.enabledByDbId(cmd.action))
-                        local action = actions[1]
-                        if action then
-                            local queue = dataHelper.getActionQueue(action.data.queue)
-                            logger.log("action found:", action.data.name, action.data.description, "queue:", action.data.queue, #queue)
-                            local ctx = ctxHelper.create({
-                                user = data.user,
-                                value = data.text, -- TODO parse into command and params
-                                channel = data.channel
-                            }, cmd.action)
-                            table.insert(queue, ctx)
-                            logger.log("context created")
-                            Gui.frame:QueueEvent(wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, ACTION_DISPATCH))
-                        else
-                            logger.log("action mapped but not found for command", cmd.name)
-                        end
-                    else
-                        logger.log("no action mapped for ", cmd.name)
-                    end
-                end
-            end
-        end
-    elseif type == "timer" then
-        if data.action then
-            local actions = dataHelper.findAction(dataHelper.enabledByDbId(data.action))
-            local action = actions[1]
-            if action then
-                local queue = dataHelper.getActionQueue(action.data.queue)
-                logger.log("action found:", action.data.name, action.data.description, "queue:", action.data.queue, #queue)
-                local ctx = ctxHelper.create({}, data.action)
-                table.insert(queue, ctx)
-                logger.log("context created")
-                Gui.frame:QueueEvent(wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, ACTION_DISPATCH))
-            else
-                logger.log("action mapped but not found for timer", data.name)
-            end
-        end
-    elseif type == "twitch_eventsub" then
-        if data.payload and data.payload.subscription and data.payload.subscription.type then
-            local matchedEvents = eventsub.matchTrigger(data)
-            if matchedEvents then
-                for i, event in ipairs(matchedEvents) do
-                    if event.action then
-                        local actions = dataHelper.findAction(dataHelper.enabledByDbId(event.action))
-                        local action = actions[1]
-                        if action then
-                            local queue = dataHelper.getActionQueue(action.data.queue)
-                            logger.log("action found:", action.data.name, action.data.description, "queue:", action.data.queue, #queue)
-                            local ctx = ctxHelper.create({
-                                payload = data.payload
-                            }, event.action)
-                            table.insert(queue, ctx)
-                            logger.log("context created")
-                            Gui.frame:QueueEvent(wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, ACTION_DISPATCH))
-                        else
-                            logger.log("action mapped but not found for event", event.name)
-                        end
-                    end
-                end
-            end
-        end
-    elseif type == "hotkey" then
-        if data.action then
-            local actions = dataHelper.findAction(dataHelper.enabledByDbId(data.action))
-            local action = actions[1]
-            if action then
-                local queue = dataHelper.getActionQueue(action.data.queue)
-                logger.log("action found:", action.data.name, action.data.description, "queue:", action.data.queue, #queue)
-                local ctx = ctxHelper.create({}, data.action)
-                table.insert(queue, ctx)
-                logger.log("context created")
-                Gui.frame:QueueEvent(wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, ACTION_DISPATCH))
-            else
-                logger.log("action mapped but not found for hotkey", data.name)
-            end
+local function onTrigger(type, data, buildContext)
+    if data.action then
+        local actions = dataHelper.findAction(dataHelper.enabledByDbId(data.action))
+        local action = actions[1]
+        if action then
+            local queue = dataHelper.getActionQueue(action.data.queue)
+            logger.log("action found:", action.data.name, action.data.description, "queue:", action.data.queue, #queue)
+            local ctx = buildContext() --ctxHelper.create({}, data.action)
+            table.insert(queue, ctx)
+            logger.log("context created")
+            Gui.frame:QueueEvent(wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, ACTION_DISPATCH))
+        else
+            logger.log("action mapped but not found for:", type, data.name)
         end
     end
 end

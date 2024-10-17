@@ -86,7 +86,7 @@ function Trace(...)
         s = s .. src .. ":" .. info.currentline .. "\t"
     end
     for i = 1, arg.n do
-        if type(v) == "string" then
+        if type(arg[i]) == "string" then
             s = s .. arg[i]
         else
             s = s .. tostring(arg[i])

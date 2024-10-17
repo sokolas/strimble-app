@@ -2,6 +2,7 @@ local dataHelper = require("src/stuff/data_helper")
 local dialogHelper = require("src/gui/dialog_helper")
 local iconsHelper = require("src/gui/icons")
 local wxtimers = require("src/stuff/wxtimers")
+local ctxHelper = require("src/stuff/action_context")
 
 local logger = Logger.create("timer_triggers")
 
@@ -44,10 +45,16 @@ local function createTimersFolder(triggerListCtrl, onTrigger)
 
     local timersFolder = triggerListCtrl:AppendItem(rootTriggerItem, "Timers", pages.timer, pages.timer)
     
-    local function timerHandler(item, guiItem)
+    
+
+    local function createTimerHandler(item, guiItem)
+        local function buildContext()
+            return ctxHelper.create({}, item.data.action)
+        end
+
         return function(event)
-            logger.log("timer triggering")
-            onTrigger("timer", {action = item.data.action, name = item.name})
+            -- logger.log("timer triggering")
+            onTrigger("timer", {action = item.data.action, name = item.name}, buildContext)
         end
     end
 
@@ -82,7 +89,7 @@ local function createTimersFolder(triggerListCtrl, onTrigger)
             if item.timer then
                 wxtimers.resetTimer(item.timer, item.data.time)
             else
-                local timer = wxtimers.addTimer(item.data.time, timerHandler(item, guiItem), true)
+                local timer = wxtimers.addTimer(item.data.time, createTimerHandler(item, guiItem), true)
                 item.timer = timer
             end
             return true
@@ -110,7 +117,7 @@ local function createTimersFolder(triggerListCtrl, onTrigger)
                 if item.timer then
                     wxtimers.resetTimer(item.timer, result.time)
                 else
-                    local timer = wxtimers.addTimer(result.time, timerHandler(item, guiItem), true)
+                    local timer = wxtimers.addTimer(result.time, createTimerHandler(item, guiItem), true)
                     item.timer = timer
                 end
                 return true

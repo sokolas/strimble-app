@@ -99,7 +99,8 @@ local function identify(auth)
     local msg = {
         op = 1,
         d = {
-            rpcVersion = 1
+            rpcVersion = 1,
+            -- eventSubscriptions = 0
         }
     }
     if auth then
