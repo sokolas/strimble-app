@@ -3,7 +3,6 @@ mainarg = table.pack(...)
 
 local tracing = false
 local tracefile = tracing and io.open("trace.log", "w")
-
 local showConsole = false
 for i, a in ipairs(mainarg) do
     if a == "console" then
@@ -60,6 +59,10 @@ end
 
 package.cpath = 'bin/clibs/?.dll;' .. package.cpath
 package.path  = 'lualibs/?.lua;lualibs/?/?.lua;lualibs/?/init.lua;' .. package.path
+Serpent = require("serpent")
+
+-- print(Serpent.line(string.startsWith, {nocode = true}))
+-- print(Serpent.line(nil, {nocode = true, comment = false, sparse = true}))
 
 if jit and jit.on then jit.on() end -- turn jit "on" as "mobdebug" may turn it off for LuaJIT
 -- require("winapi")
@@ -95,8 +98,32 @@ function Trace(...)
             s = s .. "\t"
         end
     end
-    tracefile:write(s .. "\n")
-    tracefile:flush()
+    if (tracefile) then
+        tracefile:write(s .. "\n")
+        tracefile:flush()
+    end
+end
+
+local function formatLogString(loggerName, debugInfo, arg)
+    local s = os.date("[%d %b %Y %H:%M:%S]\t") .. loggerName
+    local src = ""
+    if debugInfo then
+        src = string.gsub(debugInfo.source, ".\\", "") .. ":" .. debugInfo.currentline
+        s = s .. src .. "\t"
+    end
+    for i = 1, arg.n do
+        if type(arg[i]) == "string" then
+            s = s .. arg[i]
+        else
+            s = s .. Serpent.line(arg[i], {nocode = true, comment = false, sparse = true})
+            -- s = s .. tostring(arg[i])
+        end
+
+        if i < arg.n then
+            s = s .. "\t"
+        end
+    end
+    return s, src
 end
 
 Logger.create = function(name)
@@ -106,25 +133,9 @@ Logger.create = function(name)
             name_str = "[" .. name .. "]\t"
         }
         logger.log = function(...)
-            -- Log(logger.name_str, ...)
             local arg = table.pack(...)
-            local s = os.date("[%d %b %Y %H:%M:%S]\t") .. logger.name_str
             local info = debug.getinfo(2)
-            local src = ""
-            if info then
-                src = string.gsub(info.source, ".\\", "") .. ":" .. info.currentline
-                s = s .. src .. "\t"
-            end
-            for i = 1, arg.n do
-                if type(arg[i]) == "string" then
-                    s = s .. arg[i]
-                else
-                    s = s .. tostring(arg[i])
-                end
-                if i < arg.n then
-                    s = s .. "\t"
-                end
-            end
+            local s, src = formatLogString(logger.name_str, info, arg)
             
             if logger.enabled then
                 io.write(s .. "\n")
@@ -136,23 +147,8 @@ Logger.create = function(name)
 
         logger.force = function(...)
             local arg = table.pack(...)
-            local s = os.date("[%d %b %Y %H:%M:%S]\t") .. logger.name_str
             local info = debug.getinfo(2)
-            local src = ""
-            if info then
-                src = string.gsub(info.source, ".\\", "") .. ":" .. info.currentline
-                s = s .. src .. "\t"
-            end
-            for i = 1, arg.n do
-                if type(arg[i]) == "string" then
-                    s = s .. arg[i]
-                else
-                    s = s .. tostring(arg[i])
-                end
-                if i < arg.n then
-                    s = s .. "\t"
-                end
-            end
+            local s, src = formatLogString(logger.name_str, info, arg)
             
             io.write(s .. "\n")
             
@@ -161,31 +157,8 @@ Logger.create = function(name)
             end
         end
 
-        logger.err = function(...)
-            -- Log(logger.name_str, "ERROR\t", ...)
-            local arg = table.pack(...)
-            local s = os.date("[%d %b %Y %H:%M:%S]\t") .. logger.name_str .. "ERROR\t"
-            local info = debug.getinfo(2)
-            local src = ""
-            if info then
-                src = string.gsub(info.source, ".\\", "") .. ":" .. info.currentline
-                s = s .. src .. "\t"
-            end
-            for i = 1, arg.n do
-                if type(arg[i]) == "string" then
-                    s = s .. arg[i]
-                else
-                    s = s .. tostring(arg[i])
-                end
-                if i < arg.n then
-                    s = s .. "\t"
-                end
-            end
-            io.write(s .. "\n")
-            if tracing then
-                Trace(src, ...)
-            end
-        end
+        logger.err = logger.force   -- maybe change it to its own function
+
         Logger.loggers[name] = logger
     end
     return Logger.loggers[name]
