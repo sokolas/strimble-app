@@ -9,6 +9,16 @@ local _M = {}
 local submenu = wx.wxMenu()
 local steps = {}
 
+local stepIconPaths = {
+    {path = "src/integrations/obs/icons/obs.png", name = "obs"},
+}
+
+local stepIcons = {}
+
+local function registerStepIcons()
+    stepIcons = iconsHelper.registerStepIcons(stepIconPaths)
+end
+
 local function sendRequest(ctx, params)
     local d = Json.decode(ctx:interpolate(params.requestData))
     local ok, res = obs.request(params.requestType, d)
@@ -17,7 +27,6 @@ local function sendRequest(ctx, params)
 end
 
 local function init(menu, stepHandlers)
-    local pages = iconsHelper.getPages()
     -- send message
     steps.sendRequest = submenu:Append(wx.wxID_ANY, "send request")
 
@@ -60,7 +69,7 @@ local function init(menu, stepHandlers)
     stepHandlers[steps.sendRequest:GetId()] = {
         name = "Send custom OBS request",
         dialogItem = Gui.dialogs.SendObsRequestDlg,
-        icon = pages.obs,
+        icon = stepIcons.obs,
         getDescription = function(result) return (result.requestType or "") .. " / " .. (result.comment or "") end,
         code = sendRequest,
         data = {
@@ -73,6 +82,7 @@ local function init(menu, stepHandlers)
 end
 
 _M.sendHotkey = sendRequest
+_M.registerStepIcons = registerStepIcons
 _M.init = init
 
 return _M

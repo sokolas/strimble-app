@@ -10,6 +10,16 @@ local commandWhere = {
     "Exact match"
 }
 
+local triggerIcons = {}
+
+local triggerIconPaths = {
+    {path = "images/icons/twitch.png", name = "twitch_commands"},
+}
+
+local function registerTriggerIcons()
+    triggerIcons = iconsHelper.registerTriggerIcons(triggerIconPaths)
+end
+
 local _M = {}
 
 local function createCommandDlg()
@@ -86,10 +96,8 @@ local function matchCommands(message)
 end
 
 local function createTwitchCmdsFolder(triggerListCtrl)
-    local pages = iconsHelper.getPages()
     local rootTriggerItem = triggerListCtrl:GetRootItem()
-    local twitchCmds = triggerListCtrl:AppendItem(rootTriggerItem, "Twitch commands", pages.twitch,
-        pages.twitch)
+    local twitchCmds = triggerListCtrl:AppendItem(rootTriggerItem, "Twitch commands", triggerIcons.twitch_commands, triggerIcons.twitch_commands)
     
     local treeItem = {
         id = twitchCmds:GetValue(),
@@ -97,7 +105,7 @@ local function createTwitchCmdsFolder(triggerListCtrl)
         canAddChildren = true,
         childrenType = "twitch_command",
         persistChildren = true,
-        icon = pages.scripts, -- for children
+        icon = triggerIcons.active, -- for children
         getDescription = function(result)
             return result.text .. " (" .. commandWhere[result.where + 1] ..")"
         end,
@@ -115,6 +123,7 @@ local function createTwitchCmdsFolder(triggerListCtrl)
 end
 
 _M.commandsWhere = commandWhere
+_M.registerTriggerIcons = registerTriggerIcons
 _M.getTriggerTypes = function() return {"twitch_command"} end
 _M.createTriggerFolder = function(name, triggerListCtrl, onTrigger)
     return createTwitchCmdsFolder(triggerListCtrl)

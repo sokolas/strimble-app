@@ -17,7 +17,8 @@ local currentAction = {}
 local logger = Logger.create("actions_gui")
 
 local stepsHandlers = {}
-local pages = {}
+local actionIcons = {}
+local stepIcons = {}
 
 local _M = {
     actionsData = {}
@@ -124,7 +125,7 @@ function _M.addAction(groupGuiItem, data)
     local parentTreeItem = _M.actionsData[groupGuiItem:GetValue()]
     data.group = parentTreeItem.name    -- forcibly set the group to the one that was used during creation
 
-    local guiItem = actionsListCtrl:AppendItem(groupGuiItem, data.name, pages.actions, pages.actions)
+    local guiItem = actionsListCtrl:AppendItem(groupGuiItem, data.name, actionIcons.active, actionIcons.active)
     local item = {
         id = guiItem:GetValue(),
         dbId = data.dbId,   -- only present if loaded from DB
@@ -165,7 +166,7 @@ function _M.addAction(groupGuiItem, data)
     actionsListCtrl:SetItemText(guiItem, 0, data.name)
     actionsListCtrl:SetItemText(guiItem, 1, (data.enabled and "Yes" or "No"))
     if not data.enabled then
-        actionsListCtrl:SetItemImage(guiItem, iconsHelper.pauseIcon(), iconsHelper.pauseIcon())
+        actionsListCtrl:SetItemImage(guiItem, actionIcons.inactive, actionIcons.inactive)
     end
     actionsListCtrl:SetItemText(guiItem, 2, data.description or "")
     actionsListCtrl:SetItemText(guiItem, 3, data.queue or "")
@@ -264,19 +265,19 @@ local function updateActionItem(item, result)
         actionsListCtrl:SetItemText(item, 0, result.name)
         actionsListCtrl:SetItemText(item, 1, (result.enabled and "Yes" or "No"))
         if result.enabled then
-            actionsListCtrl:SetItemImage(item, pages.actions, pages.actions)
+            actionsListCtrl:SetItemImage(item, actionIcons.active, actionIcons.active)
         else
-            actionsListCtrl:SetItemImage(item, iconsHelper.pauseIcon(), iconsHelper.pauseIcon())
+            actionsListCtrl:SetItemImage(item, actionIcons.inactive, actionIcons.inactive)
         end
         actionsListCtrl:SetItemText(item, 2, result.description or "")
         actionsListCtrl:SetItemText(item, 3, result.queue or "")
     else    -- group was changed, create a new gui action item and delete the old one
-        local newItem = actionsListCtrl:AppendItem(groupItem, result.name, pages.actions, pages.actions)
+        local newItem = actionsListCtrl:AppendItem(groupItem, result.name, actionIcons.active, actionIcons.active)
         -- update UI
         actionsListCtrl:SetItemText(newItem, 0, result.name)
         actionsListCtrl:SetItemText(newItem, 1, (result.enabled and "Yes" or "No"))
         if not result.enabled then
-            actionsListCtrl:SetItemImage(newItem, iconsHelper.pauseIcon(), iconsHelper.pauseIcon())
+            actionsListCtrl:SetItemImage(newItem, actionIcons.inactive, actionIcons.inactive)
         end
         actionsListCtrl:SetItemText(newItem, 2, result.description or "")
         actionsListCtrl:SetItemText(newItem, 3, result.queue or "")
@@ -306,9 +307,9 @@ local function toggleItem(item, state)
     -- update UI
     actionsListCtrl:SetItemText(item, 1, (treeItem.data.enabled and "Yes" or "No"))
     if treeItem.data.enabled then
-        actionsListCtrl:SetItemImage(item, pages.actions, pages.actions)
+        actionsListCtrl:SetItemImage(item, actionIcons.active, actionIcons.active)
     else
-        actionsListCtrl:SetItemImage(item, iconsHelper.pauseIcon(), iconsHelper.pauseIcon())
+        actionsListCtrl:SetItemImage(item, actionIcons.inactive, actionIcons.inactive)
     end
 
     -- persist
@@ -362,10 +363,10 @@ function _M.addActionGroup(name, rootActionItem)
     local currentGroup = getNextGroupItem()
     local groupItem = nil
     if not currentGroup then
-        groupItem = actionsListCtrl:AppendItem(rootActionItem, name, pages.folder, pages.folder)
+        groupItem = actionsListCtrl:AppendItem(rootActionItem, name, actionIcons.folder, actionIcons.folder)
     else
         if _M.actionsData[currentGroup:GetValue()].name >= name then
-            groupItem = actionsListCtrl:PrependItem(rootActionItem, name, pages.folder, pages.folder)
+            groupItem = actionsListCtrl:PrependItem(rootActionItem, name, actionIcons.folder, actionIcons.folder)
         else
             local lastGroup = currentGroup
             while _M.actionsData[currentGroup:GetValue()].name < name do
@@ -375,7 +376,7 @@ function _M.addActionGroup(name, rootActionItem)
                     break;
                 end
             end
-            groupItem = actionsListCtrl:InsertItem(rootActionItem, lastGroup, name, pages.folder, pages.folder)
+            groupItem = actionsListCtrl:InsertItem(rootActionItem, lastGroup, name, actionIcons.folder, actionIcons.folder)
         end
     end
     
@@ -386,7 +387,7 @@ function _M.addActionGroup(name, rootActionItem)
         canEdit = false,
         canAddChildren = true,
         persistChildren = true,
-        icon = pages.actions, -- for children
+        icon = actionIcons.active, -- for children
         -- canDeleteChildren = true,
         add = function(id, data)
             local groups = {}
@@ -505,7 +506,9 @@ end
 --      gui.dialogs.ActionDialog
 --      gui.ActionDialog.* fields
 function _M.init(integrations)
-    pages = iconsHelper.getPages()
+    actionIcons = iconsHelper.getActionIconsIndices()
+    stepIcons = iconsHelper.getStepIconsIndices()
+
     local actionDlg = dialogHelper.createDataDialog(Gui, "ActionDialog", {
             {
                 name = "Action properties",
@@ -630,8 +633,10 @@ function _M.init(integrations)
     actionsListCtrl:AppendColumn("Description")
     actionsListCtrl:AppendColumn("Queue")
 
-    _M.imageList = iconsHelper.createImageList()   -- despite the docs, AssignImageList doesn't transfer imagelist to the tree control, so we use SetImageList and keep the ref
-    actionsListCtrl:SetImageList(_M.imageList)
+    -- _M.imageList = iconsHelper.createImageList()   -- despite the docs, AssignImageList doesn't transfer imagelist to the tree control, so we use SetImageList and keep the ref
+    -- actionsListCtrl:SetImageList(_M.imageList)
+    local actionImageList = iconsHelper.createImageList("actions", iconsHelper.getActionIcons())    -- saved in iconsHelper; despite the docs, AssignImageList doesn't transfer imagelist to the tree control, so we use SetImageList and keep the ref
+    actionsListCtrl:SetImageList(actionImageList)
 
     local rootActionItem = actionsListCtrl:GetRootItem()
     
@@ -699,7 +704,7 @@ function _M.init(integrations)
             while itemFound:GetValue() ~= triggerItems[menuSelection] do
                 itemFound = Gui.triggers.triggersList:GetNextItem(itemFound)
             end
-            lblv:Select(pages.triggers)
+            lblv:Select(iconsHelper.getTriggersPage())
             Gui.triggers.triggersList:Select(itemFound)
             -- wx.wxPostEvent(Gui.frame, wx.wxListbookEvent(wx.wxEVT_LISTBOOK_PAGE_CHANGED, 1))
         end
@@ -743,7 +748,7 @@ function _M.init(integrations)
         if steps and #steps > 0 then
             local stepRoot = stepsListCtrl:GetRootItem()
             for j, step in ipairs(steps) do
-                local stepItem = stepsListCtrl:AppendItem(stepRoot, step.prototype.name, step.prototype.icon or pages.actions, step.prototype.icon or pages.actions)
+                local stepItem = stepsListCtrl:AppendItem(stepRoot, step.prototype.name, step.prototype.icon or actionIcons.active, step.prototype.icon or actionIcons.active)
                 stepsListCtrl:SetItemText(stepItem, 1, step.description)
                 stepsListCtrl:SetItemText(stepItem, 2, step.params.saveVar or "")
             end
@@ -769,25 +774,34 @@ function _M.init(integrations)
     stepsListCtrl:AppendColumn("Description")
     stepsListCtrl:AppendColumn("Save to")
 
-    imageList = iconsHelper.createImageList()   -- despite the docs, AssignImageList doesn't transfer imagelist to the tree control, so we use SetImageList and keep the ref
-    stepsListCtrl:SetImageList(imageList)
-
     local rootStepItem = stepsListCtrl:GetRootItem()
 
     stepsListCtrl:Connect(wx.wxEVT_TREELIST_SELECTION_CHANGED, function(e)
         logger.log("steps selection changed", stepsListCtrl:GetItemText(stepsListCtrl:GetSelection(), 1))
     end)
 
+    twitchSteps.registerIcons()
     twitchSteps.init(stepMenu, stepsHandlers)
+
+    generalSteps.registerIcons()
     generalSteps.init(stepMenu, stepsHandlers)
 
+    defaultStep.registerIcons()
     defaultStep.init(stepMenu, stepsHandlers)   -- for unknown steps
 
     for i, v in ipairs(integrations) do
+        if v.m.registerStepIcons then
+            v.m.registerStepIcons()
+        end
+        -- TODO check if it's necessary to set imagelist here
         if v.m.initializeSteps then
             v.m.initializeSteps(stepMenu, stepsHandlers)
         end
     end
+
+    local imageList = iconsHelper.createImageList("steps", iconsHelper.getStepIcons())   -- despite the docs, AssignImageList doesn't transfer imagelist to the tree control, so we use SetImageList and keep the ref in iconsHelper
+    stepsListCtrl:SetImageList(imageList)
+
 
     logger.log("initialized actions")
     for i, v in pairs(stepsHandlers) do
@@ -795,7 +809,7 @@ function _M.init(integrations)
     end
 
     local function addStepWithGui(stepHandler, actionData, data)
-        local item = stepsListCtrl:AppendItem(rootStepItem, stepHandler.name, stepHandler.icon or pages.actions, stepHandler.icon or pages.actions)
+        local item = stepsListCtrl:AppendItem(rootStepItem, stepHandler.name, stepHandler.icon or actionIcons.active, stepHandler.icon or actionIcons.active)
         stepsListCtrl:SetItemText(item, 1, stepHandler.getDescription(data))
         stepsListCtrl:SetItemText(item, 2, data.saveVar or "")
         local params = data
@@ -937,7 +951,7 @@ function _M.init(integrations)
 
         stepsListCtrl:DeleteAllItems()
         for i, v in ipairs(actionData.steps) do
-            local item = stepsListCtrl:AppendItem(rootStepItem, v.prototype.name, v.prototype.icon or pages.actions, v.prototype.icon or pages.actions)
+            local item = stepsListCtrl:AppendItem(rootStepItem, v.prototype.name, v.prototype.icon or actionIcons.active, v.prototype.icon or actionIcons.active)
             stepsListCtrl:SetItemText(item, 1, v.description)
             stepsListCtrl:SetItemText(item, 2, v.params.saveVar or "")
             if i == stepIndex - 1 then
@@ -979,7 +993,7 @@ function _M.init(integrations)
 
         stepsListCtrl:DeleteAllItems()
         for i, v in ipairs(actionData.steps) do
-            local item = stepsListCtrl:AppendItem(rootStepItem, v.prototype.name, v.prototype.icon or pages.actions, v.prototype.icon or pages.actions)
+            local item = stepsListCtrl:AppendItem(rootStepItem, v.prototype.name, v.prototype.icon or actionIcons.active, v.prototype.icon or actionIcons.active)
             stepsListCtrl:SetItemText(item, 1, v.description)
             stepsListCtrl:SetItemText(item, 2, v.params.saveVar or "")
             if i == stepIndex + 1 then

@@ -16,6 +16,8 @@ local triggerListCtrl = nil
 
 local logger = Logger.create("triggers_gui")
 
+local triggerIcons = {}
+
 local _M = {
     treedata = {}
 }
@@ -74,7 +76,7 @@ local function addChild(parentItem, result)
     triggerListCtrl:SetItemText(cmd1, 0, result.name)
     triggerListCtrl:SetItemText(cmd1, 1, (result.enabled and "Yes" or "No"))
     if not result.enabled then
-        triggerListCtrl:SetItemImage(cmd1, iconsHelper.offIcon(), iconsHelper.offIcon())
+        triggerListCtrl:SetItemImage(cmd1, triggerIcons.inactive, triggerIcons.inactive)
     end
     triggerListCtrl:SetItemText(cmd1, 2, item.getDescription(result))
     if #action > 0 then
@@ -134,10 +136,10 @@ local function updateItem(item, result, getDescription)
         if ok then
             triggerListCtrl:SetItemImage(item, treeItem.icon, treeItem.icon)
         else
-            triggerListCtrl:SetItemImage(item, iconsHelper.failIcon(), iconsHelper.failIcon())
+            triggerListCtrl:SetItemImage(item, triggerIcons.warning, triggerIcons.warning)
         end
     else
-        triggerListCtrl:SetItemImage(item, iconsHelper.offIcon(), iconsHelper.offIcon())
+        triggerListCtrl:SetItemImage(item, triggerIcons.inactive, triggerIcons.inactive)
     end
     triggerListCtrl:SetItemText(item, 2, getDescription(result))
     if #action > 0 then
@@ -196,7 +198,7 @@ local function toggleItem(item, enabled)
     if enabled then
         triggerListCtrl:SetItemImage(item, treeItem.icon, treeItem.icon)
     else
-        triggerListCtrl:SetItemImage(item, iconsHelper.offIcon(), iconsHelper.offIcon())
+        triggerListCtrl:SetItemImage(item, triggerIcons.inactive, triggerIcons.inactive)
     end
 
     -- persist
@@ -208,7 +210,7 @@ local function toggleItem(item, enabled)
         logger.log("onEnable result", ok)
         if not ok then
             logger.log("enable failed")
-            triggerListCtrl:SetItemImage(item, iconsHelper.failIcon(), iconsHelper.failIcon())
+            triggerListCtrl:SetItemImage(item, triggerIcons.warning, triggerIcons.warning)
         end
     end
 
@@ -299,8 +301,19 @@ local function init(integrations)
     triggerListCtrl:AppendColumn("Description")
     triggerListCtrl:AppendColumn("Action")
 
-    _M.imageList = iconsHelper.createImageList()   -- despite the docs, AssignImageList doesn't transfer imagelist to the tree control, so we use SetImageList and keep the ref
-    triggerListCtrl:SetImageList(_M.imageList)
+    triggerIcons = iconsHelper.registerTriggerIcons({}) -- only default icons, we don't need anything special here
+
+    for j, integration in ipairs(builtInTriggers) do
+        if (integration.registerTriggerIcons) then
+            integration.registerTriggerIcons()
+        end
+    end
+
+    local imageList = iconsHelper.createImageList("triggers", iconsHelper.getTriggerIcons())
+    triggerListCtrl:SetImageList(imageList)
+
+    -- _M.imageList = iconsHelper.createImageList()   -- despite the docs, AssignImageList doesn't transfer imagelist to the tree control, so we use SetImageList and keep the ref
+    -- triggerListCtrl:SetImageList(_M.imageList)
 
     local rootTriggerItem = triggerListCtrl:GetRootItem()
     
@@ -309,8 +322,7 @@ local function init(integrations)
         id = rootTriggerItem:GetValue(),
         isGroup = true,
         name = "root",
-        data = {
-        }
+        data = {}
     }
 
     -- adding and editing events

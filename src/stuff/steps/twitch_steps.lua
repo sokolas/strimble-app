@@ -11,6 +11,12 @@ local userQueryTypes = {
     "By login"
 }
 
+local stepIcons = {
+    {path = "images/icons/twitch.png", name = "twitch"},
+}
+
+local stepIconIndices = {}
+
 local function sendMessage(ctx, params)
     Twitch.sendToChannel(ctx:interpolate(params.message), ctx.data.channel)
     return true
@@ -22,9 +28,11 @@ local function getUser(ctx, params)
     return ok, res
 end
 
+local function registerIcons()
+    stepIconIndices = iconsHelper.registerStepIcons(stepIcons)
+end
+
 local function init(menu, stepHandlers)
-    local pages = iconsHelper.getPages()
-    
     -- send message
     steps.sendMessageItem = submenu:Append(wx.wxID_ANY, "send message")
 
@@ -51,7 +59,7 @@ local function init(menu, stepHandlers)
     stepHandlers[steps.sendMessageItem:GetId()] = {
         name = "Send Twitch Message",
         dialogItem = Gui.dialogs.SendTwitchMessageStepDlg,
-        icon = pages.twitch,
+        icon = stepIconIndices.twitch,
         getDescription = function(result) return '"' .. result.message .. '"' end,
         postProcess = function(result) return result end,
         code = sendMessage,
@@ -94,7 +102,7 @@ local function init(menu, stepHandlers)
     stepHandlers[steps.getUserItem:GetId()] = {
         name = "Get user",
         dialogItem = Gui.dialogs.GetTwitchUserStepDlg,
-        icon = pages.twitch,
+        icon = stepIconIndices.twitch,
         getDescription = function(result) return string.format("%s: %s", userQueryTypes[result.type + 1], result.user_id) end,
         -- postProcess = function(result) return result end,
         code = getUser,
@@ -110,5 +118,6 @@ end
 
 _M.sendMessage = sendMessage
 _M.init = init
+_M.registerIcons = registerIcons
 
 return _M

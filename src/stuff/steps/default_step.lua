@@ -8,6 +8,12 @@ local logger = Logger.create("default_step")
 local submenu = wx.wxMenu()
 local steps = {}
 
+local stepIconIndices = {}
+
+local function registerIcons()
+    stepIconIndices = iconsHelper.registerStepIcons({}) -- just use the returned default icon
+end
+
 local function abort(ctx, params)
     logger.log("the step is for an unknown integration - aborting")
     return false
@@ -19,8 +25,6 @@ local function skip(ctx, params)
 end
 
 local function init(menu, stepHandlers)
-    local pages = iconsHelper.getPages()
-
     steps.editDialog = dialogHelper.createDataDialog(Gui, "DefaultStepDialog", {
         {
             name = "Unknown step",
@@ -40,7 +44,7 @@ local function init(menu, stepHandlers)
     stepHandlers["default"] = {
         name = "<Unknown - Abort>",
         dialogItem = Gui.dialogs.DefaultStepDialog,
-        icon = pages.question,
+        icon = stepIconIndices.question,
         -- getDescription = function(result) return result.description end,
         preProcess = function(params)
             return {
@@ -58,6 +62,7 @@ local function init(menu, stepHandlers)
 end
 
 _M.abort = abort
+_M.registerIcons = registerIcons
 _M.init = init
 
 return _M

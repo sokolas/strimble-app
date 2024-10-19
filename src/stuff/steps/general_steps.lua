@@ -33,6 +33,18 @@ local opChoices = {
     "break"
 }
 
+local stepIcons = {
+    {path = "images/icons/code.png", name = "scripts"},
+    {path = "images/icons/terminal-solid.png", name = "logs"},
+    {path = "images/icons/timer_black.png", page = "timer"},
+}
+
+local stepIconIndices = {}
+
+local function registerIcons()
+    stepIconIndices = iconsHelper.registerStepIcons(stepIcons)
+end
+
 local function delay(ctx, params)
     logger.log("delaying", params.delay)
     local this, main_thread = coroutine.running()
@@ -336,19 +348,19 @@ local function initLogicStep(submenu, stepHandlers, pages)
 end
 
 local function init(menu, stepHandlers)
-    local pages = iconsHelper.getPages()
     submenu = wx.wxMenu()
 
-    initDelayStep(submenu, stepHandlers, pages)
-    initLogStep(submenu, stepHandlers, pages)
-    initSoundStep(submenu, stepHandlers, pages)
-    initLogicStep(submenu, stepHandlers, pages)
+    initDelayStep(submenu, stepHandlers, stepIconIndices)
+    initLogStep(submenu, stepHandlers, stepIconIndices)
+    initSoundStep(submenu, stepHandlers, stepIconIndices)
+    initLogicStep(submenu, stepHandlers, stepIconIndices)
 
     -- finalize
     menu:AppendSubMenu(submenu, "General")
 end
 
 _M.delay = delay
+_M.registerIcons = registerIcons
 _M.init = init
 
 return _M

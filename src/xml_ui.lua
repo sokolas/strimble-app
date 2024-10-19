@@ -394,11 +394,11 @@ function main()
         restart(event:GetId())
     end)
 
-    -- for integration in integrations: require()
     -- set up listbook
     findWindow("listbook", "wxListbook", "listbook")
     local lblv = Gui.listbook:GetListView()
 
+    -- for integration in integrations: require()
     for i, v in ipairs(integrations) do
         v.m = require(v.src)
         iconsHelper.registerPage(v.m.page, v.m.icon)
@@ -414,7 +414,7 @@ function main()
     iconsHelper.initializeListbook(lblv)
     
 
-    -- set up main loop
+    -- set up "main loop" (network and audio dispatchers)
     local function event_loop(event)
         -- network
         xpcall(function(event)
@@ -439,6 +439,7 @@ function main()
     end
     wxTimers.addTimer(50, event_loop, true)
 
+    -- "async" handlers that must be run in the main thread
     frame:Connect(ACTION_DISPATCH, wx.wxEVT_COMMAND_BUTTON_CLICKED, Ctx.dispatchActions)
     frame:Connect(TIMER_ADD, wx.wxEVT_COMMAND_BUTTON_CLICKED, function(event)
         for id, v in pairs(wxTimers.handlers) do

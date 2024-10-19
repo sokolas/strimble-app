@@ -8,6 +8,16 @@ local logger = Logger.create("timer_triggers")
 
 local _M = {}
 
+local triggerIcons = {}
+
+local triggerIconPaths = {
+    {path = "images/icons/timer_black.png", name = "timer"},
+}
+
+local function registerTriggerIcons()
+    triggerIcons = iconsHelper.registerTriggerIcons(triggerIconPaths)
+end
+
 local function createTimerDialog()
     local commandDlg = dialogHelper.createTriggerDialog(Gui, "TimerDialog", {
         {
@@ -41,11 +51,8 @@ end
 
 local function createTimersFolder(triggerListCtrl, onTrigger)
     local rootTriggerItem = triggerListCtrl:GetRootItem()
-    local pages = iconsHelper.getPages()
 
-    local timersFolder = triggerListCtrl:AppendItem(rootTriggerItem, "Timers", pages.timer, pages.timer)
-    
-    
+    local timersFolder = triggerListCtrl:AppendItem(rootTriggerItem, "Timers", triggerIcons.timer, triggerIcons.timer)
 
     local function createTimerHandler(item, guiItem)
         local function buildContext()
@@ -64,7 +71,7 @@ local function createTimersFolder(triggerListCtrl, onTrigger)
         canAddChildren = true,
         childrenType = "timer",
         persistChildren = true,
-        icon = pages.scripts, -- for children
+        icon = triggerIcons.active, -- for children
         getDescription = function(result)
             return result.time .. "ms"
         end,
@@ -139,6 +146,7 @@ end
 
 _M.createTimerDialog = createTimerDialog
 _M.getTriggerTypes = function() return {"timer"} end
+_M.registerTriggerIcons = registerTriggerIcons
 _M.createTriggerFolder = function(name, triggerListCtrl, onTrigger)
     return createTimersFolder(triggerListCtrl, onTrigger)
 end

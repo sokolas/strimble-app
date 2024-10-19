@@ -73,6 +73,7 @@ _M.page = "obs"
 _M.displayName = displayName
 _M.initializeUi = initializeUi
 _M.initializeIntegration = initializeIntegration
+_M.registerStepIcons = obsSteps.registerStepIcons
 _M.initializeSteps = obsSteps.init
 _M.postProcess = postProcess
 _M.loadConfig = loadConfig

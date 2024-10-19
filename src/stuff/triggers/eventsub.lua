@@ -8,6 +8,17 @@ local es_helper = require("src/integrations/es_helper")
 
 local event_names = es_helper.scope_names
 
+local triggerIcons = {}
+
+local triggerIconPaths = {
+    {path = "images/icons/twitch.png", name = "twitch_eventsub"},
+}
+
+local function registerTriggerIcons()
+    triggerIcons = iconsHelper.registerTriggerIcons(triggerIconPaths)
+end
+
+
 local function createEventSubDlg()
     local esDlg = dialogHelper.createTriggerDialog(Gui, "EventSubDialog", 
         {
@@ -62,8 +73,7 @@ end
 
 local function createEventSubFolder(triggerListCtrl)
     local rootTriggerItem = triggerListCtrl:GetRootItem()
-    local pages = iconsHelper.getPages()
-    local eventSubEvents = triggerListCtrl:AppendItem(rootTriggerItem, "Twitch Events", pages.twitch, pages.twitch)
+    local eventSubEvents = triggerListCtrl:AppendItem(rootTriggerItem, "Twitch Events", triggerIcons.twitch_eventsub, triggerIcons.twitch_eventsub)
     
     local treeItem = {
         id = eventSubEvents:GetValue(),
@@ -71,7 +81,7 @@ local function createEventSubFolder(triggerListCtrl)
         canAddChildren = true,
         childrenType = "twitch_eventsub",
         persistChildren = true,
-        icon = pages.scripts, -- for children
+        icon = triggerIcons.active, -- for children
         getDescription = function(result)
             return result.type
         end,
@@ -95,6 +105,7 @@ end
 local _M = {}
 
 _M.getTriggerTypes = function() return {"twitch_eventsub"} end
+_M.registerTriggerIcons = registerTriggerIcons
 _M.createTriggerFolder = function(name, triggerListCtrl, onTrigger)
     return createEventSubFolder(triggerListCtrl)
 end

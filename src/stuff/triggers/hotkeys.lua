@@ -8,6 +8,16 @@ local logger = Logger.create("hotkey_triggers")
 
 local _M = {}
 
+local triggerIcons = {}
+
+local triggerIconPaths = {
+    {path = "images/icons/keyboard.png", name = "hotkeys"},
+}
+
+local function registerTriggerIcons()
+    triggerIcons = iconsHelper.registerTriggerIcons(triggerIconPaths)
+end
+
 local keys = {
     0xBA,
     0xBB,
@@ -288,9 +298,8 @@ end
 
 local function createHotkeysFolder(triggerListCtrl, onTrigger)
     local rootTriggerItem = triggerListCtrl:GetRootItem()
-    local pages = iconsHelper.getPages()
 
-    local hotkeysFolder = triggerListCtrl:AppendItem(rootTriggerItem, "Hotkeys", pages.hotkeys, pages.hotkeys)
+    local hotkeysFolder = triggerListCtrl:AppendItem(rootTriggerItem, "Hotkeys", triggerIcons.hotkeys, triggerIcons.hotkeys)
     
     local function createHotkeyHandler(item, guiItem)
         logger.log("Hotkey handler created")
@@ -309,7 +318,7 @@ local function createHotkeysFolder(triggerListCtrl, onTrigger)
         canAddChildren = true,
         childrenType = "hotkey",
         persistChildren = true,
-        icon = pages.scripts, -- for children
+        icon = triggerIcons.active, -- for children
         getDescription = function(result)
             local mods = {}
             if result.ctrl then
@@ -421,6 +430,7 @@ end
 
 _M.createHotkeyDialog = createHotkeyDialog
 _M.getTriggerTypes = function() return {"hotkey"} end
+_M.registerTriggerIcons = registerTriggerIcons
 _M.createTriggerFolder = function(name, triggerListCtrl, onTrigger)
     return createHotkeysFolder(triggerListCtrl, onTrigger)
 end

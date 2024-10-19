@@ -9,7 +9,9 @@
     (read page and icon properties to add to the UI pages)
     initializeUi (load controls)
     initializeIntegration (wire up UI events, set up listeners, create websockets, connect triggers, etc)
+    registerStepIcons (add integration-specific icons to the steps list control imageset)
     initializeSteps (add custom steps for this integration, their dialogs, menu, etc)
+    registerTriggerIcons (add integration-specific trigger icons (folder))
     initializeTriggers (TBD)
     (read config properties and set the corresponding UI values)
     loadConfig (read additional data from config)
@@ -106,6 +108,7 @@ _M.page = "vts"
 _M.displayName = display_name
 _M.initializeUi = initializeUi
 _M.initializeIntegration = initializeIntegration
+_M.registerStepIcons = vtsSteps.registerStepIcons
 _M.initializeSteps = vtsSteps.init
 _M.postProcess = postProcess
 _M.loadConfig = loadConfig
