@@ -29,7 +29,7 @@ local display_name = "VTube Studio"
 
 local function initializeUi()
     local panelResource, tmpPanel = dialogHelper.loadPanel("src/integrations/vts/vtsUi.xrc", "vtsPanel", display_name)
-    logger.log(tmpPanel)
+    -- logger.log(tmpPanel)
     if not tmpPanel then
         return false
     end

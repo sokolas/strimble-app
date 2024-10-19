@@ -8,7 +8,7 @@ local displayName = "OBS"
 
 local function initializeUi()
     local panelResource, tmpPanel = dialogHelper.loadPanel("src/integrations/obs/obs.xrc", "obsPanel", displayName)
-    logger.log(tmpPanel)
+    -- logger.log(tmpPanel)
     if not tmpPanel then
         return false
     end

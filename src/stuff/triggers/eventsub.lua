@@ -20,7 +20,7 @@ end
 
 
 local function createEventSubDlg()
-    local esDlg = dialogHelper.createTriggerDialog(Gui, "EventSubDialog", 
+    local esDlg = dialogHelper.createTriggerDialog(Gui, "EventSubDialog",
         {
             {
                 name = "Event properties",

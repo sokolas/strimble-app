@@ -45,7 +45,7 @@ Mt.interpolate = function(self, message, asJson)
                     if value == nil then
                         target = ""
                     else
-                        target = tostring(value)
+                        target = Serpent.simple(value)
                     end
                 end
                 output = Lutf8.sub(output, 1, start-1) .. target .. Lutf8.sub(output, finish+1)

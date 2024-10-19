@@ -2,18 +2,6 @@ local unpack = table.unpack or unpack
 mainarg = table.pack(...)
 
 local tracing = false
-local tracefile = tracing and io.open("trace.log", "w")
-local showConsole = false
-for i, a in ipairs(mainarg) do
-    if a == "console" then
-        ShowConsole()
-        showConsole = true
-        break
-    end
-end
-if not showConsole then
-    HideConsole()
-end
 
 function SplitMessage(msg, sep)
     local sep = sep or "\r\n"
@@ -31,6 +19,37 @@ function SplitMessage(msg, sep)
     end
     return t]]
 end
+
+-- ShowConsole()
+--[[
+for i, a in ipairs(mainarg) do
+    if a == "console" then
+        ShowConsole()
+        showConsole = true
+    end
+    if a == "trace" then
+        tracing = true
+    end
+end
+]]
+if mainarg[2] then
+    local parts = SplitMessage(mainarg[2], " ")
+    for i, flag in ipairs(parts) do
+        if flag == "console" then
+            ShowConsole()
+            showConsole = true
+        end
+        if flag == "trace" then
+            tracing = true
+        end
+    end
+end
+if not showConsole then
+    HideConsole()
+end
+
+local tracefile = tracing and io.open("trace.log", "w")
+
 
 -- partition input table entries 
 function Partition(input)
@@ -61,8 +80,10 @@ package.cpath = 'bin/clibs/?.dll;' .. package.cpath
 package.path  = 'lualibs/?.lua;lualibs/?/?.lua;lualibs/?/init.lua;' .. package.path
 Serpent = require("serpent")
 
--- print(Serpent.line(string.startsWith, {nocode = true}))
--- print(Serpent.line(nil, {nocode = true, comment = false, sparse = true}))
+Serpent.simple = function(arg)
+    return Serpent.line(arg, {nocode = true, comment = false, sparse = true})
+end
+
 
 if jit and jit.on then jit.on() end -- turn jit "on" as "mobdebug" may turn it off for LuaJIT
 -- require("winapi")
@@ -73,10 +94,6 @@ require("wx")
 -- initialization of some globals
 -- print(wx.wxGetCwd())
 math.randomseed(os.time())
-
-Logger = {
-    loggers = {}
-}
 
 function Trace(...)
     if not tracing then return end
@@ -92,7 +109,7 @@ function Trace(...)
         if type(arg[i]) == "string" then
             s = s .. arg[i]
         else
-            s = s .. tostring(arg[i])
+            s = s .. Serpent.simple(arg[i])
         end
         if i < arg.n then
             s = s .. "\t"
@@ -115,7 +132,7 @@ local function formatLogString(loggerName, debugInfo, arg)
         if type(arg[i]) == "string" then
             s = s .. arg[i]
         else
-            s = s .. Serpent.line(arg[i], {nocode = true, comment = false, sparse = true})
+            s = s .. Serpent.simple(arg[i])
             -- s = s .. tostring(arg[i])
         end
 
@@ -126,10 +143,87 @@ local function formatLogString(loggerName, debugInfo, arg)
     return s, src
 end
 
+function Log(...)
+    local arg = table.pack(...)
+    local s = os.date("[%d %b %Y %H:%M:%S]\t")
+    local info = debug.getinfo(2)
+
+    if info then
+        local src = string.gsub(info.source, ".\\", "")
+        s = s .. src .. ":" .. info.currentline .. "\t"
+    end
+    for i = 1, arg.n do
+        if type(arg[i]) == "string" then
+            s = s .. arg[i]
+        else
+            s = s .. Serpent.simple(arg[i])
+        end
+        if i < arg.n then
+            s = s .. "\t"
+        end
+    end
+    io.write(s .. "\n")
+end
+
+
+local lfs = require("lfs")
+pollnet = require("pollnet")
+
+-- print("locking")
+local count = 0
+local lock = nil
+Log("Checking if already running...")
+repeat
+    if count == 1 then
+        Log("Waiting for another app to exit...")
+    end
+    lock = lfs.lock_dir("./data/", 1)
+    count = count + 1
+    pollnet.sleep_ms(100)
+until lock or count == 100
+if not lock then
+    wx.wxMessageBox("Can't stop the app, please close it manually and restart",
+        "Strimble Error",
+        wx.wxOK + wx.wxICON_EXCLAMATION,
+        wx.NULL)
+    return
+end
+-- print(lock)
+
+AppConfig = wx.wxFileConfig("", "", wx.wxGetCwd() .. "\\data\\strimble.ini", "", wx.wxCONFIG_USE_LOCAL_FILE)
+
+function SaveToCfg(path, t, name)
+    local currentPath = AppConfig:GetPath()
+    AppConfig:SetPath("/" .. path)
+    if type(t) == "table" then
+        for k, v in pairs(t) do
+            AppConfig:Write(k, v)
+        end
+    else
+        AppConfig:Write(name, t)
+    end
+    AppConfig:SetPath(currentPath)
+    AppConfig:Flush()
+end
+
+function ReadFromCfg(path, name, defaultValue)
+    local currentPath = AppConfig:GetPath()
+    AppConfig:SetPath("/" .. path)
+    local _, res = AppConfig:Read(name, defaultValue)
+    AppConfig:SetPath(currentPath)
+    return res
+end
+
+Logger = {
+    loggers = {}
+}
+
 Logger.create = function(name)
     if not Logger.loggers[name] then
+        local enabled = ReadFromCfg("logging", name, 0)
+        Log(name, enabled == 1)
         local logger = {
-            enabled = true,
+            enabled = enabled == 1,
             name_str = "[" .. name .. "]\t"
         }
         logger.log = function(...)
@@ -164,53 +258,6 @@ Logger.create = function(name)
     return Logger.loggers[name]
 end
 
-function Log(...)
-    local arg = table.pack(...)
-    local s = os.date("[%d %b %Y %H:%M:%S]\t")
-    local info = debug.getinfo(2)
-
-    if info then
-        local src = string.gsub(info.source, ".\\", "")
-        s = s .. src .. ":" .. info.currentline .. "\t"
-    end
-    for i = 1, arg.n do
-        if type(arg[i]) == "string" then
-            s = s .. arg[i]
-        else
-            s = s .. tostring(arg[i])
-        end
-        if i < arg.n then
-            s = s .. "\t"
-        end
-    end
-    io.write(s .. "\n")
-end
-
-
-local lfs = require("lfs")
-pollnet = require("pollnet")
-
--- print("locking")
-local count = 0
-local lock = nil
-Log("Checking if already running...")
-repeat
-    if count == 1 then
-        Log("Waiting for another app to exit...")
-    end
-    lock = lfs.lock_dir("./data/", 1)
-    count = count + 1
-    pollnet.sleep_ms(100)
-until lock or count == 100
-if not lock then
-    wx.wxMessageBox("Can't stop the app, please close it manually and restart",
-        "Strimble Error",
-        wx.wxOK + wx.wxICON_EXCLAMATION,
-        wx.NULL)
-    return
-end
--- print(lock)
-
 Lutf8 = require("lua-utf8")
 NetworkManager = require("src/netutils")
 Json = require("json")
@@ -221,7 +268,6 @@ require("winsock")
 Sqlite = require("lsqlite3complete")
 require("src/stuff/db_helper")  -- adds global Db
 DataDb = Sqlite.open("data/data.sqlite3")
-AppConfig = wx.wxFileConfig("", "", wx.wxGetCwd() .. "\\data\\strimble.ini", "", wx.wxCONFIG_USE_LOCAL_FILE)
 
 function CopyTable(data)
     local result = {}
@@ -229,28 +275,6 @@ function CopyTable(data)
         result[k] = v
     end
     return result
-end
-
-function SaveToCfg(path, t, name)
-    local currentPath = AppConfig:GetPath()
-    AppConfig:SetPath("/" .. path)
-    if type(t) == "table" then
-        for k, v in pairs(t) do
-            AppConfig:Write(k, v)
-        end
-    else
-        AppConfig:Write(name, t)
-    end
-    AppConfig:SetPath(currentPath)
-    AppConfig:Flush()
-end
-
-function ReadFromCfg(path, name, defaultValue)
-    local currentPath = AppConfig:GetPath()
-    AppConfig:SetPath("/" .. path)
-    local _, res = AppConfig:Read(name, defaultValue)
-    AppConfig:SetPath(currentPath)
-    return res
 end
 
 dofile("src/migrations/migrations.lua")  -- do this for db file!
