@@ -41,6 +41,7 @@ end
 local function findStepsForAction(action)  -- TODO actual steps implementation
     local r = {}
     local actions = findAction(byDbId(action))
+    local actionName = nil
     if actions and #actions > 0 then
         logger.log("triggered action found")
         if actions[1].steps then
@@ -51,8 +52,9 @@ local function findStepsForAction(action)  -- TODO actual steps implementation
         else
             logger.log("steps empty")
         end
+        actionName = actions[1].name
     end
-    return r
+    return r, actionName
 end
 
 local function findTriggers(predicate)

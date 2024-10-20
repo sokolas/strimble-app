@@ -9,7 +9,7 @@ local Mt = {}
 local var_pattern = "%$+[%w%._]+"
 local integer_pattern = "^%d+$"
 
-Mt.interpolate = function(self, message, asJson)
+Mt.interpolate = function(self, message, asJson, asSerpent)
     if not message or message == '' then
         return message
     end
@@ -45,7 +45,11 @@ Mt.interpolate = function(self, message, asJson)
                     if value == nil then
                         target = ""
                     else
-                        target = Serpent.simple(value)
+                        if asSerpent then
+                            target = Serpent.simple(value)
+                        else
+                            target = tostring(value)
+                        end
                     end
                 end
                 output = Lutf8.sub(output, 1, start-1) .. target .. Lutf8.sub(output, finish+1)
@@ -119,11 +123,11 @@ local function exec_wrapper(queue, ctx)
     -- try
     xpcall(exec,
         function(err)
-            actionLogger.err("Action execution failed", debug.traceback(err))
+            actionLogger.err("Action execution failed", ctx.actionName, debug.traceback(err))
         end,
     ctx)
     -- finally
-    actionLogger.log("action co finished", ctx.action)
+    actionLogger.log("action co finished", ctx.action, ctx.actionName)
     queue.running = false
     queue.co = nil
     table.remove(queue, 1)
@@ -142,11 +146,11 @@ local function dispatchActions()
                 actionLogger.log("Processing queue", k, #queue)
                 queue.running = true
                 local ctx = queue[1]
-                actionLogger.log("action", ctx.action)
+                actionLogger.log("action ", ctx.action, ctx.actionName)
                 
                 queue.co = coroutine.create(exec_wrapper)
                 -- logger.log(coroutine.status(queue.co))
-                actionLogger.log("executing steps for", ctx.action)
+                actionLogger.log("executing steps for", ctx.action, ctx.actionName)
                 local ok, res = coroutine.resume(queue.co, queue, ctx)
                 actionLogger.log("co result", ok, res, queue.co)
                 if queue.co then
@@ -165,8 +169,9 @@ _M.create = function(data, action)
     local ctx = {}
     ctx.data = data
     ctx.action = action
-    local steps = dataHelper.findStepsForAction(action)
+    local steps, actionName = dataHelper.findStepsForAction(action)
     ctx.steps = {}
+    ctx.actionName = actionName
     for i, s in ipairs(steps) do
         table.insert(ctx.steps, {name = s.name, id = s.id, f = s.f, params = s.params})    -- resolve steps functions so the changes to them won't affect the execution
     end

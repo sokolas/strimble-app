@@ -1,12 +1,12 @@
 local url = require("socket.url")
 local logger = Logger.create("twitch")
-local twitch_chat_logger = Logger.create("twitch-chat-ws")
-local Websocket = require("src/stuff/websocket")
 local eventsub = require("src/integrations/eventsub")
 local esTrigger = require("src/stuff/triggers/eventsub")
 local triggersHelper = require("src/gui/triggers")
 local ctxHelper = require("src/stuff/action_context")
 local commands = require("src/stuff/triggers/commands")
+
+local requests = require("src/integrations/twitch_requests")
 
 local scopes = {
     "bits:read",
@@ -52,6 +52,8 @@ table.sort(scopes)
 local auth_url = "https://id.twitch.tv/oauth2/authorize"
 local client_id = "yoe4w8ei1vm5q5b0w4ndqqzpvrs7dy"
 local redirect_url = "http://localhost:10115/tw_user"
+
+requests.setClientId(client_id)
 
 local function toChannel(str)
     local username = Lutf8.lower(str or '')
@@ -107,6 +109,7 @@ end
 
 _M.setToken = function(token)
     _M.token = token
+    requests.setToken(token)
 end
 
 _M.getAuthUrl = function()
@@ -141,38 +144,6 @@ _M.parseAuth = function(response_url)
         return params
     else
         return {}
-    end
-end
-
-_M.apiGet = function(url)
-    if not _M.token then
-        return false, "token is not set"
-    end
-    return NetworkManager.get(url, {["Authorization"] = "Bearer " .. _M.token, ["Client-Id"] = client_id})
-end
-
-_M.getUserInfo = function(id, type)
-    if not _M.token then
-        return false, "token is not set"
-    end
-    if (not id) or id == "" then
-        return false, "empty id or login"
-    end
-    local ok, res
-    if type == 0 then   -- by id
-        local url = "https://api.twitch.tv/helix/users?id=" .. id
-        -- logger.log(url)
-        ok, res = NetworkManager.get(url, {["Authorization"] = "Bearer " .. _M.token, ["Client-Id"] = client_id})
-    else -- by login
-        local url = "https://api.twitch.tv/helix/users?login=" .. id
-        -- logger.log(url)
-        ok, res = NetworkManager.get(url, {["Authorization"] = "Bearer " .. _M.token, ["Client-Id"] = client_id})
-    end
-    if ok then
-        local valid, d = pcall(Json.decode, res.body)
-        return valid, d
-    else
-        return false, res
     end
 end
 
@@ -259,13 +230,17 @@ _M.connect = function()
         return false, "channel is not set"
     end
 
+    requests.setToken(_M.token)
+    requests.setBroadcasterId(_M.userId)
+
     eventsub.setToken(_M.token)
     eventsub.setBroadcasterId(_M.userId)
     eventsub.connect()
 end
 
 _M.sendToChannel = function(text, channel)
-    if not channel and not _M.channel then
+    local c = channel or _M.channel
+    if not c then
         logger.err("No channel specified")
         return
     end
@@ -273,19 +248,19 @@ _M.sendToChannel = function(text, channel)
         logger.err("Not joined any channel")
         return
     end]]
-    local c = channel or _M.channel
+    
     if Lutf8.len(text) > 500 then
         local t = text
         while Lutf8.len(t) > 500 do
             local s = Lutf8.sub(t, 1, 500)
             t = Lutf8.sub(t, 501)
-            eventsub.sendMessage(s)
+            requests.sendMessage(s)
         end
         if t ~= "" then
-            eventsub.sendMessage(t)
+            requests.sendMessage(t)
         end
     else
-        eventsub.sendMessage(text) -- TODO set channel
+        requests.sendMessage(text) -- TODO set channel
     end
 end
 
@@ -370,6 +345,8 @@ end
 _M.setAutoReconnect = function(auto_reconnect)
     _M.auto_reconnect = auto_reconnect
     if auto_reconnect then
+        requests.setToken(Twitch.token)
+        requests.setBroadcasterId(Twitch.userId)
         eventsub.setToken(Twitch.token)
         eventsub.setBroadcasterId(Twitch.userId)
     end

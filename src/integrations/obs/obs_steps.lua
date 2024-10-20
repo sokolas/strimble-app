@@ -28,7 +28,7 @@ end
 
 local function init(menu, stepHandlers)
     -- send message
-    steps.sendRequest = submenu:Append(wx.wxID_ANY, "send request")
+    steps.sendRequest = submenu:Append(wx.wxID_ANY, "send custom request")
 
     steps.sendRequestDialog = dialogHelper.createStepDialog(Gui, "SendObsRequestDlg", {
         {
@@ -73,7 +73,8 @@ local function init(menu, stepHandlers)
         getDescription = function(result) return (result.requestType or "") .. " / " .. (result.comment or "") end,
         code = sendRequest,
         data = {
-            hotkey = ""
+            requestData = "{}"
+            -- hotkey = ""
         }
     }
 

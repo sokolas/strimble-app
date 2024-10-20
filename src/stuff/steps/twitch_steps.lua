@@ -1,5 +1,6 @@
 local dialogHelper = require("src/gui/dialog_helper")
 local iconsHelper = require("src/gui/icons")
+local requests = require("src/integrations/twitch_requests")
 
 local _M = {}
 
@@ -24,7 +25,7 @@ end
 
 local function getUser(ctx, params)
     -- if params.
-    local ok, res = Twitch.getUserInfo(ctx:interpolate(params.user_id), params.type)
+    local ok, res = requests.getUserInfo(ctx:interpolate(params.user_id), params.type)
     return ok, res
 end
 

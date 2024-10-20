@@ -97,19 +97,6 @@ local function subscribe()
     end
 end
 
-local function sendMessage(message)
-    local body = Json.encode(
-        {
-            broadcaster_id = broadcaster_id,
-            sender_id = broadcaster_id,
-            message = message
-        }
-    )
-    local ok, res = NetworkManager.post("https://api.twitch.tv/helix/chat/messages", getSubHeaders(), body)
-    res = res or {}
-    logger.log(res.body)
-end
-
 local function reconnect(newState)
     websocket:reconnect(newState)
 end
@@ -161,6 +148,5 @@ _M.reconnect = reconnect
 _M.setOnMessage = setOnMessage
 _M.setOnStateChange = setOnStateChange
 _M.init = init
-_M.sendMessage = sendMessage
 
 return _M
