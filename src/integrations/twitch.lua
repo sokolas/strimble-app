@@ -255,13 +255,16 @@ _M.sendToChannel = function(text, channel)
         while Lutf8.len(t) > 500 do
             local s = Lutf8.sub(t, 1, 500)
             t = Lutf8.sub(t, 501)
-            requests.sendMessage(s)
+            local ok, res = requests.sendMessage(s)
+            if not ok then
+                return ok, res
+            end
         end
         if t ~= "" then
-            requests.sendMessage(t)
+            return requests.sendMessage(t)
         end
     else
-        requests.sendMessage(text) -- TODO set channel
+        return requests.sendMessage(text) -- TODO set channel
     end
 end
 

@@ -143,14 +143,14 @@ local function dispatchActions()
     for k, queue in pairs(queues) do
         if #queue > 0 then
             if not queue.running then
-                actionLogger.log("Processing queue", k, #queue)
+                actionLogger.log(string.format("Processing queue \"%s\" of size %d", k, #queue))
                 queue.running = true
                 local ctx = queue[1]
                 actionLogger.log("action ", ctx.action, ctx.actionName)
                 
                 queue.co = coroutine.create(exec_wrapper)
                 -- logger.log(coroutine.status(queue.co))
-                actionLogger.log("executing steps for", ctx.action, ctx.actionName)
+                actionLogger.log(string.format("executing steps for %s (%s)", ctx.action, ctx.actionName))
                 local ok, res = coroutine.resume(queue.co, queue, ctx)
                 actionLogger.log("co result", ok, res, queue.co)
                 if queue.co then

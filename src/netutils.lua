@@ -136,9 +136,9 @@ end
 -- add an open socket to the table for dispatching
 local function addSocket(sock, handler, statusHandler, debug)
     local id = pollnet.nanoid()
-    -- if debug then
+    if debug then
         logger.force("added socket " .. id)
-    -- end
+    end
     _M.sockets[id] = {
         sock = sock,
         handler = handler,
@@ -150,16 +150,16 @@ end
 
 local function createServer(addr, responses, debug)
     local sock = pollnet.serve_dynamic_http(addr, false, function(req_sock, client_addr)
-        -- if debug then
+        if debug then
             logger.log("new client", client_addr)
-        -- end
+        end
         local co = coroutine.create(handleServerRequest)
         coroutine.resume(co, req_sock, responses)
         addSocket(req_sock,
         function(ok, msg)
-            -- if debug then
+            if debug then
                 logger.log("new client message", addr, ok, msg)
-            -- end
+            end
             coroutine.resume(co, ok, msg)
         end,
         function(ok, oldState, newState)
@@ -206,9 +206,9 @@ local function dispatch()
                 end
                 -- TODO check if the socket is still there in case it was closed in the handler???
                 if (not ok) or finished then
-                    -- if v.debug then
+                    if v.debug then
                         logger.force("closing " .. id)
-                    -- end
+                    end
                     
                     v.sock:close()
                     _M.sockets[id] = nil

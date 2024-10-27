@@ -18,11 +18,43 @@ local function setClientId(id)
     client_id = id
 end
 
+local function checkError(ok, res)
+    -- logger.log("checking response for error", ok, res)
+    if not ok then
+        return ok, res
+    end
+
+    if res.body then
+        local ok, result = pcall(Json.decode, res.body)
+        if ok then
+            if result.status then
+                if result.status < 400 then
+                    return true, result
+                else
+                    return false, string.format("%s: \"%s\"", result.error or res.status, result.message or "")
+                end
+            else
+                return true, result -- successful responses don't have status
+            end
+        else
+            return false, result
+        end
+    else
+        if string.startsWith(res.status, "2") then
+            return true -- body = nil
+        else
+            return false, res.status
+        end
+    end
+end
+
 local function apiGet(url)
     if not token then
         return false, "token is not set"
     end
-    return NetworkManager.get(url, {["Authorization"] = "Bearer " .. token, ["Client-Id"] = client_id})
+    local ok, res = checkError(NetworkManager.get(url, {["Authorization"] = "Bearer " .. token, ["Client-Id"] = client_id}))
+    -- logger.log("get result", ok, res)
+    return ok, res
 end
 
 local function apiPost(url, body)
@@ -30,22 +62,14 @@ local function apiPost(url, body)
         return false, "token is not set"
     end
     local bodyJson = Json.encode(body)
-    local ok, res = NetworkManager.post(url, {["Authorization"] = "Bearer " .. token, ["Client-Id"] = client_id, ["Content-Type"] = "application/json"}, bodyJson)
-    logger.log(ok, res)
+    local ok, res = checkError(NetworkManager.post(url, {["Authorization"] = "Bearer " .. token, ["Client-Id"] = client_id, ["Content-Type"] = "application/json"}, bodyJson))
+    logger.log("post result", ok, res)
     return ok, res
 end
 
 local function firstDataItem(ok, res)
-    if ok then
-        if res.status == "200 OK" then
-            local valid, d = pcall(Json.decode, res.body)
-            if d and d.data then
-                return valid, d.data[1]
-            end
-            return valid, d
-        else
-            return false, res
-        end
+    if ok and res and res.data then
+        return ok, res.data[1]
     else
         return false, res
     end
@@ -92,7 +116,7 @@ end
 
 local function getChannelInfo(id)
     local bId = broadcaster_id
-    logger.log("bId", bId)
+    -- logger.log("bId", bId)
     if id and id ~= "" then
         bId = id
     end

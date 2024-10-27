@@ -26,8 +26,8 @@ end
 -- chat
 
 local function sendMessage(ctx, params)
-    Twitch.sendToChannel(ctx:interpolate(params.message), ctx.data.channel)
-    return true
+    local ok, res = Twitch.sendToChannel(ctx:interpolate(params.message), ctx.data.channel)
+    return ok
 end
 
 local function sendMessageStep(stepHandlers)
@@ -67,8 +67,8 @@ local function sendMessageStep(stepHandlers)
 end
 
 local function sendAnnouncement(ctx, params)
-    requests.sendAnnouncement(ctx:interpolate(params.message))
-    return true
+    local ok, res = requests.sendAnnouncement(ctx:interpolate(params.message))
+    return ok
 end
 
 local function sendAnnouncementStep(stepHandlers)
