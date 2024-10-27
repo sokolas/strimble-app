@@ -1,0 +1,6 @@
+{
+    "name": "obs",
+    "author": "Sokolas",
+    "description": "OBS integration",
+    "init": "obs_init"
+}

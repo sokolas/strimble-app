@@ -1,0 +1,6 @@
+{
+    "name": "vts",
+    "author": "Sokolas",
+    "description": "VTube Studio integration",
+    "init": "vts_init"
+}

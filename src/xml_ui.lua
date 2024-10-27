@@ -1,4 +1,4 @@
-is_wx_app = true
+is_wx_app = true -- for testing purposes
 
 local iconsHelper = require("src/gui/icons")
 local wxTimers = require("src/stuff/wxtimers")
@@ -8,15 +8,44 @@ local actionsHelper = require("src/gui/actions")
 local Ctx = require("src/stuff/action_context")
 local audio = require("src/stuff/audio")
 
-local integrations = {
-    {src = "src/integrations/vts/init"},
-    {src = "src/integrations/obs/init"}
-}
-
 local ThingsToKeep = {} -- variable to store references to various stuff that needs to be kept
 local accelTable = {}
 local accelMenu = {}
 local logger = Logger.create("main")
+
+local integrations = {
+    {src = "src/integrations/vts"},
+    {src = "src/integrations/obs"}
+}
+
+local function loadIntegration(int)
+    local moduleDescriptor, err = io.open(int.src .. "/module.json", "r")
+    if not moduleDescriptor then
+        return false, err
+    end
+    local descriptorString = moduleDescriptor:read("*a")
+    moduleDescriptor:close()
+    local ok, result = pcall(Json.decode, descriptorString)
+    if not ok then
+        return ok, result
+    end
+    if not result.init then
+        return false, "\"init\" required"
+    end
+    --[[local module = {}
+    module.name = result.name
+    module.author = result.author
+    module.description = result.description]]
+    int.name = result.name
+    int.author = result.author
+    int.description = result.description
+    local m = require(int.src .. "/" .. result.init)
+    -- module.m = m
+    int.m = m
+    logger.log("loaded module from", int.src, int)
+    -- TODO validate init functions
+    return int
+end
 
 ACTION_DISPATCH = wx.wxID_HIGHEST + 1   -- the wx id for "dispatch actions" message command
 TIMER_ADD       = wx.wxID_HIGHEST + 2   -- the wx id for "add timer" message command
@@ -40,7 +69,7 @@ Gui = {
     end
 }
 
-local twitchWnd = require("src.gui.twitch_gui") -- don't forget to init
+local twitchWnd = require("src/gui/twitch_gui") -- don't forget to init
 
 local function updateTwitchInfo(ok, data, token)
     if token then
@@ -400,14 +429,19 @@ function main()
 
     -- for integration in integrations: require()
     for i, v in ipairs(integrations) do
-        v.m = require(v.src)
-        iconsHelper.registerPage(v.m.page, v.m.icon)
-        if v.m.initializeUi then
-            local res = v.m.initializeUi()
-            if not res then
-                logger.err("Error initializing UI for", v.m.displayName, v.m.src)
-                return  -- quit the program
+        --v.m = require(v.src)
+        local ok, res = loadIntegration(v)
+        if ok then
+            iconsHelper.registerPage(v.m.page, v.m.icon)
+            if v.m.initializeUi then
+                local r = v.m.initializeUi()
+                if not r then
+                    logger.err("Error initializing UI for", v.name, v.m.displayName, v.m.src)
+                    return  -- quit the program
+                end
             end
+        else
+            logger.err("error loading integration", res)
         end
     end
 

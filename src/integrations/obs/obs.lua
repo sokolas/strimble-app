@@ -3,8 +3,8 @@ local sha2 = require("sha2")
 local Websocket = require("src/stuff/websocket")
 local timers = require("src/stuff/wxtimers")
 
-local logger = Logger.create("OBS")
-local ws_logger = Logger.create("OBS-ws")
+local logger = Logger.create("obs")
+local ws_logger = Logger.create("obs-ws")
 
 local url = nil
 local password = nil

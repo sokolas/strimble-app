@@ -166,7 +166,7 @@ function Log(...)
 end
 
 
-local lfs = require("lfs")
+LFS = require("lfs")
 pollnet = require("pollnet")
 
 -- print("locking")
@@ -177,7 +177,7 @@ repeat
     if count == 1 then
         Log("Waiting for another app to exit...")
     end
-    lock = lfs.lock_dir("./data/", 1)
+    lock = LFS.lock_dir("./data/", 1)
     count = count + 1
     pollnet.sleep_ms(100)
 until lock or count == 100
