@@ -25,6 +25,7 @@ local scopes = {
     "channel:read:redemptions",
     "channel:read:subscriptions",
     "moderation:read",
+    "moderator:manage:announcements",
     "moderator:manage:banned_users",
     "moderator:read:blocked_terms",
     "moderator:read:followers",

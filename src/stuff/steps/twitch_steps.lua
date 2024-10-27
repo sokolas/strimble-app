@@ -31,7 +31,7 @@ local function sendMessage(ctx, params)
 end
 
 local function sendMessageStep(stepHandlers)
-    steps.sendMessageItem = submenu:Append(wx.wxID_ANY, "send message")
+    steps.sendMessageItem = submenu:Append(wx.wxID_ANY, "Send message")
 
     steps.sendMessageDialog = dialogHelper.createDataDialog(Gui, "SendTwitchMessageStepDlg", {
         {
@@ -60,6 +60,47 @@ local function sendMessageStep(stepHandlers)
         getDescription = function(result) return '"' .. result.message .. '"' end,
         postProcess = function(result) return result end,
         code = sendMessage,
+        data = {
+            message = "hello world"
+        }
+    }
+end
+
+local function sendAnnouncement(ctx, params)
+    requests.sendAnnouncement(ctx:interpolate(params.message))
+    return true
+end
+
+local function sendAnnouncementStep(stepHandlers)
+    steps.sendAnnouncementItem = submenu:Append(wx.wxID_ANY, "Send announcement")
+
+    steps.sendAnnouncementDialog = dialogHelper.createDataDialog(Gui, "SendTwitchAnnouncementStepDlg", {
+        {
+            name = "Send Twitch announcement",
+            controls = {
+                {
+                    name = "message",
+                    label = "Message",
+                    type = "text"
+                }
+            }
+        }
+    },
+    function(data, context)
+        if not data.message or data.message == "" then
+            return false, "Message can't be empty"
+        else
+            return true
+        end
+    end)
+    
+    stepHandlers[steps.sendAnnouncementItem:GetId()] = {
+        name = "Send Twitch Announcement",
+        dialogItem = Gui.dialogs.SendTwitchAnnouncementStepDlg,
+        icon = stepIconIndices.twitch,
+        getDescription = function(result) return '"' .. result.message .. '"' end,
+        postProcess = function(result) return result end,
+        code = sendAnnouncement,
         data = {
             message = "hello world"
         }
@@ -169,6 +210,7 @@ end
 local function init(menu, stepHandlers)
     -- chat
     sendMessageStep(stepHandlers)
+    sendAnnouncementStep(stepHandlers)
 
     -- users
     getUserInfoStep(stepHandlers)

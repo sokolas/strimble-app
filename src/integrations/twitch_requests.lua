@@ -31,7 +31,7 @@ local function apiPost(url, body)
     end
     local bodyJson = Json.encode(body)
     local ok, res = NetworkManager.post(url, {["Authorization"] = "Bearer " .. token, ["Client-Id"] = client_id, ["Content-Type"] = "application/json"}, bodyJson)
-    -- logger.log(ok, res)
+    logger.log(ok, res)
     return ok, res
 end
 
@@ -81,6 +81,13 @@ local function sendMessage(message)
     return apiPost(helix .. "/chat/messages", body)
 end
 
+local function sendAnnouncement(message)
+    local body = {
+        message = message
+    }
+    return apiPost(helix .. "/chat/announcements?broadcaster_id=" .. broadcaster_id .. "&moderator_id=" .. broadcaster_id, body)
+end
+
 -- Channel
 
 local function getChannelInfo(id)
@@ -112,6 +119,7 @@ local _M = {
 
     -- chat
     sendMessage = sendMessage,
+    sendAnnouncement = sendAnnouncement,
 
     -- vhannel
     getChannelInfo = getChannelInfo,
