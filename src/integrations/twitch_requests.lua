@@ -4,6 +4,8 @@ local client_id = ""
 local broadcaster_id = ""
 local token = ""
 
+local helix = "https://api.twitch.tv/helix"
+
 local function setToken(tkn)
     token = tkn
 end
@@ -57,11 +59,11 @@ local function getUserInfo(id, type)
     end
     local ok, res
     if type == 0 then   -- by id
-        local url = "https://api.twitch.tv/helix/users?id=" .. id
+        local url = helix .. "/users?id=" .. id
         -- logger.log(url)
         ok, res = apiGet(url)
     else -- by login
-        local url = "https://api.twitch.tv/helix/users?login=" .. id
+        local url = helix .. "/users?login=" .. id
         -- logger.log(url)
         ok, res = apiGet(url)
     end
@@ -76,7 +78,23 @@ local function sendMessage(message)
         sender_id = broadcaster_id,
         message = message
     }
-    return apiPost("https://api.twitch.tv/helix/chat/messages", body)
+    return apiPost(helix .. "/chat/messages", body)
+end
+
+-- Channel
+
+local function getChannelInfo(id)
+    local bId = broadcaster_id
+    logger.log("bId", bId)
+    if id and id ~= "" then
+        bId = id
+    end
+    if (not bId) or bId == "" then
+        return false, "empty id and broadcaster_id"
+    end
+
+    local ok, res = apiGet(helix .. "/channels?broadcaster_id=" .. bId)
+    return firstDataItem(ok, res)
 end
 
 -- export
@@ -93,7 +111,10 @@ local _M = {
     getUserInfo = getUserInfo,
 
     -- chat
-    sendMessage = sendMessage
+    sendMessage = sendMessage,
+
+    -- vhannel
+    getChannelInfo = getChannelInfo,
 }
 
 return _M

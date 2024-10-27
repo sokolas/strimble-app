@@ -18,23 +18,19 @@ local stepIcons = {
 
 local stepIconIndices = {}
 
+local function registerIcons()
+    stepIconIndices = iconsHelper.registerStepIcons(stepIcons)
+end
+
+
+-- chat
+
 local function sendMessage(ctx, params)
     Twitch.sendToChannel(ctx:interpolate(params.message), ctx.data.channel)
     return true
 end
 
-local function getUser(ctx, params)
-    -- if params.
-    local ok, res = requests.getUserInfo(ctx:interpolate(params.user_id), params.type)
-    return ok, res
-end
-
-local function registerIcons()
-    stepIconIndices = iconsHelper.registerStepIcons(stepIcons)
-end
-
-local function init(menu, stepHandlers)
-    -- send message
+local function sendMessageStep(stepHandlers)
     steps.sendMessageItem = submenu:Append(wx.wxID_ANY, "send message")
 
     steps.sendMessageDialog = dialogHelper.createDataDialog(Gui, "SendTwitchMessageStepDlg", {
@@ -68,8 +64,18 @@ local function init(menu, stepHandlers)
             message = "hello world"
         }
     }
+end
 
-    -- get user info
+
+-- users
+
+local function getUser(ctx, params)
+    -- if params.
+    local ok, res = requests.getUserInfo(ctx:interpolate(params.user_id), params.type)
+    return ok, res
+end
+
+local function getUserInfoStep(stepHandlers)
     steps.getUserItem = submenu:Append(wx.wxID_ANY, "Get user")
 
     steps.getUserDialog = dialogHelper.createStepDialog(Gui, "GetTwitchUserStepDlg", {
@@ -112,6 +118,65 @@ local function init(menu, stepHandlers)
             type = 0
         }
     }
+end
+
+
+-- channel
+
+local function getChannelInfo(ctx, params)
+    -- if params.
+    local ok, res = requests.getChannelInfo(ctx:interpolate(params.user_id))
+    return ok, res
+end
+
+local function getChannelInfoStep(stepHandlers)
+    steps.getChannelInfoItem = submenu:Append(wx.wxID_ANY, "Get channel info")
+
+    steps.getTwitchChannelInfoStepDlg = dialogHelper.createStepDialog(Gui, "GetTwitchChannelInfoStepDlg", {
+        {
+            name = "Get channel info",
+            controls = {
+                {
+                    name = "user_id",
+                    label = "User ID",
+                    type = "text"
+                }
+            }
+        }
+    },
+    function(data, context)
+        return true
+    end)
+
+    local function idOrSelf(userId)
+        if (not userId) or userId == "" then
+            return "<self>"
+        else
+            return userId
+        end
+    end
+
+    stepHandlers[steps.getChannelInfoItem:GetId()] = {
+        name = "Get channel info",
+        dialogItem = Gui.dialogs.GetTwitchChannelInfoStepDlg,
+        icon = stepIconIndices.twitch,
+        getDescription = function(result) return idOrSelf(result.user_id) end,
+        code = getChannelInfo,
+        data = {
+            user_id = ""
+        }
+    }
+end
+
+local function init(menu, stepHandlers)
+    -- chat
+    sendMessageStep(stepHandlers)
+
+    -- users
+    getUserInfoStep(stepHandlers)
+
+    -- channel
+    getChannelInfoStep(stepHandlers)
 
     -- finalize
     menu:AppendSubMenu(submenu, "Twitch")
