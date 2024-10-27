@@ -704,7 +704,7 @@ function _M.init(integrations)
             while itemFound:GetValue() ~= triggerItems[menuSelection] do
                 itemFound = Gui.triggers.triggersList:GetNextItem(itemFound)
             end
-            lblv:Select(iconsHelper.getTriggersPage())
+            lblv:Select(iconsHelper.getPageByName("triggers") - 1)
             Gui.triggers.triggersList:Select(itemFound)
             -- wx.wxPostEvent(Gui.frame, wx.wxListbookEvent(wx.wxEVT_LISTBOOK_PAGE_CHANGED, 1))
         end

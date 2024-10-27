@@ -71,8 +71,7 @@ end
 
 local function getUser(ctx, params)
     -- if params.
-    local ok, res = requests.getUserInfo(ctx:interpolate(params.user_id), params.type)
-    return ok, res
+    return requests.getUserInfo(ctx:interpolate(params.user_id), params.type)
 end
 
 local function getUserInfoStep(stepHandlers)
@@ -125,8 +124,7 @@ end
 
 local function getChannelInfo(ctx, params)
     -- if params.
-    local ok, res = requests.getChannelInfo(ctx:interpolate(params.user_id))
-    return ok, res
+    return requests.getChannelInfo(ctx:interpolate(params.user_id))
 end
 
 local function getChannelInfoStep(stepHandlers)

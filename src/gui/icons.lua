@@ -162,7 +162,6 @@ local _M = {
     namesToIcons = namesToIcons,
 
     -- pages (main listbook)
-    pages = pages,
     getPages = getPages,
     setStatus = function(page, status)
         local pages = getPages()
@@ -182,12 +181,21 @@ local _M = {
         end
     end,
 
-    getTriggersPage = function() return pages.triggers end,
+    getPageByName = function(name)
+        for i, v in ipairs(icons) do
+            logger.log(i, v)
+            if v.page == name then
+                return i
+            end
+        end
+        return -1
+    end,
 
     registerPage = function(name, icon)
         table.insert(icons, int_pos, {page = name, path = icon})
+        --int_pos = int_pos + 1
     end,
-    int_pos = int_pos,
+    getIntegrationPosition = function() return int_pos end,
 
     initializeListbook = function(listbook)
         lb = listbook

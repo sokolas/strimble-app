@@ -538,7 +538,7 @@ _M.loadPanel = function(src, name, pageName)
                         wx.NULL)
         return -- quit program
     else
-        Gui.listbook:InsertPage(iconsHelper.int_pos - 1, panel, pageName)
+        Gui.listbook:InsertPage(iconsHelper.getIntegrationPosition() - 1, panel, pageName)
     end
 
     return xmlResource, panel

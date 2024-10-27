@@ -451,24 +451,26 @@ function main()
     -- set up "main loop" (network and audio dispatchers)
     local function event_loop(event)
         -- network
-        xpcall(function(event)
-            NetworkManager.dispatch()
-        end,
-        function(err)
-            -- timer:Stop()
-            logger.log("network dispatch loop error", debug.traceback(err))
-        end,
-        event
+        xpcall(
+            function(event)
+                NetworkManager.dispatch()
+            end,
+            function(err)
+                -- timer:Stop()
+                logger.log("network dispatch loop error", debug.traceback(err))
+            end,
+            event
         )
         -- audio
-        xpcall(function(event)
-            audio.dispatch()
-        end,
-        function(err)
-            -- timer:Stop()
-            logger.log("audio dispatch loop error", debug.traceback(err))
-        end,
-        event
+        xpcall(
+            function(event)
+                audio.dispatch()
+            end,
+            function(err)
+                -- timer:Stop()
+                logger.log("audio dispatch loop error", debug.traceback(err))
+            end,
+            event
         )
     end
     wxTimers.addTimer(50, event_loop, true)
