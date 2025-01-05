@@ -281,7 +281,8 @@ local function createDataDialog(gui, dlgName, controls, validate)
         end
     end
 
-    local outerSizer = wx.wxFlexGridSizer(1, #sizers, 0, 5)
+    local additionalSizer = bottomPane and 1 or 0
+    local outerSizer = wx.wxFlexGridSizer(1, #sizers + additionalSizer, 0, 5)
     outerSizer:SetFlexibleDirection(wx.wxBOTH)
     outerSizer:SetNonFlexibleGrowMode(wx.wxFLEX_GROWMODE_ALL)
     outerSizer:AddGrowableRow(0, 1) -- set the static boxes row growable
