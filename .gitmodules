@@ -16,3 +16,6 @@
 [submodule "3rdparty/pollnet"]
 	path = 3rdparty/pollnet
 	url = https://github.com/probable-basilisk/pollnet/
+[submodule "3rdparty/raudio"]
+	path = 3rdparty/raudio
+	url = https://github.com/sokolas/raudio.git
