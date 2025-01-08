@@ -51,9 +51,7 @@ jobs:
         run: |
           cmake -DSUPPORT_MODULE_RAUDIO=TRUE -DRAUDIO_STANDALONE=TRUE -DSUPPORT_SHARED_LIBRARY=TRUE -DSUPPORT_FILEFORMAT_WAV=TRUE -DSUPPORT_FILEFORMAT_OGG=TRUE -DSUPPORT_FILEFORMAT_MP3=TRUE -DSUPPORT_FILEFORMAT_FLAC=TRUE -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=TRUE
           msbuild ALL_BUILD.vcxproj /p:configuration=MinSizeRel /p:platform=x64
-          dir
-          dir MinSizeRel
-          copy "MinSizeRel\raudio.dll" "%INSTALL_DIR\bin\clibs"
+          copy "MinSizeRel\raudio.dll" "%INSTALL_DIR%\bin\clibs"
           
       - name: build LuaJIT
         run:  "msvcbuild.bat"
