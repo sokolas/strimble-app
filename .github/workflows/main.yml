@@ -77,10 +77,10 @@ jobs:
         run: |
           nmake /f makefile.vc BUILD=MinSizeRel SHARED=1 TARGET_CPU=X64 MONOLITHIC=1 RUNTIME_LIBS=static
           mkdir ${{env.INSTALL_DIR}}\lib\vc_x64_dll
-          xcopy lib\vc_x64_dll\mswu ${{env.INSTALL_DIR}}\lib\vc_x64_dll\mswu\ /s /e /i
-          xcopy lib\vc_x64_dll\*.dll ${{env.INSTALL_DIR}}\lib\vc_x64_dll\
-          xcopy lib\vc_x64_dll\*.lib ${{env.INSTALL_DIR}}\lib\vc_x64_dll\
-          xcopy include\* ${{env.INSTALL_DIR}}\include\ /s /e
+          xcopy ..\..\lib\vc_x64_dll\mswu ${{env.INSTALL_DIR}}\lib\vc_x64_dll\mswu\ /s /e /i
+          xcopy ..\..\lib\vc_x64_dll\*.dll ${{env.INSTALL_DIR}}\lib\vc_x64_dll\
+          xcopy ..\..\lib\vc_x64_dll\*.lib ${{env.INSTALL_DIR}}\lib\vc_x64_dll\
+          xcopy ..\..\include\* ${{env.INSTALL_DIR}}\include\ /s /e
       
       - name: list the results
         shell: bash
