@@ -46,17 +46,19 @@ jobs:
           arch: x64
           sdk: 10.0.22621.0
         
+      - name: build raudio
+        working-directory: ${{github.workspace}}\3rdparty\raudio\projects\CMake
+        run: |
+          cmake -DSUPPORT_MODULE_RAUDIO=TRUE -DRAUDIO_STANDALONE=TRUE -DSUPPORT_SHARED_LIBRARY=TRUE -DSUPPORT_FILEFORMAT_WAV=TRUE -DSUPPORT_FILEFORMAT_OGG=TRUE -DSUPPORT_FILEFORMAT_MP3=TRUE -DSUPPORT_FILEFORMAT_FLAC=TRUE -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=TRUE
+          msbuild ALL_BUILD.vcxproj /p:configuration=MinSizeRel /p:platform=x64
+          dir
+          dir MinSizeRel
+          copy "MinSizeRel\raudio.dll" "%INSTALL_DIR\bin\clibs"
+          
       - name: build LuaJIT
         run:  "msvcbuild.bat"
         working-directory: ${{github.workspace}}\strimble-starter\LuaJIT\src
 
-      - name: build starter
-        working-directory: ${{github.workspace}}\strimble-starter
-        run: "msbuild strimble-starter.vcxproj /p:configuration=release /p:platform=x64"
-      
-      # - name: create include dir
-        # run: New-Item -Path "." -Name "include" -ItemType "directory"
-        # run: "mkdir strimble-starter\\include"
       - name: create luajit directories
         run: |
           mkdir deps\include\luajit-2.1
@@ -73,6 +75,10 @@ jobs:
         shell: pwsh
         run: Copy-Item ".\strimble-starter\LuaJIT\src\luajit.exe" -Destination ".\deps\bin"
         
+      - name: build starter
+        working-directory: ${{github.workspace}}\strimble-starter
+        run: "msbuild strimble-starter.vcxproj /p:configuration=release /p:platform=x64"
+      
       - name: build LFS
         working-directory: ${{github.workspace}}\3rdparty\luafilesystem
         run: |
@@ -92,13 +98,6 @@ jobs:
           cl sqlite3.c lsqlite3.c /O1 /I "%INSTALL_DIR%/include/luajit-2.1" /DLUA_BUILD_AS_DLL=1 /DLSQLITE_VERSION=\"0.9.5\" /Dluaopen_lsqlite3=luaopen_lsqlite3complete /DSQLITE_ENABLE_JSON1=1 /link lua51.lib /LIBPATH:"%INSTALL_DIR%/lib" /EXPORT:luaopen_lsqlite3complete -dll -out:lsqlite3complete.dll
           copy lsqlite3complete.dll "%INSTALL_DIR%\bin\clibs"
       
-      - name: build raudio
-        working-directory: ${{github.workspace}}\3rdparty\raudio\projects\CMake
-        run: |
-          cmake -DSUPPORT_MODULE_RAUDIO=TRUE -DRAUDIO_STANDALONE=TRUE -DSUPPORT_SHARED_LIBRARY=TRUE -DSUPPORT_FILEFORMAT_WAV=TRUE -DSUPPORT_FILEFORMAT_OGG=TRUE -DSUPPORT_FILEFORMAT_MP3=TRUE -DSUPPORT_FILEFORMAT_FLAC=TRUE -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=TRUE
-          msbuild ALL_BUILD.vcxproj /p:configuration=MinSizeRel /p:platform=x64
-          copy MinSizeRel\raudio.dll "%INSTALL_DIR\bin\clibs"
-          
       # - name: build wxwidgets
         # working-directory: ${{github.workspace}}\3rdparty\wxwidgets\build\msw
         # run: |
