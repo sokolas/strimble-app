@@ -76,7 +76,7 @@ jobs:
         working-directory: ${{github.workspace}}\3rdparty\wxwidgets\build\msw
         run: |
           nmake /f makefile.vc BUILD=MinSizeRel SHARED=1 TARGET_CPU=X64 MONOLITHIC=1 RUNTIME_LIBS=static
-          mkdir %INSTALL_DIR%\lib\vc_x64_dll
+          mkdir ${{INSTALL_DIR}}\lib\vc_x64_dll
           xcopy lib\vc_x64_dll\mswu ${{INSTALL_DIR}}\lib\vc_x64_dll\mswu\ /s /e /i
           xcopy lib\vc_x64_dll\*.dll ${{INSTALL_DIR}}\lib\vc_x64_dll\
           xcopy lib\vc_x64_dll\*.lib ${{INSTALL_DIR}}\lib\vc_x64_dll\
