@@ -35,8 +35,6 @@ jobs:
           
       - name: check env
         run: |
-          echo 1
-          echo ${{env.INSTALL_DIR}}
           echo 2
           echo %INSTALL_DIR%
           
