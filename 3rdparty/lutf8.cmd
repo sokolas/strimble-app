@@ -1,0 +1,1 @@
+cl lutf8lib.c /I ../deps/include/luajit-2.1 /DLUA_BUILD_AS_DLL=1 /link lua51.lib /LIBPATH:"../deps/lib" -dll -out:lua-utf8.dll 

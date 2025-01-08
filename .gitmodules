@@ -1,0 +1,18 @@
+[submodule "strimble-starter"]
+	path = strimble-starter
+	url = https://github.com/sokolas/strimble-starter
+[submodule "3rdparty/wxWidgets"]
+	path = 3rdparty/wxWidgets
+	url = https://github.com/wxWidgets/wxWidgets.git
+[submodule "3rdparty/wxlua"]
+	path = 3rdparty/wxlua
+	url = https://github.com/sokolas/wxlua.git
+[submodule "3rdparty/luautf8"]
+	path = 3rdparty/luautf8
+	url = https://github.com/starwing/luautf8.git
+[submodule "3rdparty/luafilesystem"]
+	path = 3rdparty/luafilesystem
+	url = https://github.com/lunarmodules/luafilesystem
+[submodule "3rdparty/pollnet"]
+	path = 3rdparty/pollnet
+	url = https://github.com/probable-basilisk/pollnet/

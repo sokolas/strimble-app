@@ -1,0 +1,1 @@
+cl sqlite3.c lsqlite3.c /O1 /I ../deps/include/luajit-2.1 /DLUA_BUILD_AS_DLL=1 /DLSQLITE_VERSION=\"0.9.5\" /Dluaopen_lsqlite3=luaopen_lsqlite3complete /DSQLITE_ENABLE_JSON1=1 /link lua51.lib /LIBPATH:"../deps/lib" /EXPORT:luaopen_lsqlite3complete -dll -out:lsqlite3complete.dll 
