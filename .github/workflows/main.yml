@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    # Sequence of patterns matched against refs/tags
+    tags:
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  prepare:
+    runs-on: windows-2019
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+        name: checkout
+        with:
+          submodules: recursive
+
+      - name: create directories
+        shell: cmd
+        run: |
+          mkdir deps
+          mkdir deps\include
+          mkdir deps\lib
+          mkdir deps\bin
+        
+  build:
+    runs-on: windows-2019
+    defaults:
+      run:
+        shell: cmd
+        
+    steps:
+      # Runs a single command using the runners shell
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+          sdk: 10.0.22621.0
+        
+      - name: build LuaJIT
+        run:  "msvcbuild.bat"
+        working-directory: ${{github.workspace}}\strimble-starter\LuaJIT\src
+
+      - name: build starter
+        working-directory: ${{github.workspace}}\strimble-starter
+        run: "msbuild strimble-starter.vcxproj /p:configuration=release /p:platform=x64"
+      
+      # - name: create include dir
+        # run: New-Item -Path "." -Name "include" -ItemType "directory"
+        # run: "mkdir strimble-starter\\include"
+      - name: create luajit directories
+        run: |
+          mkdir deps\include\luajit-2.1
+          
+      - name: copy luajit headers
+        shell: pwsh
+        run: Copy-Item ".\strimble-starter\LuaJIT\src\lauxlib.h",".\strimble-starter\LuaJIT\src\lua.h",".\strimble-starter\LuaJIT\src\lua.hpp",".\strimble-starter\LuaJIT\src\luaconf.h",".\strimble-starter\LuaJIT\src\lualib.h",".\strimble-starter\LuaJIT\src\luajit.h" -Destination ".\deps\include\luajit-2.1"
+
+      - name: copy luajit binaries
+        shell: pwsh
+        run: Copy-Item ".\strimble-starter\LuaJIT\src\luajit.exe",".\strimble-starter\LuaJIT\src\lua51.dll",".\strimble-starter\LuaJIT\src\lua51.lib"-Destination ".\deps\lib"
+
+      - name: list the results
+        shell: bash
+        run: "find deps"
+  # TODO copy starter exe
+
+  
+  # release:
+  #   runs-on: windows-2019
+    
+  #   steps:
+  #     - name: pack assets
+  #       run: Compress-Archive ".\include",".\LuaJIT\src\luajit.exe",".\LuaJIT\src\lua51.dll",".\x64\release\strimble-starter.exe" -Destination strimble.zip
+        
+  #     - name: Create Release
+  #       id: create_release
+  #       uses: actions/create-release@v1
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #       with:
+  #         tag_name: ${{ github.ref }}
+  #         release_name: Release ${{ github.ref }}
+  #         draft: false
+  #         prerelease: false
+          
+  #     - name: Upload Release Asset
+  #       id: upload-release-asset 
+  #       uses: Fhwang0926/upload-release-asset@v1.1.8
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #       with:
+  #         upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+  #         asset_name: strimble-${{ github.ref }}.zip # path + filename
+  #         asset_path: ./strimble.zip
+  #         asset_label: latest
+          
