@@ -11,8 +11,12 @@ on:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  prepare:
+  build:
     runs-on: windows-2019
+    defaults:
+      run:
+        shell: cmd
+
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
@@ -21,22 +25,16 @@ jobs:
           submodules: recursive
 
       - name: create directories
-        shell: cmd
         run: |
           mkdir deps
           mkdir deps\include
           mkdir deps\lib
           mkdir deps\bin
+          
+      - name: check build directories
+        shell: bash
+        run: "find deps"
         
-  build:
-    runs-on: windows-2019
-    needs: prepare
-    defaults:
-      run:
-        shell: cmd
-        
-    steps:
-      # Runs a single command using the runners shell
       - uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: x64
