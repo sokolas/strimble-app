@@ -153,7 +153,7 @@ jobs:
         # run: Compress-Archive ".\include",".\LuaJIT\src\luajit.exe",".\LuaJIT\src\lua51.dll",".\x64\release\strimble-starter.exe" -Destination strimble.zip
         run: |
           mkdir strimble\bin\clibs
-          xcopy "%INSTALL_DIR%\bin\starter.exe" strimble
+          xcopy "%INSTALL_DIR%\bin\strimble.exe" strimble
           xcopy "%INSTALL_DIR%\bin\luajit.exe" strimble
           xcopy "%INSTALL_DIR%\lib\lua51.dll" strimble
           xcopy "%INSTALL_DIR%\lib\vc_x64_dll\wxmsw32u_vc_custom.dll" strimble
