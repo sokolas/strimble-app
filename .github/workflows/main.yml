@@ -151,21 +151,24 @@ jobs:
 
       - name: pack assets
         # run: Compress-Archive ".\include",".\LuaJIT\src\luajit.exe",".\LuaJIT\src\lua51.dll",".\x64\release\strimble-starter.exe" -Destination strimble.zip
-        shell: bash
         run: |
-          mkdir strimble
-          cp "$INSTALL_DIR/bin/starter.exe" strimble/
-          cp "$INSTALL_DIR/bin/luajit.exe" strimble/
-          cp "$INSTALL_DIR/lib/lua51.dll" strimble/
-          cp "$INSTALL_DIR/lib/vc_x64_dll/wxmsw32u_vc_custom.dll" strimble/
-          mkdir strimble/bin
-          cp -R "$INSTALL_DIR/bin/clibs" strimble/bin/clibs
-          cp -R data strimble/
-          cp -R images strimble/
-          cp -R lualibs strimble/
-          cp -R scripts strimble/
-          cp -R src strimble/
-          cp LICENSE strimble/
+          mkdir strimble\bin\clibs
+          xcopy "%INSTALL_DIR%\bin\starter.exe" strimble
+          xcopy "%INSTALL_DIR%\bin\luajit.exe" strimble
+          xcopy "%INSTALL_DIR%\lib\lua51.dll" strimble
+          xcopy "%INSTALL_DIR%\lib\vc_x64_dll\wxmsw32u_vc_custom.dll" strimble
+          xcopy "%INSTALL_DIR%\bin\clibs" strimble\bin\clibs /s /e
+          mkdir strimble\data
+          xcopy data strimble\data /s /e
+          mkdir strimble\images
+          xcopy images strimble\images /s /e
+          mkdir strimble\lualibs
+          xcopy lualibs strimble\lualibs /s /e
+          mkdir strimble\scripts
+          xcopy scripts strimble\scripts /s /e
+          mkdir strimble\src
+          xcopy src strimble\src /s /e
+          copy LICENSE strimble
           7z a "strimble.zip" strimble
 
       - name: Create Release
