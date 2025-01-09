@@ -18,12 +18,12 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
         name: checkout
-        with:
-          submodules: recursive
+        # with:
+        #   submodules: recursive
           
       - name: get diff
         run: |
-          git fetch -a
+          git fetch --tags origin
           echo CURR_TAG=`git tag --sort "-committerdate" | cut -d$'\n' -f1` >> $GITHUB_ENV
           echo PREV_TAG=`git tag --sort "-committerdate" | cut -d$'\n' -f2` >> $GITHUB_ENV
 
