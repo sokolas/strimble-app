@@ -55,7 +55,10 @@ jobs:
         working-directory: ${{github.workspace}}\3rdparty\pollnet
         run: |
           cargo build --release
-          copy target/release/pollnet.dll "%INSTALL_DIR%\bin\clibs"
+      - name: copy cargo binary
+        working-directory: ${{github.workspace}}\3rdparty\pollnet
+        run: |
+          copy "target/release/pollnet.dll" "%INSTALL_DIR%\bin\clibs"
 
       - name: build raudio
         working-directory: ${{github.workspace}}\3rdparty\raudio\projects\CMake
