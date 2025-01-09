@@ -45,7 +45,18 @@ jobs:
         with:
           arch: x64
           sdk: 10.0.22621.0
-        
+          
+      - name: Install Rust (Stable)
+        run:
+          curl https://sh.rustup.rs -sSf | sh -s -- -y
+
+      # skip copying the lua bindings - because we have our own modified version in lualibs
+      - name: build pollnet
+        working-directory: ${{github.workspace}}\3rdparty\pollnet
+        run: |
+          cargo build --release
+          copy target/release/pollnet.dll "%INSTALL_DIR%\bin\clibs"
+
       - name: build raudio
         working-directory: ${{github.workspace}}\3rdparty\raudio\projects\CMake
         run: |
@@ -96,38 +107,38 @@ jobs:
           cl sqlite3.c lsqlite3.c /O1 /I "%INSTALL_DIR%/include/luajit-2.1" /DLUA_BUILD_AS_DLL=1 /DLSQLITE_VERSION=\"0.9.5\" /Dluaopen_lsqlite3=luaopen_lsqlite3complete /DSQLITE_ENABLE_JSON1=1 /link lua51.lib /LIBPATH:"%INSTALL_DIR%/lib" /EXPORT:luaopen_lsqlite3complete -dll -out:lsqlite3complete.dll
           copy lsqlite3complete.dll "%INSTALL_DIR%\bin\clibs"
       
-      # - name: build wxwidgets
-        # working-directory: ${{github.workspace}}\3rdparty\wxwidgets\build\msw
-        # run: |
-          # nmake /f makefile.vc BUILD=MinSizeRel SHARED=1 TARGET_CPU=X64 MONOLITHIC=1 RUNTIME_LIBS=static
-          # mkdir ${{env.INSTALL_DIR}}\lib\vc_x64_dll
-          # xcopy ..\..\lib\vc_x64_dll\mswu ${{env.INSTALL_DIR}}\lib\vc_x64_dll\mswu\ /s /e /i
-          # xcopy ..\..\lib\vc_x64_dll\*.dll ${{env.INSTALL_DIR}}\lib\vc_x64_dll\
-          # xcopy ..\..\lib\vc_x64_dll\*.lib ${{env.INSTALL_DIR}}\lib\vc_x64_dll\
-          # xcopy ..\..\include\* ${{env.INSTALL_DIR}}\include\ /s /e
+      - name: build wxwidgets
+        working-directory: ${{github.workspace}}\3rdparty\wxwidgets\build\msw
+        run: |
+          nmake /f makefile.vc BUILD=MinSizeRel SHARED=1 TARGET_CPU=X64 MONOLITHIC=1 RUNTIME_LIBS=static
+          mkdir ${{env.INSTALL_DIR}}\lib\vc_x64_dll
+          xcopy ..\..\lib\vc_x64_dll\mswu ${{env.INSTALL_DIR}}\lib\vc_x64_dll\mswu\ /s /e /i
+          xcopy ..\..\lib\vc_x64_dll\*.dll ${{env.INSTALL_DIR}}\lib\vc_x64_dll\
+          xcopy ..\..\lib\vc_x64_dll\*.lib ${{env.INSTALL_DIR}}\lib\vc_x64_dll\
+          xcopy ..\..\include\* ${{env.INSTALL_DIR}}\include\ /s /e
       
-      # - name: build wxlua
-        # working-directory: ${{github.workspace}}\3rdparty\wxlua\wxLua
-        # run: |
-          # cmake -DCMAKE_INSTALL_PREFIX="%INSTALL_DIR%" -DCMAKE_BUILD_TYPE="MinSizeRel" -DBUILD_SHARED_LIBS=TRUE ^
-            # -DCMAKE_CXX_FLAGS="-DLUA_COMPAT_MODULE /EHsc" ^
-            # -DwxWidgets_COMPONENTS="mono" ^
-            # -DwxLuaBind_COMPONENTS="xrc;xml;media;richtext;propgrid;html;adv;core;net;base" ^
-            # -DwxWidgets_CONFIGURATION="mswu" ^
-            # -DwxWidgets_ROOT_DIR="%INSTALL_DIR%" ^
-            # -DwxWidgets_VERSION="3.2.6" ^
-            # -DwxWidgets_LIB_DIR="%INSTALL_DIR%/lib/vc_x64_dll" ^
-            # -DwxLua_LUA_LIBRARY_USE_BUILTIN=FALSE ^
-            # -DwxLua_LUA_INCLUDE_DIR="%INSTALL_DIR%/include/luajit-2.1" -DwxLua_LUA_LIBRARY="%INSTALL_DIR%/lib/lua51.lib" .
-          # msbuild ALL_BUILD.vcxproj /p:configuration=MinSizeRel /p:platform=x64
-          # copy bin\MinSizeRel\wx.dll "%INSTALL_DIR%\bin\clibs\wx.dll"
+      - name: build wxlua
+        working-directory: ${{github.workspace}}\3rdparty\wxlua\wxLua
+        run: |
+          cmake -DCMAKE_INSTALL_PREFIX="%INSTALL_DIR%" -DCMAKE_BUILD_TYPE="MinSizeRel" -DBUILD_SHARED_LIBS=TRUE ^
+            -DCMAKE_CXX_FLAGS="-DLUA_COMPAT_MODULE /EHsc" ^
+            -DwxWidgets_COMPONENTS="mono" ^
+            -DwxLuaBind_COMPONENTS="xrc;xml;media;richtext;propgrid;html;adv;core;net;base" ^
+            -DwxWidgets_CONFIGURATION="mswu" ^
+            -DwxWidgets_ROOT_DIR="%INSTALL_DIR%" ^
+            -DwxWidgets_VERSION="3.2.6" ^
+            -DwxWidgets_LIB_DIR="%INSTALL_DIR%/lib/vc_x64_dll" ^
+            -DwxLua_LUA_LIBRARY_USE_BUILTIN=FALSE ^
+            -DwxLua_LUA_INCLUDE_DIR="%INSTALL_DIR%/include/luajit-2.1" -DwxLua_LUA_LIBRARY="%INSTALL_DIR%/lib/lua51.lib" .
+          msbuild ALL_BUILD.vcxproj /p:configuration=MinSizeRel /p:platform=x64
+          copy bin\MinSizeRel\wx.dll "%INSTALL_DIR%\bin\clibs\wx.dll"
           
           
       - name: list the results
         shell: bash
         run: |
-          find deps/bin
-          find deps/lib
+          ls -lR deps/bin
+          ls -lR deps/lib
 
   # TODO copy starter exe
 
