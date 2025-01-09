@@ -777,7 +777,12 @@ function _M.init(integrations)
     local rootStepItem = stepsListCtrl:GetRootItem()
 
     stepsListCtrl:Connect(wx.wxEVT_TREELIST_SELECTION_CHANGED, function(e)
-        logger.log("steps selection changed", stepsListCtrl:GetItemText(stepsListCtrl:GetSelection(), 1))
+        local selection = stepsListCtrl:GetSelection()
+        if selection:IsOk() then
+            logger.log("steps selection changed", stepsListCtrl:GetItemText(stepsListCtrl:GetSelection(), 1))
+        else
+            logger.log("steps selection was reset")
+        end
     end)
 
     twitchSteps.registerIcons()
@@ -939,6 +944,9 @@ function _M.init(integrations)
                 item = stepsListCtrl:GetNextItem(item)
                 stepIndex = stepIndex + 1
             end
+        else
+            -- logger.log("invalid step selection")
+            return
         end
         logger.log("step index", stepIndex)
         if stepIndex <= 1 then
@@ -981,9 +989,12 @@ function _M.init(integrations)
                 item = stepsListCtrl:GetNextItem(item)
                 stepIndex = stepIndex + 1
             end
+        else
+            -- logger.log("invalid step selection")
+            return
         end
         logger.log("step index", stepIndex)
-        if stepIndex >= #actionData.steps then
+        if (stepIndex == 0) or (stepIndex >= #actionData.steps) then
             return
         end
 

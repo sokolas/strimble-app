@@ -221,7 +221,7 @@ Logger = {
 Logger.create = function(name)
     if not Logger.loggers[name] then
         local enabled = ReadFromCfg("logging", name, 0)
-        Log(name, enabled == 1)
+        -- Log(name, enabled == 1)
         local logger = {
             enabled = enabled == 1,
             name_str = "[" .. name .. "]\t"
