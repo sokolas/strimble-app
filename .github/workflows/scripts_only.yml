@@ -11,9 +11,11 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  check_type:
     runs-on: ubuntu-latest
-        
+    outputs:
+      changed: ${{ steps.check-diff.outputs.changed }}
+      
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
@@ -27,7 +29,17 @@ jobs:
           echo CURR_TAG=`git tag --sort "-committerdate" | cut -d$'\n' -f1` >> $GITHUB_ENV
           echo PREV_TAG=`git tag --sort "-committerdate" | cut -d$'\n' -f2` >> $GITHUB_ENV
 
-      - name: check diff
+      - name: check submodules changes
+        id: check-diff
         run: |
-          echo $PREV_TAG
-          echo $CURR_TAG
+          echo changed=`git log $PREV_TAG..$CURR_TAG --oneline -- 3rdparty`
+          echo changed=`git log $PREV_TAG..$CURR_TAG --oneline -- 3rdparty` >> $GITHUB_OUTPUT
+  
+  run_was_needed:
+    runs-on: ubuntu-latest
+    needs: check_type
+    if: needs.check_type.outputs.changed != ''
+    steps:
+      - name: changes needed
+        run: echo "changes needed"
+        
