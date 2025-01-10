@@ -8,7 +8,12 @@ on:
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
-
+    inputs:
+      prev_tag:
+        description: 'Previous release tag'
+        required: false
+        type: string
+        
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   check_type:
@@ -24,10 +29,12 @@ jobs:
         #   submodules: recursive
           
       - name: get diff
+        env:
+          PREV_TAG_INPUT: ${{ inputs.prev_tag }}
         run: |
           git fetch --tags origin
           echo CURR_TAG=`git tag --sort "-committerdate" | cut -d$'\n' -f1` >> $GITHUB_ENV
-          echo PREV_TAG=`git tag --sort "-committerdate" | cut -d$'\n' -f2` >> $GITHUB_ENV
+          [ -z "$PREV_TAG_INPUT" ] && echo PREV_TAG=`git tag --sort "-committerdate" | cut -d$'\n' -f2` >> $GITHUB_ENV || echo PREV_TAG=$PREV_TAG_INPUT >> $GITHUB_ENV
 
       - name: check submodules changes
         id: check-diff
