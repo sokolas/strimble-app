@@ -26,8 +26,7 @@ jobs:
         env:
           PREV_TAG_INPUT: ${{ inputs.prev_tag }}
         run: |
-          [ -z "$PREV_TAG_INPUT" ] && echo "Input empty"
-          [ ! -z "$PREV_TAG_INPUT" ] && echo "Input not empty"
+          [ -z "$PREV_TAG_INPUT" ] && echo "Input empty" || echo "Input not empty"
           
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
