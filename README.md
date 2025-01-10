@@ -44,7 +44,12 @@ lua-sqlite, for example, was fully copied because it is hosted on Fossil and it'
 
 # Development
 
-If you don't need to modify or add your own binary libraries, and only want to work on the main (Lua) part, then the best way to develop Strimble would be to clone this repo *without submodules*, download the release, and copy it over the repo.
+If you don't need to modify or add your own binary libraries, and only want to work on the main (Lua) part, then the best way to develop Strimble would be the following:
+* clone this repo *without submodules*
+* download the release
+* copy `bin` and all `.exe` and `.dll` files from the root directory of the release to the repo
+
+  
 Binaries are ignored by git so that shouldn't be an issue when commiting the changes.
 The entry point to Lua code is `src/main.lua` and that path is hard-coded into the starter.
 Open the code in your favourite editor, hack away, and then run `strimble.exe` to test it.
