@@ -35,7 +35,7 @@ jobs:
           echo changed=`git diff $PREV_TAG..$CURR_TAG --name-only -- 3rdparty strimble-starter`
           echo changed=`git diff $PREV_TAG..$CURR_TAG --name-only -- 3rdparty strimble-starter` >> $GITHUB_OUTPUT
           
-  build:
+  full_build:
     runs-on: windows-2019
     needs: check_type
     if: needs.check_type.outputs.changed != ''
@@ -218,3 +218,14 @@ jobs:
           asset_name: strimble-${{ github.ref }}.zip # path + filename
           asset_path: ./strimble.zip
           asset_label: latest
+  
+  repack:
+    runs-on: ubuntu-latest
+    needs: check_type
+    if: needs.check_type.outputs.changed == ''
+
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+        name: checkout
+        
