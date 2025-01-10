@@ -246,6 +246,7 @@ jobs:
           unzip strimble-win-x64.zip
       
       - name: Replace data
+        run: |
           rm -R strimble/src
           rm -R strimble/scripts
           rm -R strimble/lualibs
