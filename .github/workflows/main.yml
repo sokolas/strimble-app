@@ -11,8 +11,34 @@ on:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
+  check_type:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.check-diff.outputs.changed }}
+      
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+        name: checkout
+        # with:
+        #   submodules: recursive
+          
+      - name: get diff
+        run: |
+          git fetch --tags origin
+          echo CURR_TAG=`git tag --sort "-committerdate" | cut -d$'\n' -f1` >> $GITHUB_ENV
+          echo PREV_TAG=`git tag --sort "-committerdate" | cut -d$'\n' -f2` >> $GITHUB_ENV
+
+      - name: check submodules changes
+        id: check-diff
+        run: |
+          echo changed=`git diff $PREV_TAG..$CURR_TAG --name-only -- 3rdparty strimble-starter`
+          echo changed=`git diff $PREV_TAG..$CURR_TAG --name-only -- 3rdparty strimble-starter` >> $GITHUB_OUTPUT
+          
   build:
     runs-on: windows-2019
+    needs: check_type
+    if: needs.check_type.outputs.changed != ''
     defaults:
       run:
         shell: cmd
