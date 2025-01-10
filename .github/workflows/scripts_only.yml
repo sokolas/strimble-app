@@ -32,8 +32,8 @@ jobs:
       - name: check submodules changes
         id: check-diff
         run: |
-          echo changed=`git log $PREV_TAG..$CURR_TAG --oneline -- 3rdparty`
-          echo changed=`git log $PREV_TAG..$CURR_TAG --oneline -- 3rdparty` >> $GITHUB_OUTPUT
+          echo changed=`git log $PREV_TAG..$CURR_TAG --oneline -- ./3rdparty`
+          echo changed=`git log $PREV_TAG..$CURR_TAG --oneline -- ./3rdparty` >> $GITHUB_OUTPUT
   
   run_was_needed:
     runs-on: ubuntu-latest
