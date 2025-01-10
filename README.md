@@ -8,6 +8,7 @@ With extensibility and open source in mind, Strimble can connect virtually to an
 # Vision and Goals
 * **open source**: this kind of software is not rocket science, there are no secrets and know-hows to keep, and I hope this project inspires others to create their own tools like this.
 * **extensibility**: this is the main goal of writing Strimble; need a new integration or action? Just look for a script/plugin that does that or write it yourself!
+* **modularity**: everything (well, within reason) should be pluggable. Don't need that VTube Studio integration? Turn it off, and never browse through 20 tabs of useless stuff (I'm looking at you, streamerbot)
 * **Lua** as the main language: it is widely used for creating and modding games, and there are a lot of people who have some degree of experience with it.
 * **Native look-and-feel** and the controls most Windows users are familiar with. No fancy skins, browser-as-an-app, 10 different variants of buttons, or weird foreign toolkits. If you know how to use classic Windows programs, you should have no issues with using Strimble.
 * **No official Discord**: all the documentation and discussions (with ideas, questions, and solutions) must be indexed by the search engines, and accessible for anyone, without the need to create an account in yet another service.
