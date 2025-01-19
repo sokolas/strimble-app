@@ -484,6 +484,7 @@ local function replaceElement(gui, name, constructor, guiName, group)
         e:Destroy()
     end
     wnd:Destroy()
+    sizer:Layout()
     sizer:Show(e, true, true)
     gui:insert(e, guiName, group)
     return e
@@ -531,7 +532,7 @@ _M.loadPanel = function(src, name, pageName)
     xmlResource:InitAllHandlers()
 
     xmlResource:Load(src)
-    local panel = xmlResource:LoadPanel(Gui.listbook, name)
+    local panel = xmlResource:LoadPanel(Gui.listbook.book, name)
     if not panel then
         wx.wxMessageBox("Error loading xrc resources!",
                         "Strimble Error",
@@ -539,7 +540,7 @@ _M.loadPanel = function(src, name, pageName)
                         wx.NULL)
         return -- quit program
     else
-        Gui.listbook:InsertPage(iconsHelper.getIntegrationPosition() - 1, panel, pageName)
+        Gui.listbook.book:InsertPage(iconsHelper.getIntegrationPosition() - 1, panel, pageName)
     end
 
     return xmlResource, panel

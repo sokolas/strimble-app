@@ -699,7 +699,7 @@ function _M.init(integrations)
             toggleItem(e:GetItem(), actionToggleItem:IsChecked())
         elseif triggerItems[menuSelection] then
             logger.log("goto trigger")
-            local lblv = Gui.listbook:GetListView()
+            local lblv = Gui.listbook.list
             local itemFound = Gui.triggers.triggersList:GetRootItem()
             while itemFound:GetValue() ~= triggerItems[menuSelection] do
                 itemFound = Gui.triggers.triggersList:GetNextItem(itemFound)

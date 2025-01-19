@@ -99,19 +99,19 @@ end
 local unknownIcon = {path = "images/icons/question_mark.png", name = "question"}
 
 local icons = {
-    {path = "images/icons/twitch.png", page = "twitch"},
-    {path = "images/icons/dollar-sign-solid.png", page = "da"},
+    {path = "images/icons/twitch.png", page = "twitch", label = "Twitch"},
+    {path = "images/icons/dollar-sign-solid.png", page = "da", label = "DonationAlerts"},
     
     -- insert integrations here, at pos=3
     -- {path = "images/icons/vts.png", page = "vts"},
     -- {path = "images/icons/obs.png", page = "obs"},
 
-    {path = "images/icons/bolt-solid.png", page = "triggers"},
-    {path = "images/icons/play-solid.png", page = "actions"},
-    {path = "images/icons/code.png", page = "scripts"},
-    {path = "images/icons/settings.png", page = "misc"},
-    {path = "images/icons/terminal-solid.png", page = "logs"},
-    {path = "images/icons/bug_lines.png", page = "about"},
+    {path = "images/icons/bolt-solid.png", page = "triggers", label = "Triggers"},
+    {path = "images/icons/play-solid.png", page = "actions", label = "Actions"},
+    {path = "images/icons/code.png", page = "scripts", label = "Scripts"},
+    {path = "images/icons/settings.png", page = "misc", label = "DEBUG"},
+    {path = "images/icons/terminal-solid.png", page = "logs", label = "Logs"},
+    {path = "images/icons/bug_lines.png", page = "about", label = "About"},
     
     {path = "images/icons/folder_black.png", page = "folder"},  -- not really a page
     {path = "images/icons/timer_black.png", page = "timer"},
@@ -125,6 +125,7 @@ local icons = {
     {path = "images/icons/warning.png"}
 }
 local int_pos = 3
+local pages_count = 8
 
 local function getPages()
     local p = {}
@@ -155,13 +156,13 @@ local function createImageList(name, icons)
     return imageList
 end
 
-local lb = nil
+local lc = nil
 local _M = {
     imageLists = imageLists,    -- to keep them loaded
     createImageList = createImageList,
     namesToIcons = namesToIcons,
 
-    -- pages (main listbook)
+    -- pages (main "listbook")
     getPages = getPages,
     setStatus = function(page, status)
         local pages = getPages()
@@ -170,13 +171,17 @@ local _M = {
         local fail = #icons-1
         if pages[page] then
             if status == nil then
-                lb:SetItem(pages[page], 1, "", -1)
+                lc:SetItem(pages[page], 1, "", -1)
+                -- lc:SetColumnImage(1, -1)
             elseif status == "ok" then
-                lb:SetItem(pages[page], 1, "", ok)
+                lc:SetItem(pages[page], 1, "", ok)
+                -- lc:SetColumnImage(1, ok)
             elseif status == "retry" then
-                lb:SetItem(pages[page], 1, "", retry)
+                lc:SetItem(pages[page], 1, "", retry)
+                -- lc:SetColumnImage(1, retry)
             else
-                lb:SetItem(pages[page], 1, "", fail)
+                lc:SetItem(pages[page], 1, "", fail)
+                -- lc:SetColumnImage(1, fail)
             end
         end
     end,
@@ -191,24 +196,43 @@ local _M = {
         return -1
     end,
 
-    registerPage = function(name, icon)
-        table.insert(icons, int_pos, {page = name, path = icon})
+    registerPage = function(name, icon, label)
+        local l = label
+        if l == "" or l == nil then
+            l = name
+        end
+        table.insert(icons, int_pos, {page = name, path = icon, label = l})
+        pages_count = pages_count + 1
         --int_pos = int_pos + 1
     end,
     getIntegrationPosition = function() return int_pos end,
 
-    initializeListbook = function(listbook)
-        lb = listbook
-        local imageList = createImageList("pages", icons)
-        listbook:AssignImageList(imageList, wx.wxIMAGE_LIST_SMALL);
-        listbook:InsertColumn(1, "status", wx.wxLIST_FORMAT_LEFT, -1)
+    initializeListbook = function(listctrl)
+        lc = listctrl
+        listctrl:InsertColumn(0, "page", wx.wxLIST_FORMAT_LEFT, -1)
+        listctrl:InsertColumn(1, "status", wx.wxLIST_FORMAT_LEFT, -1)
 
-        for i=1, listbook:GetItemCount() do -- add icons to the labels
-            listbook:SetItem(i-1, 0, "  " .. listbook:GetItemText(i-1, 0), i-1)
+        -- logger.log("coulmns", lc:GetColumnCount())
+
+        local imageList = createImageList("pages", icons)
+        listctrl:AssignImageList(imageList, wx.wxIMAGE_LIST_SMALL);
+
+        -- logger.log("pages", pages)
+
+        -- for i=1, listctrl:GetItemCount() do -- add icons to the labels
+        for i = 1, pages_count do
+            -- listctrl:SetItem(i-1, 0, "  " .. listctrl:GetItemText(i-1, 0), i-1)
+            listctrl:InsertItem(i-1, icons[i].label, i-1)
         end
-        listbook:SetColumnWidth(0, -1)
-        listbook:SetColumnWidth(1, 18)
+        listctrl:SetColumnWidth(0, -1)
+        listctrl:SetColumnWidth(1, -1)
+
+        local w1 = listctrl:GetColumnWidth(0)
+        local w2 = listctrl:GetColumnWidth(1)
+        logger.log("full width", w1 + w2)
+        return w1 + w2
     end,
+
     failIcon = function() return #icons-1 end,
     okIcon   = function() return #icons-2 end,
     retryIcon = function() return #icons-3 end,

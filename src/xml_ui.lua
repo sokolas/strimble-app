@@ -423,16 +423,22 @@ function main()
         restart(event:GetId())
     end)
 
-    -- set up listbook
-    findWindow("listbook", "wxListbook", "listbook")
-    local lblv = Gui.listbook:GetListView()
+    -- set up "custom listbook" - splitter, list sontrol and simplebook
+    findWindow("listbookSplitter", "wxSplitterWindow", "splitter", "listbook")
+    -- findWindow("pagesListCtrl", "wxListCtrl", "list", "listbook")
+    actionsListCtrl = dialogHelper.replaceElement(Gui, "pagesListCtrlPlaceholder", function(parent)
+        return wx.wxListView(parent, wx.wxID_ANY, wx.wxDefaultPosition, wx.wxDefaultSize, wx.wxLC_REPORT + wx.wxLC_NO_HEADER + wx.wxLC_SINGLE_SEL)
+    end, "list", "listbook")
+    findWindow("pagesSimpleBook", "wxSimplebook", "book", "listbook")
+    
+    local lblc = Gui.listbook.list
 
     -- for integration in integrations: require()
     for i, v in ipairs(integrations) do
         --v.m = require(v.src)
         local ok, res = loadIntegration(v)
         if ok then
-            iconsHelper.registerPage(v.m.page, v.m.icon)
+            iconsHelper.registerPage(v.m.page, v.m.icon, v.m.displayName)
             if v.m.initializeUi then
                 local r = v.m.initializeUi()
                 if not r then
@@ -445,8 +451,11 @@ function main()
         end
     end
 
-    iconsHelper.initializeListbook(lblv)
-    
+    local lbW = iconsHelper.initializeListbook(lblc)
+    Gui.listbook.splitter:SetSashPosition(lbW + 15)
+    Gui.listbook.splitter:SetMinimumPaneSize(lbW + 15)
+    logger.log("listbook initialized")
+
 
     -- set up "main loop" (network and audio dispatchers)
     local function event_loop(event)
@@ -744,8 +753,9 @@ function main()
 
     -- rest of init
     frame:Connect(wx.wxEVT_CLOSE_WINDOW, function(event)
-        local page = Gui.listbook:GetSelection()
+        local page = Gui.listbook.list:GetFirstSelected()
         local rect = frame:GetRect()
+        -- TODO sash position
         SaveToCfg("window", {x = rect:GetLeft(), y = rect:GetTop(), w = rect:GetWidth(), h = rect:GetHeight(), page = page})
         logger.log("closing")
         xpcall(NetworkManager.closeAll, function(err) print(err) end)
@@ -753,13 +763,23 @@ function main()
         -- if authFrame then authFrame:Destroy() end
         event:Skip()
     end)
-  
+    
+    Gui.listbook.list:Connect(wx.wxEVT_LIST_ITEM_SELECTED, function(event)
+        -- logger.log("item selected")
+        logger.log(event:GetIndex())
+        Gui.listbook.book:SetSelection(event:GetIndex())
+    end)
+
     -- when done
     -- wx.wxPostEvent(frame, wx.wxCommandEvent(wx.wxEVT_TOOL, gui.tools.load:GetId()))
     loadConfig()
     setLoggingLevels()
     local page = ReadFromCfg("window", "page", 0)
-    Gui.listbook:SetSelection(page)
+    if page < Gui.listbook.list:GetItemCount() then
+        Gui.listbook.list:Select(page)
+    else
+        Gui.listbook.list:Select(0)
+    end
 
     if Gui.twitch.autoconnect:GetValue() then
         wx.wxPostEvent(frame, wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, Gui.twitch.connectBtn:GetId()))
