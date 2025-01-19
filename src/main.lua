@@ -1,7 +1,19 @@
 local unpack = table.unpack or unpack
 mainarg = table.pack(...)
 
+package.cpath = 'bin/clibs/?.so;bin/clibs/?.dll;' .. package.cpath
+package.path  = 'lualibs/?.lua;lualibs/?/?.lua;lualibs/?/init.lua;' .. package.path
+
 local tracing = false
+
+LFS = require("lfs")
+
+if jit.os == 'Windows' then
+    DataDir = "./data"
+else
+    DataDir = os.getenv("HOME") .. "/.strimble"
+end
+
 
 function SplitMessage(msg, sep)
     local sep = sep or "\r\n"
@@ -48,7 +60,7 @@ if not showConsole then
     HideConsole()
 end
 
-local tracefile = tracing and io.open("trace.log", "w")
+local tracefile = tracing and io.open(DataDir .. "/trace.log", "w")
 
 
 -- partition input table entries 
@@ -76,8 +88,6 @@ function string.endsWith(str, substr)
     return string.sub(str, string.len(str) - string.len(substr) + 1) == substr
 end
 
-package.cpath = 'bin/clibs/?.so;bin/clibs/?.dll;' .. package.cpath
-package.path  = 'lualibs/?.lua;lualibs/?/?.lua;lualibs/?/init.lua;' .. package.path
 Serpent = require("serpent")
 
 Serpent.simple = function(arg)
@@ -166,8 +176,50 @@ function Log(...)
 end
 
 
-LFS = require("lfs")
 pollnet = require("pollnet")
+
+Log("Checking data dir...")
+
+local function checkDataDir()
+    local cwd, err = LFS.currentdir()
+    if cwd == nil then
+        Log("Can't get the current dir, exiting")
+        wx.wxMessageBox("Can't get the current dir, exiting. " .. (err or ""),
+            "Strimble Error",
+            wx.wxOK + wx.wxICON_EXCLAMATION,
+            wx.NULL)
+        return false
+    end
+    
+    local chdirRes, err = LFS.chdir(DataDir)
+    if chdirRes then
+        Log("Data dir OK")
+        LFS.chdir(cwd)
+        return true
+    end
+
+    -- trying to create the data dir in case it couldn't chdir into it
+    local mkdirRes, err = LFS.mkdir(DataDir)
+    if mkdirRes then
+        Log("Data dir created")
+        LFS.chdir(cwd)
+        return true
+    end
+
+    -- something went wrong and the data dir is not found and can't be created
+    Log("Can't get or create data dir, exiting")
+    wx.wxMessageBox("Can't get or create data dir, exiting. " .. (err or ""),
+        "Strimble Error",
+        wx.wxOK + wx.wxICON_EXCLAMATION,
+        wx.NULL)
+
+    LFS.chdir(cwd)
+    return false
+end
+
+if not checkDataDir() then
+    return
+end
 
 -- print("locking")
 local count = 0
@@ -177,7 +229,7 @@ repeat
     if count == 1 then
         Log("Waiting for another app to exit...")
     end
-    lock = LFS.lock_dir("./data/", 1)
+    lock = LFS.lock_dir(DataDir, 1)
     count = count + 1
     pollnet.sleep_ms(100)
 until lock or count == 100
@@ -190,7 +242,7 @@ if not lock then
 end
 -- print(lock)
 
-AppConfig = wx.wxFileConfig("", "", wx.wxGetCwd() .. "/data/strimble.ini", "", wx.wxCONFIG_USE_LOCAL_FILE)
+AppConfig = wx.wxFileConfig("", "", DataDir .. "/strimble.ini", "", wx.wxCONFIG_USE_LOCAL_FILE)
 
 function SaveToCfg(path, t, name)
     local currentPath = AppConfig:GetPath()
@@ -267,7 +319,7 @@ Json = require("json")
 -- local _vw2 = package.loadlib("bin/WebView2Loader.dll", "GetAvailableCoreWebView2BrowserVersionString")  -- hack to preload webview dll
 Sqlite = require("lsqlite3complete")
 require("src/stuff/db_helper")  -- adds global Db
-DataDb = Sqlite.open("data/data.sqlite3")
+DataDb = Sqlite.open(DataDir .. "/data.sqlite3")
 
 function CopyTable(data)
     local result = {}

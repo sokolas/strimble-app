@@ -343,13 +343,18 @@ end
 
 
 local function restart(id)
-    local pid = wx.wxExecute(mainarg[1], wx.wxEXEC_ASYNC)
-    if pid then
-        wx.wxPostEvent(Gui.frame, wx.wxCloseEvent(wx.wxEVT_CLOSE_WINDOW, id))
+    if jit.os == 'Windows' then
+        local pid = wx.wxExecute(mainarg[1], wx.wxEXEC_ASYNC)
+        if pid then
+            wx.wxPostEvent(Gui.frame, wx.wxCloseEvent(wx.wxEVT_CLOSE_WINDOW, id))
+        end
+    else
+        Gui.statusbar:SetStatusText("Can't restart when running on " .. jit.os)
     end
 end
 
 function main()
+    logger.log(DataDir)
     -- HideConsole()
     -- NetworkManager.addSocket(createAuthSock()) -- no handler
     createAuthSock()

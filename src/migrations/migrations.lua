@@ -1,5 +1,5 @@
 local logger = Logger.create("db_migration")
-local db = Sqlite.open("data/config.sqlite3")
+local db = Sqlite.open(DataDir .. "/config.sqlite3")
 
 local res = db:exec([[
     create table if not exists triggers (id integer primary key, name, type, data);

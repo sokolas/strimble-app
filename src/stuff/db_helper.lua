@@ -9,7 +9,7 @@ function LoadDb()
     end
     Db = Sqlite.open_memory()
 
-    local db = Sqlite.open("data/config.sqlite3")
+    local db = Sqlite.open(DataDir .. "/config.sqlite3")
     local backup = Sqlite.backup_init(Db, "main", db, "main")
     if not backup then
         logger.err(Db:errmsg())
@@ -27,7 +27,7 @@ function LoadDb()
 end
 
 function SaveDb()
-    local db = Sqlite.open("data/config.sqlite3")
+    local db = Sqlite.open(DataDir .. "/config.sqlite3")
     local backup = Sqlite.backup_init(db, "main", Db, "main")
     if not backup then
         logger.err(db:errmsg())
