@@ -165,7 +165,14 @@ local function clock()
 end
 
 local LIBDIR = "bin/clibs/"
-local audio = ffi.load(LIBDIR .. "raudio.dll")
+local audio
+if jit.os == 'Windows' then
+  audio = ffi.load(LIBDIR .. "raudio.dll")
+elseif jit.os == 'OSX' or jit.os == 'Darwin' then
+  audio = ffi.load(LIBDIR .. "libraudio.dylib")
+else
+  audio = ffi.load(LIBDIR .. "libraudio.so")
+end
 
 local function init()
   audio.InitAudioDevice()
@@ -195,6 +202,8 @@ local function play(sound)
   audio.PlaySound(sound)
 end
 
+local id = 0
+
 -- suspendable if nowait
 local function loadAndPlay(filename, volume, nowait)
   local s = audio.LoadSound(filename)
@@ -202,8 +211,9 @@ local function loadAndPlay(filename, volume, nowait)
     if volume and volume > 0 and volume <= 1 then
       audio.SetSoundVolume(volume)
     end
-    C.QueryPerformanceCounter(t)
-    local id = tostring(t.QuadPart)
+    -- C.QueryPerformanceCounter(t)
+    -- local id = tostring(t.QuadPart)
+    id = id + 1
     local data = {
       sound = s
     }

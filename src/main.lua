@@ -76,7 +76,7 @@ function string.endsWith(str, substr)
     return string.sub(str, string.len(str) - string.len(substr) + 1) == substr
 end
 
-package.cpath = 'bin/clibs/?.dll;' .. package.cpath
+package.cpath = 'bin/clibs/?.so;bin/clibs/?.dll;' .. package.cpath
 package.path  = 'lualibs/?.lua;lualibs/?/?.lua;lualibs/?/init.lua;' .. package.path
 Serpent = require("serpent")
 
@@ -190,7 +190,7 @@ if not lock then
 end
 -- print(lock)
 
-AppConfig = wx.wxFileConfig("", "", wx.wxGetCwd() .. "\\data\\strimble.ini", "", wx.wxCONFIG_USE_LOCAL_FILE)
+AppConfig = wx.wxFileConfig("", "", wx.wxGetCwd() .. "/data/strimble.ini", "", wx.wxCONFIG_USE_LOCAL_FILE)
 
 function SaveToCfg(path, t, name)
     local currentPath = AppConfig:GetPath()
@@ -261,7 +261,7 @@ end
 Lutf8 = require("lua-utf8")
 NetworkManager = require("src/netutils")
 Json = require("json")
-require("winsock")
+-- require("winsock")
 
 -- local _sq = package.loadlib("bin/sqlite3.dll", "sqlite3_version") -- hack to preload sqlite3 dll
 -- local _vw2 = package.loadlib("bin/WebView2Loader.dll", "GetAvailableCoreWebView2BrowserVersionString")  -- hack to preload webview dll
