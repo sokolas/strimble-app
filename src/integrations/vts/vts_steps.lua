@@ -23,7 +23,7 @@ local function sendHotkey(ctx, params)
     return true
 end
 
-local function init(menu, dialogs)
+local function init(menu, stepHandlers)
     -- send message
     steps.sendHotkeyItem = submenu:Append(wx.wxID_ANY, "send hotkey")
 
@@ -52,7 +52,7 @@ local function init(menu, dialogs)
         end
     end)
     
-    dialogs[steps.sendHotkeyItem:GetId()] = {
+    stepHandlers[steps.sendHotkeyItem:GetId()] = {
         name = "Send VTube Studio Hotkey",
         dialog = steps.sendHotkeyDialog,
         dialogItem = Gui.dialogs.SendVtsHotkeyDlg,
