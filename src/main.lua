@@ -9,11 +9,10 @@ local tracing = false
 LFS = require("lfs")
 
 if jit.os == 'Windows' then
-    DataDir = "./data"
+    DataDir = LFS.currentdir() .. "/data"
 else
     DataDir = os.getenv("HOME") .. "/.strimble"
 end
-
 
 function SplitMessage(msg, sep)
     local sep = sep or "\r\n"
