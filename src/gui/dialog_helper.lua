@@ -98,6 +98,7 @@ local function createDlgItem(gui, dlg, validate, dlgName)
             end
         end
         for k, v in pairs(gui[dlgName]) do
+            -- logger.log("setting control value", k)
             setControlValue(v, data[k] or defaultValue(v))
         end
         -- for k, v in pairs(data) do
@@ -136,6 +137,46 @@ local function connectOkBtn(gui, dlg, validate, dlgName)
         -- validate before saving
         e:Skip()
     end)
+end
+
+-- when src changes, the handler function from the context is called with dest, src value, and context
+-- for now, both src and dest must be wxComboBoxes
+local function connectWatches(gui, dlg, dlgName, src, dest, handler)
+    logger.log("connecting watchers", dlgName, src, "to", dest, handler)
+    logger.log(gui[dlgName])
+    local this, main_thread = coroutine.running()
+    if not main_thread then
+        logger.err("connectWatches called from a coroutine", debug.traceback())
+        return
+    end
+
+    local srcw = gui[dlgName][src]
+    local srcClass = srcw:GetClassInfo():GetClassName()
+    if srcClass ~= "wxComboBox" then
+        logger.err(dlgName .. "/" .. src .. " must be wxComboBox")
+    end
+
+    local destw = gui[dlgName][dest]
+    local destClass = destw:GetClassInfo():GetClassName()
+    if destClass ~= "wxComboBox" then
+        logger.err(dlgName .. "/" .. dest .. " must be wxComboBox")
+    end
+
+    local function eventHandler(e)
+        local srcValue = getControlValue(srcw)
+        local destValue = getControlValue(destw)
+        logger.log("src value", srcValue)
+        local context = gui.dialogs[dlgName].context
+        if context and context[handler] then
+            context[handler](destw, srcValue, context)
+        else
+            logger.err("can't find handler " .. handler .. " in dialog item context for " .. dlgName)
+        end
+        setControlValue(destw, destValue)   -- to prevent from overwriting when the source value changes
+    end
+
+    dlg:Connect(srcw:GetId(), wx.wxEVT_COMBOBOX, eventHandler)
+    dlg:Connect(srcw:GetId(), wx.wxEVT_TEXT, eventHandler)
 end
 
 local function loadDialog(gui, dlgName, controls, validate)
@@ -187,6 +228,7 @@ local function createDataDialog(gui, dlgName, controls, validate)
         return p1, bottomSizer
     end
 
+    local watches = {}
     local sizers = {}
     for c, controlGroup in ipairs(controls) do
         
@@ -239,8 +281,10 @@ local function createDataDialog(gui, dlgName, controls, validate)
             elseif v.type == "choice" then
                 widget = wx.wxChoice(controlsPanel, wx.wxID_ANY, wx.wxDefaultPosition, wx.wxDefaultSize, v.choices)
             elseif v.type == "combo" then
-                widget = wx.wxComboBox(controlsPanel, wx.wxID_ANY, v.value or "", wx.wxDefaultPosition, wx.wxDefaultSize,
-                    v.choices or {})
+                widget = wx.wxComboBox(controlsPanel, wx.wxID_ANY, v.value or "", wx.wxDefaultPosition, wx.wxDefaultSize, v.choices or {})
+                if v.watch then
+                    table.insert(watches, {src = v.watch, dest = v.name, handler = v.watchHandler})
+                end
             elseif v.type == "file" then
                 -- fields: value - button name and file dialog title; wildcard - file masks; ref - widget to set the filename to
                 widget = wx.wxButton(controlsPanel, wx.wxID_ANY, v.value or "Open file")
@@ -327,11 +371,14 @@ local function createDataDialog(gui, dlgName, controls, validate)
             buttons:btnSizer()
 
     ]]
-
-    gui.dialogs[dlgName] = createDlgItem(gui, dlg, validate, dlgName)
+    local dlgItem = createDlgItem(gui, dlg, validate, dlgName)
+    gui.dialogs[dlgName] = dlgItem
     connectOkBtn(gui, dlg, validate, dlgName)
-
-    return dlg
+    for i, w in ipairs(watches) do
+        connectWatches(gui, dlg, dlgName, w.src, w.dest, w.handler)
+    end
+    
+    return dlg, dlgItem
 end
 
 --[[
@@ -364,8 +411,8 @@ local function createStepDialog(gui, dlgName, controls, validate)
         end
     end
 
-    local dlg = createDataDialog(gui, dlgName, controls_full, validate_full)
-    return dlg
+    local dlg, dlgItem = createDataDialog(gui, dlgName, controls_full, validate_full)
+    return dlgItem
 end
 
 local function createTriggerDialog(gui, dlgName, controls, validate)

@@ -493,7 +493,12 @@ local function callEditStepDialog(actionData, stepIndex, selected)
     if stepHandler.preProcess then
         data = stepHandler.preProcess(step.params)
     end
-    local m, result = stepHandler.dialogItem.executeModal("Edit " .. stepHandler.name, data, stepHandler.init)
+    local ctx = nil
+    if stepHandler.ctxBuilder ~= nil then
+        logger.log("building dialog context")
+        ctx = stepHandler.ctxBuilder()
+    end
+    local m, result = stepHandler.dialogItem.executeModal("Edit " .. stepHandler.name, data, stepHandler.init, ctx)
     editStep(m, selected, stepHandler, result, step, actionData, stepIndex)
 end
 
@@ -889,7 +894,12 @@ function _M.init(integrations)
         if not stepHandler then return end
         -- add step
 
-        local m, result = stepHandler.dialogItem.executeModal("Add " .. stepHandler.name, stepHandler.data, stepHandler.init)
+        local ctx = nil
+        if stepHandler.ctxBuilder ~= nil then
+            logger.log("building dialog context")
+            ctx = stepHandler.ctxBuilder()
+        end
+            local m, result = stepHandler.dialogItem.executeModal("Add " .. stepHandler.name, stepHandler.data, stepHandler.init, ctx)
         if m == wx.wxID_OK then
             addStepWithGui(stepHandler, actionData, result)
         end

@@ -1,13 +1,14 @@
 local logger = Logger.create("obs_steps")
+
 local dialogHelper = require("src/gui/dialog_helper")
 local iconsHelper = require("src/gui/icons")
 local obs = require("src/integrations/obs/obs")
 local Ctx = require("src/stuff/action_context")
+local obs_requests = require("src/integrations/obs/requests")
 
 local _M = {}
 
 local submenu = wx.wxMenu()
-local steps = {}
 
 local stepIconPaths = {
     {path = "src/integrations/obs/icons/obs.png", name = "obs"},
@@ -27,18 +28,58 @@ local function sendRequest(ctx, params)
 end
 
 local function setSourceVisibility(ctx, params)
-    local d = Json.decode(ctx:interpolate(params.requestData))
-    local ok, res = obs.request(params.requestType, d)
-    -- SetSceneItemEnabled ({sceneName = params.scene, sceneItemId = ..., sceneItemEnabled = params.visible and true or false})
-    logger.log("send request result", res)
-    return ok, res
+    local sceneName = ctx:interpolate(params.scene)
+    local sourceName = ctx:interpolate(params.source)
+
+    local itemId = ""
+    local ok, res = obs.request(obs_requests.getSceneItemId(sceneName, sourceName))
+    if ok and res and res.requestStatus and res.requestStatus.code == 100 then
+        itemId = res.responseData.sceneItemId
+        -- itemId = res.
+    else
+        if res and res.requestStatus then
+            logger.err(res.requestStatus.code, res.requestStatus.comment)
+            return false, tostring(res.requestStatus.code) .. ": " .. res.requestStatus.comment
+        else
+            return false, "OBS error"
+        end
+    end
+    ok, res = obs.request(obs_requests.setSceneItemEnabled(sceneName, itemId, params.visible))
+    if ok and res and res.requestStatus and res.requestStatus.code == 100 then
+        return ok, params.visible
+    else
+        if res and res.requestStatus then
+            logger.err(res.requestStatus.code, res.requestStatus.comment)
+            return false, tostring(res.requestStatus.code) .. ": " .. res.requestStatus.comment
+        else
+            return false, "OBS error"
+        end
+    end
 end
+
+local function getCachedScenesWithItems()
+    local res = {}
+    for i, scene in ipairs(obs.getScenesCache()) do
+        -- logger.log(i, scene.sceneName)
+        local items = {}
+        if scene.items then
+            for j, item in ipairs(scene.items) do
+                -- logger.log(j, item.sourceName)
+                table.insert(items, item.sourceName)
+            end
+        end
+        res[scene.sceneName] = items
+    end
+    return res
+end
+
+
 
 local function init(menu, stepHandlers)
     -- set source visibility
-    steps.setSourceVisibility = submenu:Append(wx.wxID_ANY, "Set source visibility")
+    local setSourceVisibilityMenu = submenu:Append(wx.wxID_ANY, "Set source visibility")
 
-    steps.setSourceVisibilityDialog = dialogHelper.createStepDialog(Gui, "SetObsSourceVisibilityDlg", {
+    local setSourceVisibilityDialog = dialogHelper.createStepDialog(Gui, "SetObsSourceVisibilityDlg", {
         {
             name = "Set Source Visibility",
             controls = {
@@ -50,11 +91,13 @@ local function init(menu, stepHandlers)
                 {
                     name = "source",
                     label = "Source",
-                    type = "combo"
+                    type = "combo",
+                    watch = "scene",
+                    watchHandler = "sceneWatch"
                 },
                 {
                     name = "visible",
-                    label = "Visible",
+                    text = "Visible",
                     type = "check"
                 }
             }
@@ -70,9 +113,9 @@ local function init(menu, stepHandlers)
         end
     end)
     
-    stepHandlers[steps.setSourceVisibility:GetId()] = {
+    stepHandlers[setSourceVisibilityMenu:GetId()] = {
         name = "Set OBS source visibility",
-        dialogItem = Gui.dialogs.SetObsSourceVisibilityDlg,
+        dialogItem = setSourceVisibilityDialog,
         icon = stepIcons.obs,
         getDescription = function(result)
                 local onoff = result.visible and "on" or "off"
@@ -82,13 +125,39 @@ local function init(menu, stepHandlers)
         data = {
             requestData = "{}"
             -- hotkey = ""
-        }
+        },
+        init = {
+            scene = function(c)
+                local scenes = {}
+                local scenesWithItems = getCachedScenesWithItems()
+                logger.log(scenesWithItems)
+                for k, v in pairs(scenesWithItems) do
+                    table.insert(scenes, k)
+                end
+                -- logger.log(#scenes)
+                c:Set(scenes)
+            end
+        },
+        ctxBuilder = function()
+            local scenesWithItems = getCachedScenesWithItems()
+            logger.log(scenesWithItems)
+            return {
+                scenes = scenesWithItems,
+                sceneWatch = function(items, scene, context)
+                    local lines = {}
+                    if context.scenes and context.scenes[scene] then
+                        lines = context.scenes[scene]
+                    end
+                    items:Set(lines)
+                end
+            }
+        end
     }
 
     -- send custom request
-    steps.sendRequest = submenu:Append(wx.wxID_ANY, "send custom request")
+    local sendRequestMenu = submenu:Append(wx.wxID_ANY, "send custom request")
 
-    steps.sendRequestDialog = dialogHelper.createStepDialog(Gui, "SendObsRequestDlg", {
+    local sendRequestDialog = dialogHelper.createStepDialog(Gui, "SendObsRequestDlg", {
         {
             name = "Send Hotkey",
             controls = {
@@ -124,9 +193,9 @@ local function init(menu, stepHandlers)
         end
     end)
     
-    stepHandlers[steps.sendRequest:GetId()] = {
+    stepHandlers[sendRequestMenu:GetId()] = {
         name = "Send custom OBS request",
-        dialogItem = Gui.dialogs.SendObsRequestDlg,
+        dialogItem = sendRequestDialog,
         icon = stepIcons.obs,
         getDescription = function(result) return (result.requestType or "") .. " / " .. (result.comment or "") end,
         code = sendRequest,
@@ -135,8 +204,6 @@ local function init(menu, stepHandlers)
             -- hotkey = ""
         }
     }
-
-
 
     -- finalize
     menu:AppendSubMenu(submenu, "OBS")

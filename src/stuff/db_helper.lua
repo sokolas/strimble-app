@@ -27,6 +27,7 @@ function LoadDb()
 end
 
 function SaveDb()
+    logger.log("Total changes: ", Db:total_changes())
     local db = Sqlite.open(DataDir .. "/config.sqlite3")
     local backup = Sqlite.backup_init(db, "main", Db, "main")
     if not backup then

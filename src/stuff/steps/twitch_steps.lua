@@ -5,7 +5,7 @@ local requests = require("src/integrations/twitch_requests")
 local _M = {}
 
 local submenu = wx.wxMenu()
-local steps = {}
+-- local steps = {}
 
 local userQueryTypes = {
     "By ID",
@@ -31,9 +31,9 @@ local function sendMessage(ctx, params)
 end
 
 local function sendMessageStep(stepHandlers)
-    steps.sendMessageItem = submenu:Append(wx.wxID_ANY, "Send message")
+    local sendMessageItem = submenu:Append(wx.wxID_ANY, "Send message")
 
-    steps.sendMessageDialog = dialogHelper.createDataDialog(Gui, "SendTwitchMessageStepDlg", {
+    local _dlg, sendMessageDialog = dialogHelper.createDataDialog(Gui, "SendTwitchMessageStepDlg", {
         {
             name = "Send Twitch message",
             controls = {
@@ -53,9 +53,9 @@ local function sendMessageStep(stepHandlers)
         end
     end)
     
-    stepHandlers[steps.sendMessageItem:GetId()] = {
+    stepHandlers[sendMessageItem:GetId()] = {
         name = "Send Twitch Message",
-        dialogItem = Gui.dialogs.SendTwitchMessageStepDlg,
+        dialogItem = sendMessageDialog,
         icon = stepIconIndices.twitch,
         getDescription = function(result) return '"' .. result.message .. '"' end,
         postProcess = function(result) return result end,
@@ -72,9 +72,9 @@ local function sendAnnouncement(ctx, params)
 end
 
 local function sendAnnouncementStep(stepHandlers)
-    steps.sendAnnouncementItem = submenu:Append(wx.wxID_ANY, "Send announcement")
+    local sendAnnouncementItem = submenu:Append(wx.wxID_ANY, "Send announcement")
 
-    steps.sendAnnouncementDialog = dialogHelper.createDataDialog(Gui, "SendTwitchAnnouncementStepDlg", {
+    local _dlg, sendAnnouncementDialog = dialogHelper.createDataDialog(Gui, "SendTwitchAnnouncementStepDlg", {
         {
             name = "Send Twitch announcement",
             controls = {
@@ -94,9 +94,9 @@ local function sendAnnouncementStep(stepHandlers)
         end
     end)
     
-    stepHandlers[steps.sendAnnouncementItem:GetId()] = {
+    stepHandlers[sendAnnouncementItem:GetId()] = {
         name = "Send Twitch Announcement",
-        dialogItem = Gui.dialogs.SendTwitchAnnouncementStepDlg,
+        dialogItem = sendAnnouncementDialog,
         icon = stepIconIndices.twitch,
         getDescription = function(result) return '"' .. result.message .. '"' end,
         postProcess = function(result) return result end,
@@ -116,9 +116,9 @@ local function getUser(ctx, params)
 end
 
 local function getUserInfoStep(stepHandlers)
-    steps.getUserItem = submenu:Append(wx.wxID_ANY, "Get user")
+    local getUserItem = submenu:Append(wx.wxID_ANY, "Get user")
 
-    steps.getUserDialog = dialogHelper.createStepDialog(Gui, "GetTwitchUserStepDlg", {
+    local getUserDialog = dialogHelper.createStepDialog(Gui, "GetTwitchUserStepDlg", {
         {
             name = "Get user",
             controls = {
@@ -146,9 +146,9 @@ local function getUserInfoStep(stepHandlers)
         end
     end)
 
-    stepHandlers[steps.getUserItem:GetId()] = {
+    stepHandlers[getUserItem:GetId()] = {
         name = "Get user",
-        dialogItem = Gui.dialogs.GetTwitchUserStepDlg,
+        dialogItem = getUserDialog,
         icon = stepIconIndices.twitch,
         getDescription = function(result) return string.format("%s: %s", userQueryTypes[result.type + 1], result.user_id) end,
         -- postProcess = function(result) return result end,
@@ -169,9 +169,9 @@ local function getChannelInfo(ctx, params)
 end
 
 local function getChannelInfoStep(stepHandlers)
-    steps.getChannelInfoItem = submenu:Append(wx.wxID_ANY, "Get channel info")
+    local getChannelInfoItem = submenu:Append(wx.wxID_ANY, "Get channel info")
 
-    steps.getTwitchChannelInfoStepDlg = dialogHelper.createStepDialog(Gui, "GetTwitchChannelInfoStepDlg", {
+    local getTwitchChannelInfoStepDlg = dialogHelper.createStepDialog(Gui, "GetTwitchChannelInfoStepDlg", {
         {
             name = "Get channel info",
             controls = {
@@ -195,9 +195,9 @@ local function getChannelInfoStep(stepHandlers)
         end
     end
 
-    stepHandlers[steps.getChannelInfoItem:GetId()] = {
+    stepHandlers[getChannelInfoItem:GetId()] = {
         name = "Get channel info",
-        dialogItem = Gui.dialogs.GetTwitchChannelInfoStepDlg,
+        dialogItem = getTwitchChannelInfoStepDlg,
         icon = stepIconIndices.twitch,
         getDescription = function(result) return idOrSelf(result.user_id) end,
         code = getChannelInfo,

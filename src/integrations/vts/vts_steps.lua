@@ -6,7 +6,6 @@ local vts = require("src/integrations/vts/vts")
 local _M = {}
 
 local submenu = wx.wxMenu()
-local steps = {}
 
 local stepIconPaths = {
     {path = "src/integrations/vts/icons/vts.png", name = "vts"},
@@ -25,9 +24,9 @@ end
 
 local function init(menu, stepHandlers)
     -- send message
-    steps.sendHotkeyItem = submenu:Append(wx.wxID_ANY, "send hotkey")
+    local sendHotkeyItem = submenu:Append(wx.wxID_ANY, "send hotkey")
 
-    steps.sendHotkeyDialog = dialogHelper.createStepDialog(Gui, "SendVtsHotkeyDlg", {
+    local sendHotkeyDialog = dialogHelper.createStepDialog(Gui, "SendVtsHotkeyDlg", {
         {
             name = "Send Hotkey",
             controls = {
@@ -52,10 +51,9 @@ local function init(menu, stepHandlers)
         end
     end)
     
-    stepHandlers[steps.sendHotkeyItem:GetId()] = {
+    stepHandlers[sendHotkeyItem:GetId()] = {
         name = "Send VTube Studio Hotkey",
-        dialog = steps.sendHotkeyDialog,
-        dialogItem = Gui.dialogs.SendVtsHotkeyDlg,
+        dialogItem = sendHotkeyDialog,
         icon = stepIcons.vts,
         getDescription = function(result) return (result.comment or "") .. "(" .. result.hotkey .. ")" end,
         init = {

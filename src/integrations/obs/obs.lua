@@ -2,6 +2,7 @@ local base64 = require("base64")
 local sha2 = require("sha2")
 local Websocket = require("src/stuff/websocket")
 local timers = require("src/stuff/wxtimers")
+local obs_requests = require("src/integrations/obs/requests")
 
 local logger = Logger.create("obs")
 local ws_logger = Logger.create("obs-ws")
@@ -20,10 +21,35 @@ local dataChangeListener = nil
 
 local req_id = 0
 local requests = {}
+local scenes = {}
 local requestsTimer = nil
+local stateRefreshTimer = nil
 local timeout = 5000
 
 local stopwatch = wx.wxStopWatch()  -- we need a strictly monotonous source of milliseconds
+
+--[[scenes = {
+    {
+        items = {
+            {
+                inputKind = "game_capture",
+                sceneItemBlendMode = "OBS_BLEND_NORMAL",
+                sceneItemEnabled = true,
+                sceneItemId = 2,
+                sceneItemIndex = 0,
+                sceneItemLocked = false,
+                sceneItemTransform = { alignment = 5, boundsAlignment = 0, boundsHeight = 0, boundsType = "OBS_BOUNDS_NONE", boundsWidth = 0, cropBottom = 0, cropLeft = 0, cropRight = 0, cropToBounds = false, cropTop = 0, height = 0, positionX = 0, positionY = 0, rotation = 0, scaleX = 1, scaleY = 1, sourceHeight = 0, sourceWidth = 0, width = 0 },
+                sourceName = "Захват игры",
+                sourceType = "OBS_SOURCE_TYPE_INPUT",
+                sourceUuid = "4344b3c2-6310-4b14-90d4-df1c6602abbd"
+            }
+        },
+        sceneIndex = 0,
+        sceneName = "recording",
+        sceneUuid = "5bed6986-8d6b-4c7c-8e12-a190837f490b"
+    }
+}
+]]
 
 local function getIcon(state)
     if state == "ready" then
@@ -32,19 +58,6 @@ local function getIcon(state)
         return "retry"
     elseif state == "error" or state == "offline" or state == "closed" then
         return "error"
-    end
-end
-
-local function setState(newState)
-    local oldState = state
-    logger.log("changing state: ", oldState, "->", newState)
-    state = newState
-    -- if state == "connected" then
-        -- socket:send(apiStateRequest())
-    -- end
-
-    if userStateListener then
-        userStateListener(state, getIcon(state))
     end
 end
 
@@ -80,18 +93,43 @@ local function request(type, data)
     end
     if state == "connected" or state == "ready" and socket then
         local id, msg = nextRequest(type, data)
-        logger.log(id, msg)
+        -- logger.log(id, msg)
         socket:send(Json.encode(msg))
         requests[id] = {
             co = this,
             time = stopwatch:Time()
         }
-        logger.log("suspending")
+        -- logger.log("suspending")
         local ok, res = coroutine.yield()
-        logger.log("got", ok, res)
+        -- logger.log("", ok, res)
         return ok, res
     else
         return false, "OBS is not ready"
+    end
+end
+
+-- the initial response is updates with scene items; it is NOT compliant with the OBS api
+local function getScenes(withItems)
+    local ok, res = request(obs_requests.getScenesList())
+    if not withItems then
+        return ok, res
+    else
+        if not ok then
+            return false, res
+        elseif res.requestStatus.code ~= 100 then
+            return false, res
+        else
+            local scenes = res.responseData.scenes
+            for i, v in ipairs(scenes) do
+                local _ok, _res = request(obs_requests.getSceneItems(nil, v.sceneUuid))
+                if _ok then
+                    if _res.responseData then
+                        res.responseData.scenes[i].items = _res.responseData.sceneItems
+                    end
+                end
+            end
+            return ok, res
+        end
     end
 end
 
@@ -116,8 +154,38 @@ local function identify(auth)
     return m
 end
 
+local function refreshScenes()
+    local ok, res = getScenes(true)
+    if ok and (res.responseData) and (res.responseData.scenes) then
+        scenes = res.responseData.scenes
+        logger.log("scenes updated")
+        -- logger.log(scenes)
+    end
+end
+
+local function setState(newState)
+    local oldState = state
+    logger.log("changing state: ", oldState, "->", newState)
+    state = newState
+    -- if state == "connected" then
+        -- socket:send(apiStateRequest())
+    -- end
+
+    if newState == "ready" then
+        local f = coroutine.wrap(refreshScenes)
+        f()
+    elseif oldState == "ready" then
+        -- invalidate cache
+    end
+
+    if userStateListener then
+        userStateListener(state, getIcon(state))
+    end
+end
+
+
 local function wsMessageListener(msg)
-    logger.log(msg)
+    ws_logger.log(msg)
     local m = Json.decode(msg)
     if m.op == 0 then       -- HELLO
             send(identify(m.d.authentication))
@@ -125,9 +193,9 @@ local function wsMessageListener(msg)
         setState("ready")
     elseif m.op == 7 then   -- RESPONSE
         local req = requests[m.d.requestId]
-        logger.log(req)
+        ws_logger.log(req)
         if req then
-            logger.log("resuming")
+            ws_logger.log("resuming request " .. m.d.requestId)
             requests[m.d.requestId] = nil
             coroutine.resume(req.co, true, m.d)
         end
@@ -136,9 +204,6 @@ end
 
 local function wsStateListener(oldState, newState)
     setState(newState)
-    if oldState == "ready" then
-        -- invalidate cache
-    end
 end
 
 local function connect()
@@ -204,6 +269,17 @@ local function handleRequestTimer(event)
     end
 end
 
+local function handleStateRefreshTimer(event)
+    if state == "ready" then
+        local f = coroutine.wrap(refreshScenes)
+        f()
+    end
+end
+
+local function getScenesCache()
+    return scenes
+end
+
 local function init(a, messageListener, stateListener, dataChangeListener)
     setUrl(a)
     setUserMessageListener(messageListener)
@@ -211,6 +287,7 @@ local function init(a, messageListener, stateListener, dataChangeListener)
     setDataChangeListener(dataChangeListener)
     socket = Websocket:create("obs-ws", url, reconnect_interval, auto_reconnect, nil, wsMessageListener, wsStateListener, ws_logger, false)
     requestsTimer = timers.addTimer(1000, handleRequestTimer, true)
+    stateRefreshTimer = timers.addTimer(20000, handleStateRefreshTimer, true)
     stopwatch:Start(0)
 end
 
@@ -226,7 +303,8 @@ local _M = {
     setUrl = setUrl,
     connect = connect,
     send = send,
-    request = request
+    request = request,
+    getScenesCache = getScenesCache,
 }
 
 return _M

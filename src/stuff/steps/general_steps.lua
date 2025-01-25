@@ -9,7 +9,6 @@ local _M = {}
 local logger = Logger.create("general_steps")
 
 local submenu
-local steps = {}
 
 local typesChoices = {
     "string",
@@ -125,9 +124,9 @@ local function checkCondition(ctx, params)
 end
 
 local function initDelayStep(submenu, stepHandlers, pages)
-    steps.delayItem = submenu:Append(wx.wxID_ANY, "Delay")
+    local delayItem = submenu:Append(wx.wxID_ANY, "Delay")
 
-    steps.delayDialog = dialogHelper.createDataDialog(Gui, "DelayStepDialog", {
+    local _dlg, delayDialog = dialogHelper.createDataDialog(Gui, "DelayStepDialog", {
         {
             name = "Delay",
             controls = {
@@ -149,9 +148,9 @@ local function initDelayStep(submenu, stepHandlers, pages)
         end
     end)
     
-    stepHandlers[steps.delayItem:GetId()] = {
+    stepHandlers[delayItem:GetId()] = {
         name = "Delay",
-        dialogItem = Gui.dialogs.DelayStepDialog,
+        dialogItem = delayDialog,
         icon = pages.timer,
         getDescription = function(result) return result.delay .. 'ms' end,
         preProcess = function(params)
@@ -174,9 +173,9 @@ local function initDelayStep(submenu, stepHandlers, pages)
 end
 
 local function initLogStep(submenu, stepHandlers, pages)
-    steps.logItem = submenu:Append(wx.wxID_ANY, "Log")
+    local logItem = submenu:Append(wx.wxID_ANY, "Log")
 
-    steps.logDialog = dialogHelper.createDataDialog(Gui, "LogStepDialog", {
+    local _dlg, logDialog = dialogHelper.createDataDialog(Gui, "LogStepDialog", {
         {
             name = "Log",
             controls = {
@@ -201,9 +200,9 @@ local function initLogStep(submenu, stepHandlers, pages)
         end
     end)
     
-    stepHandlers[steps.logItem:GetId()] = {
+    stepHandlers[logItem:GetId()] = {
         name = "Log",
-        dialogItem = Gui.dialogs.LogStepDialog,
+        dialogItem = logDialog,
         icon = pages.logs,
         getDescription = function(result) return result.message end,
         code = log,
@@ -214,8 +213,8 @@ local function initLogStep(submenu, stepHandlers, pages)
 end
 
 local function initSoundStep(submenu, stepHandlers, pages)
-    steps.playSoundItem = submenu:Append(wx.wxID_ANY, "Play sound")
-    steps.soundDialog = dialogHelper.createDataDialog(Gui, "PlaySoundStepDialog", {
+    local playSoundItem = submenu:Append(wx.wxID_ANY, "Play sound")
+    local _dlg, soundDialog = dialogHelper.createDataDialog(Gui, "PlaySoundStepDialog", {
         {
             name = "Play Sound",
             controls = {
@@ -236,9 +235,9 @@ local function initSoundStep(submenu, stepHandlers, pages)
         }
     })
 
-    stepHandlers[steps.playSoundItem:GetId()] = {
+    stepHandlers[playSoundItem:GetId()] = {
         name = "Play sound",
-        dialogItem = Gui.dialogs.PlaySoundStepDialog,
+        dialogItem = soundDialog,
         icon = pages.logs,
         getDescription = function(result) return result.filename end,
         code = playSound,
@@ -249,8 +248,8 @@ local function initSoundStep(submenu, stepHandlers, pages)
 end
 
 local function initLogicStep(submenu, stepHandlers, pages)
-    steps.LogicItem = submenu:Append(wx.wxID_ANY, "Logic")
-    steps.logicDialog = dialogHelper.createDataDialog(Gui, "LogicStepDialog", {
+    local LogicItem = submenu:Append(wx.wxID_ANY, "Logic")
+    local _dlg, logicDialog = dialogHelper.createDataDialog(Gui, "LogicStepDialog", {
         {
             name = "Logic",
             controls = {
@@ -330,9 +329,9 @@ local function initLogicStep(submenu, stepHandlers, pages)
         return res
     end
 
-    stepHandlers[steps.LogicItem:GetId()] = {
+    stepHandlers[LogicItem:GetId()] = {
         name = "Logic",
-        dialogItem = Gui.dialogs.LogicStepDialog,
+        dialogItem = logicDialog,
         icon = pages.scripts,
         getDescription = getDescription,
         code = checkCondition,
