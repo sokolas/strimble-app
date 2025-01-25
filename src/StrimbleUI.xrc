@@ -10,7 +10,7 @@
 			<style>wxSTB_SIZEGRIP</style>
 			<fields>2</fields>
 		</object>
-		<object class="wxToolBar" name="m_toolBar1">
+		<object class="wxToolBar" name="mainToolBar">
 			<style>wxTB_HORIZONTAL|wxTB_TEXT</style>
 			<bitmapsize></bitmapsize>
 			<margins></margins>

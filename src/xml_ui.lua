@@ -364,6 +364,10 @@ function main()
     Gui.frame = frame
     Gui.xmlResource = xmlResource
 
+    local toolbar = Gui.frame:GetToolBar()
+    toolbar:InsertStretchableSpace(2)
+    toolbar:Realize()
+
     -- setup the toolbar
     findTool("toolConsole", "console")
     findTool("toolSave", "save")
