@@ -277,9 +277,8 @@ _M.esMessageListener = function(esEvent)
         _M.userEsMessageListener(esEvent)
     end
     
-    --local triggered = triggersHelper.onTrigger("twitch_eventsub", esEvent)
     if esEvent.payload and esEvent.payload.subscription and esEvent.payload.subscription.type then
-        local matchedEvents = esTrigger.matchTrigger(esEvent)
+        --[[local matchedEvents = esTrigger.matchTrigger(esEvent)
         if matchedEvents then
             for i, event in ipairs(matchedEvents) do
                 local function buildContext()
@@ -289,7 +288,8 @@ _M.esMessageListener = function(esEvent)
                 end
                 triggersHelper.onTrigger("twitch_eventsub", event, buildContext)
             end
-        end
+        end]]
+        triggersHelper.onTrigger("twitch_eventsub", {payload = esEvent.payload})
     end
 
     if esEvent.metadata.subscription_type == "channel.chat.message" then
@@ -317,20 +317,11 @@ _M.esMessageListener = function(esEvent)
             return
         end
         
-        --local triggered_chat = triggersHelper.onTrigger("twitch_privmsg", {channel = message.channel, user = user, text = message.text})
-        local matchedCommands = commands.matchCommands(message.text)
-        if matchedCommands then
-            for i, cmd in ipairs(matchedCommands) do
-                local function buildContext()
-                    return ctxHelper.create({
-                        user = user,
-                        value = message.text, -- TODO parse into command and params
-                        channel = message.channel
-                    }, cmd.action)
-                end
-                triggersHelper.onTrigger("twitch_privmsg", cmd, buildContext)
-            end
-        end
+        triggersHelper.onTrigger("twitch_privmsg", {
+            user = user,
+            message = message.text, -- TODO parse into command and params
+            channel = message.channel
+        })
     end
 end
 

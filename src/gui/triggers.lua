@@ -7,6 +7,7 @@ local hotkeys = require("src/stuff/triggers/hotkeys")
 local defaultTrigger = require("src/stuff/triggers/default_trigger")
 local eventsub = require("src/stuff/triggers/eventsub")
 local dataHelper = require("src/stuff/data_helper")
+local ctxHelper = require("src/stuff/action_context")
 
 local builtInTriggers = {
     commands, eventsub, timers, hotkeys
@@ -18,13 +19,20 @@ local logger = Logger.create("triggers_gui")
 
 local triggerIcons = {}
 
-local _M = {
-    treedata = {}
+local treedata = {}
+
+local extends = {
+    ["twitch_privmsg"] = {  -- base trigger type
+        {
+            type = "twitch_command" -- extended trigger type
+        }, -- more extensions
+    }
 }
 
 local function addChild(parentItem, result)
-    local parentTreeItem = _M.treedata[parentItem:GetValue()]
+    local parentTreeItem = treedata[parentItem:GetValue()]
     local cmd1 = triggerListCtrl:AppendItem(parentItem, result.name, parentTreeItem.icon or -1, parentTreeItem.icon or -1)
+    
     local item = {
         id = cmd1:GetValue(),
         dbId = result.dbId,   -- only present if loaded from DB
@@ -45,9 +53,10 @@ local function addChild(parentItem, result)
         onUpdate = parentTreeItem.onUpdate,
         type = parentTreeItem.childrenType,
         persist = parentTreeItem.persistChildren,
+        matches = parentTreeItem.matches,
         data = result
     }
-    _M.treedata[cmd1:GetValue()] = item
+    treedata[cmd1:GetValue()] = item
 
     -- persist
     if not result.dbId then
@@ -117,7 +126,7 @@ local function updateItemInDb(treeItem)
 end
 
 local function updateItem(item, result, getDescription)
-    local treeItem = _M.treedata[item:GetValue()]
+    local treeItem = treedata[item:GetValue()]
 
     logger.log("onUpdate is", treeItem.onUpdate)
     local ok = true
@@ -155,7 +164,7 @@ end
 
 local function deleteItem(item, deleteFromDb)
     logger.log("Deleting " .. tostring(item:GetValue()))
-    local treeItem = _M.treedata[item:GetValue()]
+    local treeItem = treedata[item:GetValue()]
 
     if treeItem.onDisable then
         treeItem.onDisable(treeItem, item)
@@ -166,7 +175,7 @@ local function deleteItem(item, deleteFromDb)
     end
 
     local dbId = treeItem.dbId
-    _M.treedata[item:GetValue()] = nil
+    treedata[item:GetValue()] = nil
 
     -- update UI
     triggerListCtrl:DeleteItem(item)
@@ -190,7 +199,7 @@ end
 
 local function toggleItem(item, enabled)
     logger.log("Toggling " .. tostring(item:GetValue()) .. " to " .. tostring(enabled))
-    local treeItem = _M.treedata[item:GetValue()]
+    local treeItem = treedata[item:GetValue()]
     treeItem.data.enabled = enabled
 
     -- update UI
@@ -231,7 +240,7 @@ local function actionsUpdated()
 
     local item = triggerListCtrl:GetFirstItem()
     while item:IsOk() do
-        local treeItem = _M.treedata[item:GetValue()]
+        local treeItem = treedata[item:GetValue()]
         if treeItem and not treeItem.isGroup and treeItem.data.action then
             if not actionMap[treeItem.data.action] then
                 treeItem.data.action = nil
@@ -244,19 +253,50 @@ local function actionsUpdated()
     end
 end
 
-local function onTrigger(type, data, buildContext)
-    if data.action then
-        local actions = dataHelper.findAction(dataHelper.enabledByDbId(data.action))
-        local action = actions[1]
-        if action then
-            local queue = dataHelper.getActionQueue(action.data.queue)
-            logger.log("action found:", action.data.name, action.data.description, "queue:", action.data.queue, #queue)
-            local ctx = buildContext() --ctxHelper.create({}, data.action)
-            table.insert(queue, ctx)
-            logger.log("context created")
-            Gui.frame:QueueEvent(wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, ACTION_DISPATCH))
+local function triggerByType(t)
+    return function(v)
+        return v.type == t
+    end
+end
+
+local function triggerByTypeEnabled(t)
+    return function(v)
+        return v.type == t and (not v.isGroup) and (v.data) and (v.data.enabled)
+    end
+end
+
+-- triggerContext is passed to the extension triggers as well as to the action
+local function onTrigger(type, triggerContext)
+    logger.log("on trigger", type, triggerContext)
+    -- check if anything extends this trigger
+    if extends[type] then
+        for i, v in ipairs(extends[type]) do
+            logger.log("processing trigger extension type", v)
+            -- TODO queue the triggers
+            onTrigger(v.type, triggerContext) -- todo copy context because it can be modified by the extensions
+        end
+    end
+    
+    local activeTriggers = dataHelper.findTriggers(triggerByTypeEnabled(type))
+    logger.log("found active triggers", activeTriggers)
+    for i, trigger in ipairs(activeTriggers) do
+        if trigger.matches == nil then
+            logger.log("no matcher function for trigger", trigger.name)
         else
-            logger.log("action mapped but not found for:", type, data.name)
+            if trigger.data.action and trigger.matches(trigger, triggerContext) then
+                local actions = dataHelper.findAction(dataHelper.enabledByDbId(trigger.data.action))
+                local action = actions[1]
+                if action then
+                    local queue = dataHelper.getActionQueue(action.data.queue)
+                    logger.log("action found:", action.data.name, action.data.description, "queue:", action.data.queue, #queue)
+                    local ctx = ctxHelper.create(triggerContext, action.dbId) --ctxHelper.create({}, data.action)
+                    table.insert(queue, ctx)
+                    logger.log("context created")
+                    Gui.frame:QueueEvent(wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, ACTION_DISPATCH))
+                else
+                    logger.log("action mapped but not found for:", type, trigger.data.name)
+                end
+            end
         end
     end
 end
@@ -318,7 +358,7 @@ local function init(integrations)
     local rootTriggerItem = triggerListCtrl:GetRootItem()
     
     -- predefined items
-    _M.treedata[rootTriggerItem:GetValue()] = {
+    treedata[rootTriggerItem:GetValue()] = {
         id = rootTriggerItem:GetValue(),
         isGroup = true,
         name = "root",
@@ -328,9 +368,8 @@ local function init(integrations)
     -- adding and editing events
     triggerListCtrl:Connect(wx.wxEVT_TREELIST_ITEM_CONTEXT_MENU, function(e) -- right click
         local i = e:GetItem():GetValue()
-        local treeItem = _M.treedata[i]
-        logger.log(treeItem.name)
-
+        local treeItem = treedata[i]
+        
         Gui.menus.triggerMenu:Enable(menuAddItem:GetId(), treeItem.canAddChildren == true)
         Gui.menus.triggerMenu:Enable(menuEditItem:GetId(), treeItem.canEdit == true)
         Gui.menus.triggerMenu:Enable(menuDeleteItem:GetId(), treeItem.canDelete == true)
@@ -364,7 +403,7 @@ local function init(integrations)
 
     triggerListCtrl:Connect(wx.wxEVT_TREELIST_ITEM_ACTIVATED, function(e) -- double click
         local i = e:GetItem():GetValue()
-        local treeItem = _M.treedata[i]
+        local treeItem = treedata[i]
 
         if treeItem.isGroup then
             if not triggerListCtrl:IsExpanded(e:GetItem()) then
@@ -374,6 +413,7 @@ local function init(integrations)
             end
         else
             if treeItem.canEdit then  -- edit item TODO move to a function
+            logger.log(treeItem.dialog)
                 local addOrEdit = dialogHelper.addOrEditTrigger(treeItem.dialog, treeItem.init, treeItem.preProcess, treeItem.postProcess)
                 local result = addOrEdit(i, treeItem.edit, "edit", treeItem.data)
                 if not result then
@@ -388,26 +428,26 @@ local function init(integrations)
     dataHelper.setActionsUpdate(actionsUpdated)
 end
 
-_M.init = init
+-- _M.init = init
 
 local function load()
     logger.log("starting loading triggers")
     local item = triggerListCtrl:GetFirstItem()
     while item:IsOk() do
         -- logger.log("item", item:GetValue())
-        local i = _M.treedata[item:GetValue()]
+        local i = treedata[item:GetValue()]
         if i and i.onDisable and not i.isGroup then
             i.onDisable(i, item)
         end
         if i and i.onDelete and not i.isGroup then
             i.onDelete(i, item)
         end
-        _M.treedata[item:GetValue()] = nil
+        treedata[item:GetValue()] = nil
         item = triggerListCtrl:GetNextItem(item)
     end
 
     local size = 0
-    for k, v in pairs(_M.treedata) do
+    for k, v in pairs(treedata) do
         size = size + 1
     end
     logger.log("triggers treedata size", size)
@@ -420,7 +460,7 @@ local function load()
     for j, integration in ipairs(builtInTriggers) do
         for i, triggerType in ipairs(integration.getTriggerTypes()) do
             local guiItem, treeItem = integration.createTriggerFolder(triggerType, triggerListCtrl, onTrigger)
-            _M.treedata[treeItem.id] = treeItem
+            treedata[treeItem.id] = treeItem
             knownTriggers[triggerType] = {
                 guiItem = guiItem,
                 treeItem = treeItem
@@ -442,7 +482,7 @@ local function load()
         else
             logger.err("Unknown trigger type: " .. tostring(row.type))
             local guiItem, treeItem = defaultTrigger.createTriggerFolder(row.type, triggerListCtrl)
-            _M.treedata[treeItem.id] = treeItem
+            treedata[treeItem.id] = treeItem
             knownTriggers[row.type] = {
                 guiItem = guiItem,
                 treeItem = treeItem
@@ -451,14 +491,17 @@ local function load()
         end
     end
 
-    dataHelper.setTriggers(_M.treedata)
+    dataHelper.setTriggers(treedata)
     logger.log("Triggers load OK")
 end
 
-_M.load = load
-_M.export = function()  -- to json
-end
-
-_M.onTrigger = onTrigger
+local _M = {
+   treedata = treedata,
+   init = init,
+   load = load,
+   onTrigger = onTrigger,
+   export = function()  -- to json
+   end,
+}
 
 return _M

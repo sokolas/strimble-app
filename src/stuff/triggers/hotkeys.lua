@@ -296,6 +296,10 @@ local function createHotkeyDialog()
     return hotkeyDlg
 end
 
+local function matchHotkey(trigger, context)
+    return trigger.dbId == context.hotkeyTriggerId
+end
+
 local function createHotkeysFolder(triggerListCtrl, onTrigger)
     local rootTriggerItem = triggerListCtrl:GetRootItem()
 
@@ -303,12 +307,13 @@ local function createHotkeysFolder(triggerListCtrl, onTrigger)
     
     local function createHotkeyHandler(item, guiItem)
         logger.log("Hotkey handler created")
-        local function buildContext()
-            return ctxHelper.create({}, item.data.action)
-        end
+        -- local function buildContext()
+            -- return ctxHelper.create({}, item.data.action)
+        -- end
         return function(event)
             logger.log("hotkey triggering; action", item.data.action)
-            onTrigger("hotkey", {action = item.data.action, name = item.name}, buildContext)
+            -- onTrigger("hotkey", {action = item.data.action, name = item.name}, buildContext)
+            onTrigger("hotkey", {action = item.data.action, name = item.name, hotkeyTriggerId = item.dbId})
         end
     end
 
@@ -357,6 +362,7 @@ local function createHotkeysFolder(triggerListCtrl, onTrigger)
             key = 313,
             enabled = true
         },
+        matches = matchHotkey,
         onEnable = function(item, guiItem)
             logger.log("onEnable hotkey", item.name)
             if getKeyIndexByCode(item.data.key) == #keys then

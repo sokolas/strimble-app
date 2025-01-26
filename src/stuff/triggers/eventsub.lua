@@ -54,21 +54,13 @@ local function eventSubFilter(v)
     return v.type == "twitch_eventsub" and (not v.isGroup) and v.data and v.data.enabled
 end
 
-local function matchTrigger(data)
-    local result = {}
-
-    for i, v in ipairs(dataHelper.findTriggers(eventSubFilter)) do
-        if v.data.type == data.payload.subscription.type then
-            table.insert(result, {
-                id = v.dbId,
-                name = v.data.name,
-                action = v.data.action
-            })
-        end
-    end
-    if #result then
-        return result
-    end
+local function matchEvent(trigger, context)
+    return trigger.data.type == context.payload.subscription.type
+    --[[table.insert(result, {
+        id = v.dbId,
+        name = v.data.name,
+        action = v.data.action
+    })]]
 end
 
 local function createEventSubFolder(triggerListCtrl)
@@ -97,7 +89,8 @@ local function createEventSubFolder(triggerListCtrl)
             name = "Example event",
             type = "channel.follow",
             enabled = true
-        }
+        },
+        matches = matchEvent
     }
     return eventSubEvents, treeItem
 end
@@ -110,6 +103,5 @@ _M.createTriggerFolder = function(name, triggerListCtrl, onTrigger)
     return createEventSubFolder(triggerListCtrl)
 end
 _M.createEventSubDlg = createEventSubDlg
-_M.matchTrigger = matchTrigger
 
 return _M

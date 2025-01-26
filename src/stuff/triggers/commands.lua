@@ -63,36 +63,27 @@ local twitchCommandFilter = function(v)
     return v.type == "twitch_command" and (not v.isGroup) and v.data and v.data.enabled
 end
 
-local function matchCommands(message)
-    local result = {}
-    local lmessage = Lutf8.lower(message)
-
-    for i, v in ipairs(dataHelper.findTriggers(twitchCommandFilter)) do
-        -- if v.data.ignoreCase then   -- no use for now
-        -- else
-        -- Log("checking ", v.name, v.data.text, "in", message, v.data.where, commandWhere[v.data.where + 1])
-        local res = { id = v.dbId, text = v.data.text, name = v.data.name, action = v.data.action }
-        if v.data.where == 0 then
-            if string.startsWith(message, v.data.text) then
-                table.insert(result, res)
-            end
-        elseif v.data.where == 1 then
-            local found = Lutf8.find(message, v.data.text, 1, true)
-            if found then
-                table.insert(result, res)
-            end
-        else
-            if message == v.data.text then
-                table.insert(result, res)
-            end
+local function matchCommand(trigger, context)
+    local message = context.message
+    -- local lmessage = Lutf8.lower(message)
+    -- Log("checking ", v.name, v.data.text, "in", message, v.data.where, commandWhere[v.data.where + 1])
+    logger.log("matching command", trigger, message)
+    -- local res = { id = trigger.dbId, text = trigger.data.text, name = trigger.data.name, action = trigger.data.action }
+    if trigger.data.where == 0 then
+        if string.startsWith(message, trigger.data.text) then
+            return true
         end
-        -- end
-    end
-    if #result then
-        return result
+    elseif trigger.data.where == 1 then
+        local found = Lutf8.find(message, trigger.data.text, 1, true)
+        if found then
+            return true
+        end
     else
-        return nil
+        if message == trigger.data.text then
+            return true
+        end
     end
+    return false
 end
 
 local function createTwitchCmdsFolder(triggerListCtrl)
@@ -117,7 +108,8 @@ local function createTwitchCmdsFolder(triggerListCtrl)
             text = "!hello",
             where = 0,
             enabled = true
-        }
+        },
+        matches = matchCommand
     }
     return twitchCmds, treeItem
 end
@@ -129,6 +121,5 @@ _M.createTriggerFolder = function(name, triggerListCtrl, onTrigger)
     return createTwitchCmdsFolder(triggerListCtrl)
 end
 _M.createCommandDlg = createCommandDlg
-_M.matchCommands = matchCommands
 
 return _M

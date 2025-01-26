@@ -49,19 +49,24 @@ local function createTimerDialog()
     return commandDlg
 end
 
+local function matchTimer(trigger, context)
+    return trigger.dbId == context.timerTriggerId
+end
+
 local function createTimersFolder(triggerListCtrl, onTrigger)
     local rootTriggerItem = triggerListCtrl:GetRootItem()
 
     local timersFolder = triggerListCtrl:AppendItem(rootTriggerItem, "Timers", triggerIcons.timer, triggerIcons.timer)
 
     local function createTimerHandler(item, guiItem)
-        local function buildContext()
-            return ctxHelper.create({}, item.data.action)
-        end
+        -- local function buildContext()
+            -- return ctxHelper.create({}, item.data.action)
+        -- end
 
         return function(event)
             -- logger.log("timer triggering")
-            onTrigger("timer", {action = item.data.action, name = item.name}, buildContext)
+            -- onTrigger("timer", {action = item.data.action, name = item.name}, buildContext)
+            onTrigger("timer", {action = item.data.action, name = item.name, timerTriggerId = item.dbId})
         end
     end
 
@@ -91,6 +96,7 @@ local function createTimersFolder(triggerListCtrl, onTrigger)
             time = 60000,
             enabled = true
         },
+        matches = matchTimer,
         onEnable = function(item, guiItem)
             logger.log("onEnable", item.name)
             if item.timer then
