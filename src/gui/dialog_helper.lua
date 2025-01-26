@@ -143,7 +143,7 @@ end
 -- for now, both src and dest must be wxComboBoxes
 local function connectWatches(gui, dlg, dlgName, src, dest, handler)
     logger.log("connecting watchers", dlgName, src, "to", dest, handler)
-    logger.log(gui[dlgName])
+    --logger.log(gui[dlgName])
     local this, main_thread = coroutine.running()
     if not main_thread then
         logger.err("connectWatches called from a coroutine", debug.traceback())

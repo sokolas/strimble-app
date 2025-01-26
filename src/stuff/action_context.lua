@@ -166,6 +166,9 @@ local function dispatchActions()
 end
 
 _M.create = function(data, action)
+    logger.log("creating context")
+    logger.log(data)
+    logger.log(action)
     local ctx = {}
     ctx.data = data
     ctx.action = action
