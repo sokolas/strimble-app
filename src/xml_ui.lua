@@ -365,7 +365,7 @@ function main()
     Gui.xmlResource = xmlResource
 
     local toolbar = Gui.frame:GetToolBar()
-    toolbar:InsertStretchableSpace(2)
+    toolbar:InsertStretchableSpace(4)
     toolbar:Realize()
 
     -- setup the toolbar
