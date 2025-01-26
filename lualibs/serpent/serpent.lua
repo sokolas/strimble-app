@@ -34,6 +34,7 @@ local function s(t, opts)
     end
   end
   local function comment(s,l) return comm and (l or 0) < comm and ' --[['..select(2, pcall(tostring, s))..']]' or '' end
+  local function refcomment(s) return ' --[['..select(2, pcall(tostring, s))..']]' or '' end
   local function globerr(s,l) return globals[s] and globals[s]..comment(s,l) or not fatal
     and safestr(select(2, pcall(tostring, s))) or error("Can't serialize "..tostring(s)) end
   local function safename(path, name) -- generates foo.bar, foo[3], or foo['b a r']
@@ -56,7 +57,7 @@ local function s(t, opts)
       (name ~= nil and sname..space..'='..space or '')
     if seen[t] then -- already seen this element
       sref[#sref+1] = spath..space..'='..space..seen[t]
-      return tag..'nil'..comment('ref', level)
+      return tag..'nil'..refcomment('ref:'..tostring(seen[t]))
     end
     -- protect from those cases where __tostring may fail
     if type(mt) == 'table' and metatostring ~= false then

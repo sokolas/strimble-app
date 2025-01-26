@@ -93,6 +93,7 @@ Serpent.simple = function(arg)
     return Serpent.line(arg, {nocode = true, comment = false, sparse = true})
 end
 
+local inspect = require("inspect")
 
 if jit and jit.on then jit.on() end -- turn jit "on" as "mobdebug" may turn it off for LuaJIT
 -- require("winapi")
@@ -118,7 +119,7 @@ function Trace(...)
         if type(arg[i]) == "string" then
             s = s .. arg[i]
         else
-            s = s .. Serpent.simple(arg[i])
+            s = s .. inspect(arg[i]) --Serpent.simple(arg[i])
         end
         if i < arg.n then
             s = s .. "\t"
@@ -141,7 +142,7 @@ local function formatLogString(loggerName, debugInfo, arg)
         if type(arg[i]) == "string" then
             s = s .. arg[i]
         else
-            s = s .. Serpent.simple(arg[i])
+            s = s .. inspect(arg[i]) --Serpent.simple(arg[i])
             -- s = s .. tostring(arg[i])
         end
 
@@ -165,7 +166,7 @@ function Log(...)
         if type(arg[i]) == "string" then
             s = s .. arg[i]
         else
-            s = s .. Serpent.simple(arg[i])
+            s = s .. inspect(arg[i]) --Serpent.simple(arg[i])
         end
         if i < arg.n then
             s = s .. "\t"
