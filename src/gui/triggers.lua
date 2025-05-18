@@ -495,11 +495,22 @@ local function load()
     logger.log("Triggers load OK")
 end
 
+local function extend(what, with)
+    if extends[what] then
+        table.insert(extends[what], {type = with})
+    else
+        extends[what] = {
+            {type = with}
+        }
+    end
+end
+
 local _M = {
    treedata = treedata,
    init = init,
    load = load,
    onTrigger = onTrigger,
+   extend = extend,
    export = function()  -- to json
    end,
 }
