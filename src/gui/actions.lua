@@ -99,7 +99,9 @@ end
 
 local function findGroup(name)
     for k, v in pairs(_M.actionsData) do
-        if v.isGroup and v.name and v.name == name then
+        -- if v.isGroup and v.name and v.name == name then
+        -- use case-insensitive comparison
+        if v.isGroup and v.name and Lutf8.ncasecmp(v.name, name) == 0 then
             logger.log(name, "found", k)
             local item = findItemById(actionsListCtrl, k)
             logger.log("item found", item)
