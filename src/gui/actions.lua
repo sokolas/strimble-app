@@ -170,7 +170,7 @@ function _M.addAction(groupGuiItem, data)
     if not data.enabled then
         actionsListCtrl:SetItemImage(guiItem, actionIcons.inactive, actionIcons.inactive)
     end
-    actionsListCtrl:SetItemText(guiItem, 2, data.description or "")
+    actionsListCtrl:SetItemText(guiItem, 2, RemoveMultiline(data.description))
     actionsListCtrl:SetItemText(guiItem, 3, data.queue or "")
 
     if not actionsListCtrl:IsExpanded(groupGuiItem) then
@@ -271,7 +271,7 @@ local function updateActionItem(item, result)
         else
             actionsListCtrl:SetItemImage(item, actionIcons.inactive, actionIcons.inactive)
         end
-        actionsListCtrl:SetItemText(item, 2, result.description or "")
+        actionsListCtrl:SetItemText(item, 2, RemoveMultiline(result.description))
         actionsListCtrl:SetItemText(item, 3, result.queue or "")
     else    -- group was changed, create a new gui action item and delete the old one
         local newItem = actionsListCtrl:AppendItem(groupItem, result.name, actionIcons.active, actionIcons.active)
@@ -281,7 +281,7 @@ local function updateActionItem(item, result)
         if not result.enabled then
             actionsListCtrl:SetItemImage(newItem, actionIcons.inactive, actionIcons.inactive)
         end
-        actionsListCtrl:SetItemText(newItem, 2, result.description or "")
+        actionsListCtrl:SetItemText(newItem, 2, RemoveMultiline(result.description))
         actionsListCtrl:SetItemText(newItem, 3, result.queue or "")
 
         _M.actionsData[newItem:GetValue()] = treeItem

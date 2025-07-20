@@ -55,7 +55,7 @@ local function init(menu, stepHandlers)
         name = "Send VTube Studio Hotkey",
         dialogItem = sendHotkeyDialog,
         icon = stepIcons.vts,
-        getDescription = function(result) return (result.comment or "") .. "(" .. result.hotkey .. ")" end,
+        getDescription = function(result) return RemoveMultiline(result.comment) .. "(" .. result.hotkey .. ")" end,
         init = {
             hotkey = function(c)
                 local hotkeys = {}

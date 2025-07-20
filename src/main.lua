@@ -315,6 +315,12 @@ NetworkManager = require("src/netutils")
 Json = require("json")
 -- require("winsock")
 
+function RemoveMultiline(s)
+    local ss = Lutf8.gsub((s or ""), "\n", " ")
+    return ss
+end
+
+
 -- local _sq = package.loadlib("bin/sqlite3.dll", "sqlite3_version") -- hack to preload sqlite3 dll
 -- local _vw2 = package.loadlib("bin/WebView2Loader.dll", "GetAvailableCoreWebView2BrowserVersionString")  -- hack to preload webview dll
 Sqlite = require("lsqlite3complete")
