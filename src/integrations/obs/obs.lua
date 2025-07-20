@@ -27,6 +27,29 @@ local stateRefreshTimer = nil
 local timeout = 5000
 
 local stopwatch = wx.wxStopWatch()  -- we need a strictly monotonous source of milliseconds
+local subscriptions = {
+    -- low volume
+    none = 0,
+    
+    general = 1,
+    config = 2,
+    scenes = 4,
+    inputs = 8,
+    transitions = 16,
+    filters = 32,
+    outputs = 64,
+    sceneItems = 128,
+    mediaInputs = 256,
+    vendors = 512,
+    ui = 1024,
+
+    all = 2047,
+    
+    -- high volume skipped
+}
+
+-- what we actually subscribe to
+local eventSubscriptions = subscriptions.scenes + subscriptions.sceneItems + subscriptions.inputs
 
 --[[scenes = {
     {
@@ -120,6 +143,7 @@ local function getScenes(withItems)
             return false, res
         else
             local scenes = res.responseData.scenes
+            -- logger.log("scenes from response", scenes)
             for i, v in ipairs(scenes) do
                 local _ok, _res = request(obs_requests.getSceneItems(nil, v.sceneUuid))
                 if _ok then
@@ -138,7 +162,7 @@ local function identify(auth)
         op = 1,
         d = {
             rpcVersion = 1,
-            -- eventSubscriptions = 0
+            eventSubscriptions = eventSubscriptions
         }
     }
     if auth then
@@ -183,14 +207,65 @@ local function setState(newState)
     end
 end
 
+local function handleEvent(data)
+    if data.eventType == "SceneListChanged" or data.eventType == "SceneNameChanged" then
+        -- logger.log("scenes event", data)
+
+        -- local newScenes = data.eventData.scenes
+        -- for i, v in ipairs(newScenes) do
+        --     local _ok, _res = request(obs_requests.getSceneItems(nil, v.sceneUuid))
+        --     if _ok then
+        --         if _res.responseData then
+        --             newScenes[i].items = _res.responseData.sceneItems
+        --         end
+        --     end
+        -- end
+        -- scenes = newScenes
+        refreshScenes()
+    elseif data.eventType == "SceneItemCreated" or data.eventType == "SceneItemRemoved" then
+        local sid = data.eventData.sceneUuid
+        local scene = nil
+        for i, s in ipairs(scenes) do
+            if s.sceneUuid == sid then
+                scene = s
+            end
+        end
+        if scene then
+            local _ok, _res = request(obs_requests.getSceneItems(nil, sid))
+            if _ok and _res.responseData then
+                scene.items = _res.responseData.sceneItems
+            end
+            -- print("new scene data", scene)
+        end
+    elseif data.eventType == "InputNameChanged" then
+        local iid = data.eventData.inputUuid
+        local scene = nil
+        for _, s in ipairs(scenes) do
+            for j, i in ipairs(s.items) do
+                if i.sourceUuid == iid then
+                    scene = s
+                end
+            end
+        end
+        if scene then
+            local _ok, _res = request(obs_requests.getSceneItems(nil, scene.sceneUuid))
+            if _ok and _res.responseData then
+                scene.items = _res.responseData.sceneItems
+            end
+            -- print("new scene data", scene)
+        end
+    end
+end
 
 local function wsMessageListener(msg)
     ws_logger.log(msg)
     local m = Json.decode(msg)
     if m.op == 0 then       -- HELLO
-            send(identify(m.d.authentication))
+        send(identify(m.d.authentication))
     elseif m.op == 2 then   -- IDENTIFIED
         setState("ready")
+    elseif m.op == 5 then   -- EVENT
+        coroutine.wrap(handleEvent)(m.d)
     elseif m.op == 7 then   -- RESPONSE
         local req = requests[m.d.requestId]
         ws_logger.log(req)
@@ -287,7 +362,7 @@ local function init(a, messageListener, stateListener, dataChangeListener)
     setDataChangeListener(dataChangeListener)
     socket = Websocket:create("obs-ws", url, reconnect_interval, auto_reconnect, nil, wsMessageListener, wsStateListener, ws_logger, false)
     requestsTimer = timers.addTimer(1000, handleRequestTimer, true)
-    stateRefreshTimer = timers.addTimer(20000, handleStateRefreshTimer, true)
+    stateRefreshTimer = timers.addTimer(120000, handleStateRefreshTimer, true)
     stopwatch:Start(0)
 end
 

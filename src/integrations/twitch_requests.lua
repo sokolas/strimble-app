@@ -145,7 +145,7 @@ local _M = {
     sendMessage = sendMessage,
     sendAnnouncement = sendAnnouncement,
 
-    -- vhannel
+    -- сhannel
     getChannelInfo = getChannelInfo,
 }
 
