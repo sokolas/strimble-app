@@ -90,8 +90,10 @@ local function addChild(parentItem, result)
     triggerListCtrl:SetItemText(cmd1, 2, item.getDescription(result))
     if #action > 0 then
         triggerListCtrl:SetItemText(cmd1, 3, (action[1].name or ""))
+        triggerListCtrl:SetItemText(cmd1, 4, (action[1].data.group or ""))
     else
         triggerListCtrl:SetItemText(cmd1, 3, "")
+        triggerListCtrl:SetItemText(cmd1, 4, "")
     end
 
     if not triggerListCtrl:IsExpanded(parentItem) then
@@ -153,8 +155,10 @@ local function updateItem(item, result, getDescription)
     triggerListCtrl:SetItemText(item, 2, getDescription(result))
     if #action > 0 then
         triggerListCtrl:SetItemText(item, 3, (action[1].name or ""))
+        triggerListCtrl:SetItemText(item, 4, (action[1].data.group or ""))
     else
         triggerListCtrl:SetItemText(item, 3, "")
+        triggerListCtrl:SetItemText(item, 4, "")
     end
 
     -- persist
@@ -245,8 +249,10 @@ local function actionsUpdated()
             if not actionMap[treeItem.data.action] then
                 treeItem.data.action = nil
                 triggerListCtrl:SetItemText(item, 3, "")
+                triggerListCtrl:SetItemText(item, 4, "")
             else
                 triggerListCtrl:SetItemText(item, 3, (actionMap[treeItem.data.action].name or ""))
+                triggerListCtrl:SetItemText(item, 4, (actionMap[treeItem.data.action].data.group or ""))
             end
         end
         item = triggerListCtrl:GetNextItem(item)
@@ -340,6 +346,7 @@ local function init(integrations)
     triggerListCtrl:AppendColumn("Enabled")
     triggerListCtrl:AppendColumn("Description")
     triggerListCtrl:AppendColumn("Action")
+    triggerListCtrl:AppendColumn("Action Group")
 
     triggerIcons = iconsHelper.registerTriggerIcons({}) -- only default icons, we don't need anything special here
 
