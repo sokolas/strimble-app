@@ -89,7 +89,8 @@ local function addChild(parentItem, result)
     end
     triggerListCtrl:SetItemText(cmd1, 2, item.getDescription(result))
     if #action > 0 then
-        triggerListCtrl:SetItemText(cmd1, 3, (action[1].name or ""))
+        local enabled = action[1].data.enabled and "" or " (disabled)"
+        triggerListCtrl:SetItemText(cmd1, 3, (action[1].name or "") .. enabled)
         triggerListCtrl:SetItemText(cmd1, 4, (action[1].data.group or ""))
     else
         triggerListCtrl:SetItemText(cmd1, 3, "")
@@ -154,7 +155,8 @@ local function updateItem(item, result, getDescription)
     end
     triggerListCtrl:SetItemText(item, 2, getDescription(result))
     if #action > 0 then
-        triggerListCtrl:SetItemText(item, 3, (action[1].name or ""))
+        local enabled = action[1].data.enabled and "" or " (disabled)"
+        triggerListCtrl:SetItemText(item, 3, (action[1].name or "") .. enabled)
         triggerListCtrl:SetItemText(item, 4, (action[1].data.group or ""))
     else
         triggerListCtrl:SetItemText(item, 3, "")
@@ -251,8 +253,10 @@ local function actionsUpdated()
                 triggerListCtrl:SetItemText(item, 3, "")
                 triggerListCtrl:SetItemText(item, 4, "")
             else
-                triggerListCtrl:SetItemText(item, 3, (actionMap[treeItem.data.action].name or ""))
-                triggerListCtrl:SetItemText(item, 4, (actionMap[treeItem.data.action].data.group or ""))
+                local action = actionMap[treeItem.data.action]
+                local enabled = action.data.enabled and "" or " (disabled)"
+                triggerListCtrl:SetItemText(item, 3, (action.name or "") .. enabled)
+                triggerListCtrl:SetItemText(item, 4, (action.data.group or ""))
             end
         end
         item = triggerListCtrl:GetNextItem(item)

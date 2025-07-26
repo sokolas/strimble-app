@@ -316,6 +316,7 @@ local function toggleItem(item, state)
 
     -- persist
     updateActionItemInDb(treeItem)
+    dataHelper.updateActions()
 end
 
 local function getNextGroupItem(item)
