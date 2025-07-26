@@ -57,7 +57,7 @@ local function addChild(parentItem, result)
         data = result
     }
     treedata[cmd1:GetValue()] = item
-
+    -- logger.log("added trigger data", item.data)
     -- persist
     if not result.dbId then
         local insertStmt = Db:prepare("INSERT INTO triggers VALUES (NULL, :name, :type, :data);")
@@ -304,7 +304,7 @@ local function onTrigger(type, triggerContext)
                     logger.log("context created")
                     Gui.frame:QueueEvent(wx.wxCommandEvent(wx.wxEVT_COMMAND_BUTTON_CLICKED, ACTION_DISPATCH))
                 else
-                    logger.log("action mapped but not found for:", type, trigger.data.name)
+                    logger.log("action mapped but not found (or disabled) for:", type, trigger.data.name)
                 end
             end
         end
@@ -437,6 +437,12 @@ local function init(integrations)
     end)
 
     dataHelper.setActionsUpdate(actionsUpdated)
+
+    for j, integration in ipairs(builtInTriggers) do
+        if (integration.init) then
+            integration.init()
+        end
+    end
 end
 
 -- _M.init = init
