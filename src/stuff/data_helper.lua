@@ -10,13 +10,13 @@ local function _updateActions() end
 
 local function byDbId(id)
     return function(v)
-        return not v.isGroup and v.dbId == id
+        return (not v.isGroup) and v.dbId == id
     end
 end
 
 local function enabledByDbId(id)
     return function(v)
-        return not v.isGroup and v.data.enabled and v.dbId == id
+        return (not v.isGroup) and v.data.enabled and v.dbId == id
     end
 end
 

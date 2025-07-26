@@ -141,9 +141,9 @@ local function initDelayStep(submenu, stepHandlers, pages)
     function(data, context)
         if not data.delay or data.delay == "" then
             return false, "Delay can't be empty"
-        else if data.delay ~= string.match(data.delay, "%d+") then
+        elseif data.delay ~= string.match(data.delay, "%d+") then
             return false, "Only digits are allowed"
-        end
+        else
             return true
         end
     end)
