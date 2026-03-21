@@ -51,7 +51,7 @@ if jit.os == 'Windows' then
 elseif jit.os == 'OSX' or jit.os == 'Darwin' then
   pollnet = ffi.load(LIBDIR .. "libpollnet.dylib")
 else
-  pollnet = ffi.load(LIBDIR .. "libpollnet.so")
+  pollnet = ffi.load("/app/lib/lua/5.1/libpollnet.so")
 end
 local POLLNET_VERSION = ffi.string(pollnet.pollnet_version())
 

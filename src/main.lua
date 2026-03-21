@@ -1,8 +1,20 @@
 local unpack = table.unpack or unpack
 mainarg = table.pack(...)
 
-package.cpath = 'bin/clibs/?.so;bin/clibs/?.dll;' .. package.cpath
-package.path  = 'lualibs/?.lua;lualibs/?/?.lua;lualibs/?/init.lua;' .. package.path
+local appDir = "."
+
+if jit and jit.on then jit.on() end -- turn jit "on" as "mobdebug" may turn it off for LuaJIT
+print("os", jit.os)
+if jit.os == "Windows" then
+    package.cpath = 'bin/clibs/?.so;bin/clibs/?.dll;' .. package.cpath
+    package.path  = 'lualibs/?.lua;lualibs/?/?.lua;lualibs/?/init.lua;' .. package.path
+else
+    package.path  = '/app/share/strimble/lualibs/?.lua;/app/share/strimble/lualibs/?/?.lua;/app/share/strimble/lualibs/?/init.lua;' .. package.path
+    package.path  = '/app/share/strimble/?.lua;/app/share/strimble/?/init.lua;' .. package.path
+    ShowConsole = function() end
+    HideConsole = function() end
+    -- appDir = "/app/share/strimble"
+end
 
 local tracing = false
 
@@ -11,7 +23,7 @@ LFS = require("lfs")
 if jit.os == 'Windows' then
     DataDir = LFS.currentdir() .. "/data"
 else
-    DataDir = os.getenv("HOME") .. "/.strimble"
+    DataDir = os.getenv("XDG_DATA_HOME") -- .. "/.strimble"
 end
 
 function SplitMessage(msg, sep)
@@ -95,7 +107,6 @@ end
 
 local inspect = require("inspect")
 
-if jit and jit.on then jit.on() end -- turn jit "on" as "mobdebug" may turn it off for LuaJIT
 -- require("winapi")
 require("wx")
 -- wx.wxSplashScreen(wx.wxBitmap("starter/resources/res/bug-256.png"), wx.wxSPLASH_CENTRE_ON_SCREEN + wx.wxSPLASH_TIMEOUT, 1000, wx.NULL, wx.wxID_ANY)
@@ -173,6 +184,7 @@ function Log(...)
         end
     end
     io.write(s .. "\n")
+    io.flush()
 end
 
 
@@ -335,14 +347,15 @@ function CopyTable(data)
     return result
 end
 
-dofile("src/migrations/migrations.lua")  -- do this for db file!
+
+dofile(appDir .. "/src/migrations/migrations.lua")  -- do this for db file!
 
 Twitch = require("src/integrations/twitch")
 
 Integrations = {}
 
 -- UI init
-dofile("src/xml_ui.lua")
+dofile(appDir .. "/src/xml_ui.lua")
 local audio = require("src/stuff/audio")
 
 audio.init()

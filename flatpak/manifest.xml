@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.sokolas.Strimble</id>
+  
+  <name>Strimble</name>
+  <summary>Streamer bot for Twitch</summary>
+  
+  <metadata_license>MIT</metadata_license>
+  <project_license>GPL-3.0-only</project_license>
+  
+  <description>
+    <p>
+      Strimble (funny way of saying stream) is an integration center for live streamers, with the focus on customization and extensibility. &quot;Integration center&quot; means it&apos;s not just a Twitch chat bot, but a program that can connect to a lot of other programs often used by strimblers, like OBS or VTube Studio, and online services (donations, etc). With extensibility and open source in mind, Strimble can connect virtually to anything, with the help of pluging and scripts.
+    </p>
+  </description>
+  
+  <launchable type="desktop-id">org.sokolas.Strimble.desktop</launchable>
+  <screenshots>
+    <screenshot type="default">
+      <image>https://camo.githubusercontent.com/a4f14fc35b50bd9c9bf40d6f4a2dc142890fd103c6177ede673d51c47fea0b92/68747470733a2f2f7777772e737472696d626c652e6170702f696d672f616374696f6e732e706e67</image>
+    </screenshot>
+  </screenshots>
+</component>

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+
+Name=Strimble
+Comment=Streamer bot for Twitch
+Categories=Network;GTK;
+
+Icon=org.sokolas.Strimble
+Exec=strimble
+Terminal=false
+StartupWMClass=strimble

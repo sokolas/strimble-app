@@ -1,0 +1,209 @@
+id: org.sokolas.Strimble
+runtime: org.gnome.Platform
+runtime-version: '49'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+
+command: strimble
+
+modules:
+  - name: luajit
+    buildsystem: simple
+    sources:
+      - type: git
+        url: https://github.com/LuaJIT/LuaJIT.git
+        # tag: v2.1.0-beta3
+        branch: v2.1
+    build-commands:
+      - make PREFIX="/app" CFLAGS=-DLUAJIT_ENABLE_LUA52COMPAT
+      - make PREFIX="/app" install
+    post-install:
+      # this hack allows KDE Plasma to show the correct icon instead of default Wayland one
+      - cp /app/bin/luajit /app/bin/org.sokolas.Strimble
+
+  - name: wxwidgets
+    buildsystem: cmake
+    config-opts:
+      - -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+      - -DCMAKE_BUILD_TYPE=MinSizeRel
+      - -DwxBUILD_COMPATIBILITY=3.0
+      - -DwxBUILD_MONOLITHIC=ON
+
+    sources:
+      - type: git
+        url: https://github.com/wxWidgets/wxWidgets.git
+        tag: v3.2.6
+
+  - name: wxlua
+    buildsystem: cmake
+    subdir: wxLua
+    build-options:
+      cxxflags: -DLUA_COMPAT_MODULE
+    config-opts:
+      - -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+      - -DCMAKE_BUILD_TYPE=MinSizeRel
+      - -DBUILD_SHARED_LIBS=TRUE
+      - -DwxWidgets_COMPONENTS=mono
+      - -DwxLuaBind_COMPONENTS=xrc;xml;media;richtext;propgrid;html;adv;core;net;base
+      - -DwxWidgets_CONFIGURATION=gtk3u
+      - -DwxWidgets_VERSION=3.2.6
+      - -DwxLua_LUA_LIBRARY_USE_BUILTIN=FALSE
+      - -DwxLua_LUA_INCLUDE_DIR=/app/include/luajit-2.1
+      - -DwxLua_LUA_LIBRARY=/app/lib/libluajit-5.1.so
+    sources:
+      - type: git
+        url: https://github.com/sokolas/wxlua.git
+        branch: master
+        # can use a patch here, but it will probably be too large
+    post-install:
+      - ln -s /app/lib/libwx.so wx.so
+      - mv wx.so /app/lib/lua/5.1/wx.so
+
+  - name: luafilesystem
+    buildsystem: simple
+    build-commands:
+      - gcc -shared -O2 -Wall -fPIC -W -Waggregate-return -Wcast-align -Wmissing-prototypes -Wnested-externs -Wshadow -Wwrite-strings -pedantic -I"/app/include/luajit-2.1" -L"/app/lib" src/lfs.c -o lfs.so -lluajit-5.1
+      - cp lfs.so "/app/lib/lua/5.1/lfs.so"
+    sources:
+      - type: git
+        url: https://github.com/lunarmodules/luafilesystem.git
+        branch: master
+
+  - name: luautf8
+    buildsystem: simple
+    build-commands:
+      - gcc -shared -O2 -Wall -fPIC -W -Waggregate-return -Wcast-align -Wmissing-prototypes -Wnested-externs -Wshadow -Wwrite-strings -pedantic -I"/app/include/luajit-2.1" -L"/app/lib" lutf8lib.c -o lua-utf8.so -lluajit-5.1
+      - cp lua-utf8.so "/app/lib/lua/5.1/lua-utf8.so"
+    sources:
+      - type: git
+        url: https://github.com/starwing/luautf8.git
+        branch: master
+
+  - name: lsqlite
+    buildsystem: simple
+    build-commands:
+      - gcc -shared -O2 -Wall -fPIC -W -Waggregate-return -Wcast-align -Wmissing-prototypes -Wnested-externs -Wshadow -Wwrite-strings -pedantic -I"/app/include/luajit-2.1" -L"/app/lib" -DLSQLITE_VERSION=\"0.9.5\" -Dluaopen_lsqlite3=luaopen_lsqlite3complete -DSQLITE_ENABLE_JSON1=1 sqlite3.c lsqlite3.c -o lsqlite3complete.so -lluajit-5.1
+      - cp lsqlite3complete.so "/app/lib/lua/5.1/lsqlite3complete.so"
+    sources:
+      - type: git
+        url: https://github.com/sokolas/lsqlite.git
+        tag: v3.24.0
+
+  - name: raudio
+    buildsystem: cmake
+    no-make-install: true
+    config-opts:
+      - -DSUPPORT_MODULE_RAUDIO=TRUE
+      - -DSUPPORT_SHARED_LIBRARY=TRUE
+      - -DSUPPORT_FILEFORMAT_WAV=TRUE
+      - -DSUPPORT_FILEFORMAT_OGG=TRUE
+      - -DSUPPORT_FILEFORMAT_MP3=TRUE
+      - -DSUPPORT_FILEFORMAT_FLAC=TRUE
+    subdir: projects/CMake
+    sources:
+      - type: git
+        url: https://github.com/sokolas/raudio.git
+        branch: master
+    post-install:
+      - cp libraudio.so /app/lib/libraudio.so
+
+  - name: pollnet
+    buildsystem: simple
+    build-commands:
+      - cargo build --release --offline
+      - cp target/release/libpollnet.so "/app/lib/lua/5.1/libpollnet.so"
+    build-options:
+      append-path: /usr/lib/sdk/rust-stable/bin
+    sources:
+      - type: git
+        url: https://github.com/sokolas/pollnet.git
+        tag: v1.1.0-flat-2
+      - "flatpak/pollnet-cargo-sources.yaml"
+
+  # assets
+  - name: strimble-lua
+    buildsystem: simple
+    build-commands:
+      - mkdir /app/share/strimble
+      - cp -R src /app/share/strimble/src
+      - cp -R images /app/share/strimble/images
+      - cp -R lualibs /app/share/strimble/lualibs
+      - cp -R scripts /app/share/strimble/scripts
+    sources:
+      - type: dir
+        path: src
+        dest: src
+      - type: dir
+        path: images
+        dest: images
+      - type: dir
+        path: lualibs
+        dest: lualibs
+      - type: dir
+        path: scripts
+        dest: scripts    
+
+  # - name: icon
+  #   buildsystem: simple
+  #   build-commands:
+  #     - install -Dm644 strimble.png /app/share/icons/hicolor/256x256/apps/org.sokolas.Strimble.png
+  #   sources:
+  #     - type: file
+  #       dest-filename: strimble.png
+  #       path: bug-256.png
+
+  - name: icon
+    buildsystem: simple
+    build-commands:
+      - install -Dm644 bug.svg /app/share/icons/hicolor/scalable/apps/org.sokolas.Strimble.svg
+    sources:
+      - type: file
+        path: flatpak/bug.svg
+        dest-filename: bug.svg
+
+  - name: desktop
+    buildsystem: simple
+    build-commands:
+      - install -Dm644 strimble.desktop /app/share/applications/org.sokolas.Strimble.desktop
+    sources:
+      - type: file
+        path: flatpak/strimble.desktop
+        dest-filename: strimble.desktop
+
+  - name: manifest
+    buildsystem: simple
+    build-commands:
+      - install -Dm644 manifest.xml /app/share/metainfo/org.sokolas.Strimble.metainfo.xml
+    sources:
+      - type: file
+        path: flatpak/manifest.xml
+        dest-filename: manifest.xml
+
+  - name: strimble-wrapper
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 strimble.sh /app/bin/strimble
+    sources:
+      - type: file
+        path: flatpak/strimble.sh
+        dest-filename: strimble.sh
+
+cleanup:
+  - '/include'
+  - '/bin/wxLua'
+  - '/bin/wxLuaCan'
+  - '/bin/wxLuaFreeze'
+  - '/share/wxlua'
+  - '/lib/debug'
+  - '/lib/libwxlua_debug*.so' # debug and debugger
+  
+
+finish-args:
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --device=dri
+  - --share=network
+  - --socket=pulseaudio
+  # - --filesystem=xdg-documents

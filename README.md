@@ -60,3 +60,10 @@ The set of controls that it supports *somewhat* overlaps with the set of control
 
 If you need to build the supporting libraries yourself, take a look at the [github workflow](https://github.com/sokolas/strimble-app/blob/main/.github/workflows/main.yml). You can find all the build commands for those there.
 Currently the build is tested with Visual Studio 2019 and 2022. It *may* work with MSYS/MinGW, but is not guaranteed.
+
+## Linux Flatpak
+
+* work in progress
+
+cargo generate-lockfile
+flatpak-cargo-generator Cargo.lock -o cargo-sources.json

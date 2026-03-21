@@ -171,7 +171,7 @@ if jit.os == 'Windows' then
 elseif jit.os == 'OSX' or jit.os == 'Darwin' then
   audio = ffi.load(LIBDIR .. "libraudio.dylib")
 else
-  audio = ffi.load(LIBDIR .. "libraudio.so")
+  audio = ffi.load("/app/lib/libraudio.so")
 end
 
 local function init()
