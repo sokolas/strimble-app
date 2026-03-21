@@ -362,7 +362,7 @@ end
 local function channel_hype_train_begin(sessionId, userId)
     return {
         type = "channel.hype_train.begin",
-        version = "1",
+        version = "2",
         condition = {
             broadcaster_user_id = userId
         },
@@ -376,7 +376,7 @@ end
 local function channel_hype_train_progress(sessionId, userId)
     return {
         type = "channel.hype_train.progress",
-        version = "1",
+        version = "2",
         condition = {
             broadcaster_user_id = userId
         },
@@ -390,7 +390,7 @@ end
 local function channel_hype_train_end(sessionId, userId)
     return {
         type = "channel.hype_train.end",
-        version = "1",
+        version = "2",
         condition = {
             broadcaster_user_id = userId
         },
