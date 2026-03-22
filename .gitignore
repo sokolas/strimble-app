@@ -16,3 +16,5 @@ bin/clibs/*.dll
 *.wav
 *.mp3
 /.directory
+
+repo
