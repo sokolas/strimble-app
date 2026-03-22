@@ -15,6 +15,7 @@ bin/clibs/*.dll
 *.ogg
 *.wav
 *.mp3
+*.flatpak
 /.directory
 
 repo
