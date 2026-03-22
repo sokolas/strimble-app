@@ -118,6 +118,7 @@ local icons = {
     {path = "images/icons/folder_open_black_18dp.png", page = "folder_open"},  -- not really a page
     {path = "images/icons/question_mark.png", page = "question"},   -- not really a page
     {path = "images/icons/keyboard.png", page = "hotkeys"},   -- not really a page
+    {path = "images/icons/empty_small.png"},
     {path = "images/icons/pause.png"},
     {path = "images/icons/code-off.png"},
     {path = "images/icons/check_reload.png"},
@@ -142,10 +143,24 @@ local pages = getPages()
 
 local function createImageList(name, icons)
     logger.log("creating image list with name", name, "and icons", icons)
+    local btnColor = wx.wxSystemSettings.GetColour(wx.wxSYS_COLOUR_BTNTEXT)
+    -- logger.log(btnColor)
+
     local imageList = wx.wxImageList(16, 16, true)
     for i, v in ipairs(icons) do
         -- Log(i, v)
         local img = wx.wxImage(v.path)
+        -- if lightness then
+            local imgSize = img:GetSize()
+            -- logger.log("width", imgSize:GetWidth())
+            -- logger.log("height", imgSize:GetHeight())
+            for x = 0, imgSize:GetWidth()-1 do
+                for y = 0, imgSize:GetHeight()-1 do
+                    -- logger.log(x, y)
+                    img:SetRGB(x, y, btnColor:Red(), btnColor:Green(), btnColor:Blue())
+                end
+            end
+        -- end
         img:Rescale(16, 16)
         local b = wx.wxBitmap(img)
         imageList:Add(b)
@@ -166,6 +181,7 @@ local _M = {
     getPages = getPages,
     setStatus = function(page, status)
         local pages = getPages()
+        local empty = #icons-6
         local retry = #icons-3
         local ok = #icons-2
         local fail = #icons-1
@@ -214,15 +230,16 @@ local _M = {
 
         -- logger.log("coulmns", lc:GetColumnCount())
 
-        local imageList = createImageList("pages", icons)
+        local imageList = createImageList("pages", icons, true)
         listctrl:AssignImageList(imageList, wx.wxIMAGE_LIST_SMALL);
 
         -- logger.log("pages", pages)
-
+        local empty = #icons-6
         -- for i=1, listctrl:GetItemCount() do -- add icons to the labels
         for i = 1, pages_count do
             -- listctrl:SetItem(i-1, 0, "  " .. listctrl:GetItemText(i-1, 0), i-1)
             listctrl:InsertItem(i-1, icons[i].label, i-1)
+            listctrl:SetItem(i-1, 1, "", empty) -- to automatically resize the column to fit the status icons
         end
         listctrl:SetColumnWidth(0, -1)
         listctrl:SetColumnWidth(1, -1)
@@ -238,6 +255,7 @@ local _M = {
     retryIcon = function() return #icons-3 end,
     offIcon = function() return #icons-4 end,
     pauseIcon = function() return #icons-5 end,
+    emptyIcon = function() return #icons-6 end,
 
 
     -- actions
