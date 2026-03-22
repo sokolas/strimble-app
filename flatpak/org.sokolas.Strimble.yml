@@ -119,7 +119,7 @@ modules:
       - type: git
         url: https://github.com/sokolas/pollnet.git
         tag: v1.1.0-flat-2
-      - "flatpak/pollnet-cargo-sources.yaml"
+      - "pollnet-cargo-sources.yaml"
 
   # assets
   - name: strimble-lua
@@ -132,16 +132,16 @@ modules:
       - cp -R scripts /app/share/strimble/scripts
     sources:
       - type: dir
-        path: src
+        path: ../src
         dest: src
       - type: dir
-        path: images
+        path: ../images
         dest: images
       - type: dir
-        path: lualibs
+        path: ../lualibs
         dest: lualibs
       - type: dir
-        path: scripts
+        path: ../scripts
         dest: scripts    
 
   # - name: icon
@@ -159,7 +159,7 @@ modules:
       - install -Dm644 bug.svg /app/share/icons/hicolor/scalable/apps/org.sokolas.Strimble.svg
     sources:
       - type: file
-        path: flatpak/bug.svg
+        path: bug.svg
         dest-filename: bug.svg
 
   - name: desktop
@@ -168,7 +168,7 @@ modules:
       - install -Dm644 strimble.desktop /app/share/applications/org.sokolas.Strimble.desktop
     sources:
       - type: file
-        path: flatpak/strimble.desktop
+        path: strimble.desktop
         dest-filename: strimble.desktop
 
   - name: manifest
@@ -177,7 +177,7 @@ modules:
       - install -Dm644 manifest.xml /app/share/metainfo/org.sokolas.Strimble.metainfo.xml
     sources:
       - type: file
-        path: flatpak/manifest.xml
+        path: manifest.xml
         dest-filename: manifest.xml
 
   - name: strimble-wrapper
@@ -186,7 +186,7 @@ modules:
       - install -Dm755 strimble.sh /app/bin/strimble
     sources:
       - type: file
-        path: flatpak/strimble.sh
+        path: strimble.sh
         dest-filename: strimble.sh
 
 cleanup:
