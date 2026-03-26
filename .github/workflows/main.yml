@@ -264,16 +264,16 @@ jobs:
 
       - name: Add Flathub repo
         run: |
-          flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 
       - name: Build Flatpak bundle
         run: |
-          flatpak-builder build --install-deps-from=flathub --force-clean --repo=repo --default-branch=${{ github.ref }} flatpak/org.sokolas.Strimble.yml
+          flatpak-builder build --user --install-deps-from=flathub --force-clean --repo=repo --default-branch=${{ github.ref }} flatpak/org.sokolas.Strimble.yml
           # flatpak-builder --force-clean build-dir flatpak/org.sokolas.Strimble.yaml
 
       - name: Create single-file bundle
         run: |
-          flatpak build-bundle repo strimble-linux.flatpak org.sokolas.Strimble ${{ github.ref }}
+          flatpak build-bundle repo strimble.flatpak org.sokolas.Strimble ${{ github.ref }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -306,7 +306,7 @@ jobs:
           tag: ${{ github.ref }}
           file: |
             strimble.zip
-            strimble-linux.flatpak
+            strimble.flatpak
           asset_name: |
             strimble-win-x64.zip
             strimble.flatpak
