@@ -309,11 +309,13 @@ jobs:
             asset_name: strimble.flatpak
     steps:
       - name: Download artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: ${{ matrix.artifact_name }}
           path: .
-
+      - name: List downloaded files
+        run: |
+          ls -R
 
       - name: Create Release & Upload Assets
         uses: svenstaro/upload-release-action@v2
