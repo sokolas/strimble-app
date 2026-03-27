@@ -283,7 +283,7 @@ jobs:
 
       - name: Build Flatpak bundle
         run: |
-          flatpak-builder build --user --install-deps-from=flathub --force-clean --repo=repo --default-branch=${{ github.ref_name }} flatpak/org.sokolas.Strimble.yml
+          flatpak-builder build --user --install-deps-from=flathub --force-clean --repo=repo --state-dir=$HOME/.cache/flatpak-builder --default-branch=${{ github.ref_name }} flatpak/org.sokolas.Strimble.yml
           # flatpak-builder --force-clean build-dir flatpak/org.sokolas.Strimble.yaml
 
       - name: Create single-file bundle
