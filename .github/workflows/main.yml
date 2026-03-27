@@ -304,8 +304,10 @@ jobs:
       matrix:
         include:
           - artifact_name: windows-build
+            file_name: strimble.zip
             asset_name: strimble-win-x64.zip
           - artifact_name: flatpak-build
+            file_name: strimble.flatpak
             asset_name: strimble.flatpak
     steps:
       - name: Download artifact
@@ -313,16 +315,16 @@ jobs:
         with:
           name: ${{ matrix.artifact_name }}
           path: .
-      - name: List downloaded files
-        run: |
-          ls -R
+      # - name: List downloaded files
+        # run: |
+          # ls -R
 
       - name: Create Release & Upload Assets
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ github.ref_name }}
-          file: ${{ matrix.artifact_name }}
+          file: ${{ matrix.file_name }}
           asset_name: ${{ matrix.asset_name }}
           overwrite: true
           body: "Automated release for ${{ github.ref_name }}"
