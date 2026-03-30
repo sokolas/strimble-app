@@ -2,30 +2,375 @@
 # See: https://circleci.com/docs/reference/configuration-reference
 version: 2.1
 
-# Define a job to be invoked later in a workflow.
-# See: https://circleci.com/docs/guides/orchestrate/jobs-steps/#jobs-overview & https://circleci.com/docs/reference/configuration-reference/#jobs
+orbs:
+  win: circleci/windows@5.0
+
+parameters:
+  prev_tag:
+    type: string
+    default: ""
+
+workflows:
+  ci:
+    jobs:
+      - check_type:
+          filters:
+            tags:
+              only: /.*/
+            branches:
+              ignore: /.*/
+
+      - full_build:
+          requires:
+            - check_type
+
+      - repack:
+          requires:
+            - check_type
+
+      - flatpak_bundle:
+          requires:
+            - check_type
+          filters:
+            tags:
+              only: /.*/
+
+      - release:
+          requires:
+            - full_build
+            - repack
+            - flatpak_bundle
+          filters:
+            tags:
+              only: /.*/
+
 jobs:
-  say-hello:
-    # Specify the execution environment. You can specify an image from Docker Hub or use one of our convenience images from CircleCI's Developer Hub.
-    # See: https://circleci.com/docs/guides/execution-managed/executor-intro/ & https://circleci.com/docs/reference/configuration-reference/#executor-job
+  check_type:
     docker:
-      # Specify the version you desire here
-      # See: https://circleci.com/developer/images/image/cimg/base
-      - image: cimg/base:current
-
-    # Add steps to the job
-    # See: https://circleci.com/docs/guides/orchestrate/jobs-steps/#steps-overview & https://circleci.com/docs/reference/configuration-reference/#steps
+      - image: cimg/base:stable
     steps:
-      # Checkout the code as the first step.
       - checkout
-      - run:
-          name: "Say hello"
-          command: "echo Hello, World!"
 
+      - run:
+          name: Get previous release + detect changes
+          command: |
+            sudo apt-get update && sudo apt-get install -y jq
+
+            TAG=$(curl -H "Authorization: Bearer $GITHUB_TOKEN" \
+              https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/releases/latest \
+              | jq -r .tag_name)
+
+            if [ -z "<< pipeline.parameters.prev_tag >>" ]; then
+              PREV_TAG=$TAG
+            else
+              PREV_TAG="<< pipeline.parameters.prev_tag >>"
+            fi
+
+            echo "PREV_TAG=$PREV_TAG" >> state.env
+
+            CHANGED=$(git diff $PREV_TAG..$CIRCLE_TAG --name-only -- 3rdparty strimble-starter || true)
+
+            echo "CHANGED=$CHANGED" >> state.env
+
+      - persist_to_workspace:
+          root: .
+          paths:
+            - state.env
+
+
+  full_build:
+    executor:
+      name: win/default
+    steps:
+      - checkout
+
+      - attach_workspace:
+          at: .
+
+      - run:
+          name: Load state
+          shell: bash.exe
+          command: |
+            source state.env
+            if [ -z "$CHANGED" ]; then
+              echo "No changes → skipping build"
+              circleci-agent step halt
+            fi
+
+      - run:
+          name: Setup directories
+          shell: bash.exe
+          command: |
+            mkdir deps
+            mkdir deps\include
+            mkdir deps\lib
+            mkdir deps\bin
+            mkdir deps\bin\clibs
+
+      - run:
+          name: Install Rust
+          command: |
+            curl https://sh.rustup.rs -sSf | sh -s -- -y
+
+      - run:
+          name: Build pollnet
+          shell: cmd.exe
+          command: |
+            cd 3rdparty\pollnet
+            cargo build --release
+
+      - run:
+          name: Copy pollnet
+          shell: cmd.exe
+          command: |
+            copy 3rdparty\pollnet\target\release\pollnet.dll deps\bin\clibs
+      
+      - run:
+          name: Build raudio
+          shell: cmd.exe
+          command: |
+            cd 3rdparty\raudio\projects\CMake
+            cmake -DSUPPORT_MODULE_RAUDIO=TRUE -DRAUDIO_STANDALONE=TRUE -DSUPPORT_SHARED_LIBRARY=TRUE -DSUPPORT_FILEFORMAT_WAV=TRUE -DSUPPORT_FILEFORMAT_OGG=TRUE -DSUPPORT_FILEFORMAT_MP3=TRUE -DSUPPORT_FILEFORMAT_FLAC=TRUE -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=TRUE
+            msbuild ALL_BUILD.vcxproj /p:configuration=MinSizeRel /p:platform=x64
+            copy "MinSizeRel\raudio.dll" "deps\bin\clibs"
+      
+      - run:
+          name: build LuaJIT
+          shell: cmd.exe
+          command: |
+            cd strimble-starter\LuaJIT\src
+            msvcbuild.bat
+
+      - run:
+          name: create luajit directories
+          shell: cmd.exe
+          command: |
+            mkdir deps\include\luajit-2.1
+
+      - run:
+          name: copy luajit headers
+          shell: powershell.exe
+          command: |
+            Copy-Item ".\strimble-starter\LuaJIT\src\lauxlib.h",".\strimble-starter\LuaJIT\src\lua.h",".\strimble-starter\LuaJIT\src\lua.hpp",".\strimble-starter\LuaJIT\src\luaconf.h",".\strimble-starter\LuaJIT\src\lualib.h",".\strimble-starter\LuaJIT\src\luajit.h" -Destination ".\deps\include\luajit-2.1"
+
+      - run:
+          name: copy luajit libs
+          shell: powershell.exe
+          command: |
+            Copy-Item ".\strimble-starter\LuaJIT\src\lua51.dll",".\strimble-starter\LuaJIT\src\lua51.lib"-Destination ".\deps\lib"
+      
+      - run:
+          name: copy luajit executable
+          shell: powershell.exe
+          command: |
+            Copy-Item ".\strimble-starter\LuaJIT\src\luajit.exe" -Destination ".\deps\bin"
+        
+      - run:
+          name: build starter
+          shell: cmd.exe
+          command: |
+            cd strimble-starter
+            msbuild strimble-starter.vcxproj /p:configuration=release /p:platform=x64
+      
+      - run:
+          name: copy starter
+          shell: cmd.exe
+          command: |
+            cd strimble-starter
+            copy "x64\release\strimble-starter.exe" "%INSTALL_DIR%\bin\strimble.exe"
+      
+      - run:
+          name: build LFS
+          shell: cmd.exe
+          command: |
+            cd 3rdparty\luafilesystem
+            cl /c /O1 /MD /I "deps\include\luajit-2.1" src\lfs.c
+            link /dll /def:src\lfs.def /out:lfs.dll lfs.obj "deps\lib\lua51.lib"
+            copy lfs.dll "deps\bin\clibs"
+          
+      - run:
+          name: build lua-utf8
+          shell: cmd.exe
+          command: |
+            cd 3rdparty\luautf8
+            cl lutf8lib.c /I "deps/include/luajit-2.1" /DLUA_BUILD_AS_DLL=1 /link lua51.lib /LIBPATH:"deps/lib" -dll -out:lua-utf8.dll
+            copy lua-utf8.dll "deps\bin\clibs"
+      
+      - run:
+          name: build lsqlite
+          shell: cmd.exe
+          command: |
+            cd 3rdparty\lsqlite
+            cl sqlite3.c lsqlite3.c /O1 /I "deps/include/luajit-2.1" /DLUA_BUILD_AS_DLL=1 /DLSQLITE_VERSION=\"0.9.5\" /Dluaopen_lsqlite3=luaopen_lsqlite3complete /DSQLITE_ENABLE_JSON1=1 /link lua51.lib /LIBPATH:"deps/lib" /EXPORT:luaopen_lsqlite3complete -dll -out:lsqlite3complete.dll
+            copy lsqlite3complete.dll "deps\bin\clibs"
+      
+      - run:
+          name: build wxwidgets
+          shell: cmd.exe
+          command: |
+            cd 3rdparty\wxwidgets\build\msw
+            nmake /f makefile.vc BUILD=MinSizeRel SHARED=1 TARGET_CPU=X64 MONOLITHIC=1 RUNTIME_LIBS=static
+            mkdir deps\lib\vc_x64_dll
+            xcopy ..\..\lib\vc_x64_dll\mswu deps\lib\vc_x64_dll\mswu\ /s /e /i
+            xcopy ..\..\lib\vc_x64_dll\*.dll deps\lib\vc_x64_dll\
+            xcopy ..\..\lib\vc_x64_dll\*.lib deps\lib\vc_x64_dll\
+            xcopy ..\..\include\* deps\include\ /s /e
+      
+      - run:
+          name: build wxlua
+          shell: cmd.exe
+          command: |
+            cd 3rdparty\wxlua\wxLua
+            cmake -DCMAKE_INSTALL_PREFIX="%INSTALL_DIR%" -DCMAKE_BUILD_TYPE="MinSizeRel" -DBUILD_SHARED_LIBS=TRUE ^
+            -DCMAKE_CXX_FLAGS="-DLUA_COMPAT_MODULE /EHsc" ^
+            -DwxWidgets_COMPONENTS="mono" ^
+            -DwxLuaBind_COMPONENTS="xrc;xml;media;richtext;propgrid;html;adv;core;net;base" ^
+            -DwxWidgets_CONFIGURATION="mswu" ^
+            -DwxWidgets_ROOT_DIR="deps" ^
+            -DwxWidgets_VERSION="3.2.6" ^
+            -DwxWidgets_LIB_DIR="deps/lib/vc_x64_dll" ^
+            -DwxLua_LUA_LIBRARY_USE_BUILTIN=FALSE ^
+            -DwxLua_LUA_INCLUDE_DIR="deps/include/luajit-2.1" -DwxLua_LUA_LIBRARY="deps/lib/lua51.lib" .
+          msbuild ALL_BUILD.vcxproj /p:configuration=MinSizeRel /p:platform=x64
+          copy bin\MinSizeRel\wx.dll "deps\bin\clibs\wx.dll"
+          
+          
+      - run:
+          name: list the results
+          shell: bash.exe
+          command: |
+            ls -lR deps/bin
+            ls -lR deps/lib      
+      
+
+      - run:
+          name: Package
+          shell: cmd.exe
+          command: |
+            mkdir strimble
+            mkdir strimble\bin\clibs
+            xcopy "deps\bin\strimble.exe" strimble
+            xcopy "deps\bin\luajit.exe" strimble
+            xcopy "deps\lib\lua51.dll" strimble
+            xcopy "deps\lib\vc_x64_dll\wxmsw32u_vc_custom.dll" strimble
+            xcopy "deps\bin\clibs" strimble\bin\clibs /s /e
+            mkdir strimble\data
+            xcopy data strimble\data /s /e
+            mkdir strimble\images
+            xcopy images strimble\images /s /e
+            mkdir strimble\lualibs
+            xcopy lualibs strimble\lualibs /s /e
+            mkdir strimble\scripts
+            xcopy scripts strimble\scripts /s /e
+            mkdir strimble\src
+            xcopy src strimble\src /s /e
+            copy LICENSE strimble
+            7z a strimble.zip strimble
+
+      - persist_to_workspace:
+          root: .
+          paths:
+            - strimble.zip
+
+
+  repack:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+
+      - attach_workspace:
+          at: .
+
+      - run:
+          name: Load state
+          command: |
+            source state.env
+            if [ -n "$CHANGED" ]; then
+              echo "Changes detected → skipping repack"
+              circleci-agent step halt
+            fi
+
+      - run:
+          name: Download previous release
+          command: |
+            wget "https://github.com/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/releases/download/$PREV_TAG/strimble-win-x64.zip"
+            unzip strimble-win-x64.zip
+
+      - run:
+          name: Replace data
+          command: |
+            rm -rf strimble/src strimble/scripts strimble/lualibs strimble/images
+            cp -R src strimble
+            cp -R scripts strimble
+            cp -R lualibs strimble
+            cp -R images strimble
+            zip -r strimble.zip strimble
+
+      - persist_to_workspace:
+          root: .
+          paths:
+            - strimble.zip
+
+
+  flatpak_bundle:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+
+      - run:
+          name: Install Flatpak
+          command: |
+            sudo apt-get update
+            sudo apt-get install -y flatpak flatpak-builder
+
+      - run:
+          name: Setup Flathub
+          command: |
+            flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+
+      - run:
+          name: Build Flatpak
+          command: |
+            flatpak-builder build --user --install-deps-from=flathub \
+              --force-clean --repo=repo \
+              --default-branch=$CIRCLE_TAG flatpak/org.sokolas.Strimble.yml
+
+      - run:
+          name: Bundle
+          command: |
+            flatpak build-bundle repo strimble.flatpak org.sokolas.Strimble $CIRCLE_TAG
+
+      - persist_to_workspace:
+          root: .
+          paths:
+            - strimble.flatpak
+
+
+  release:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - attach_workspace:
+          at: .
+
+      - run:
+          name: Install GitHub CLI
+          command: |
+            sudo apt-get install -y gh
+
+      - run:
+          name: Upload release assets
+          command: |
+            gh release create "$CIRCLE_TAG" \
+              strimble.zip#strimble-win-x64.zip \
+              strimble.flatpak#strimble.flatpak \
+              --notes "Automated release for $CIRCLE_TAG"
 # Orchestrate jobs using workflows
 # See: https://circleci.com/docs/guides/orchestrate/workflows/ & https://circleci.com/docs/reference/configuration-reference/#workflows
-workflows:
-  say-hello-workflow: # This is the name of the workflow, feel free to change it to better match your workflow.
+#workflows:
+#  say-hello-workflow: # This is the name of the workflow, feel free to change it to better match your workflow.
     # Inside the workflow, you define the jobs you want to run.
-    jobs:
-      - say-hello
+#    jobs:
+#      - say-hello
