@@ -54,12 +54,12 @@ jobs:
       - run:
           name: Get previous release + detect changes
           command: |
-            echo https://api.github.com/repos/${pipeline.git.repo_owner}/${pipeline.git.repo_name}/releases/latest
+            echo https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/releases/latest
             sudo apt-get update && sudo apt-get install -y jq
-            curl -H -v "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/repos/${pipeline.git.repo_owner}/${pipeline.git.repo_name}/releases/latest
+            curl -H -v "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/releases/latest
             
             TAG=$(curl -H -v "Authorization: Bearer $GITHUB_TOKEN" \
-              https://api.github.com/repos/${pipeline.git.repo_owner}/${pipeline.git.repo_name}/releases/latest \
+              https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/releases/latest \
               | jq -r .tag_name)
 
             if [ -z "<< pipeline.parameters.prev_tag >>" ]; then
