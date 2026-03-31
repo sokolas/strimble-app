@@ -54,6 +54,7 @@ jobs:
       - run:
           name: Get previous release + detect changes
           command: |
+            echo https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/releases/latest
             sudo apt-get update && sudo apt-get install -y jq
             curl -H -v "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/releases/latest
             
