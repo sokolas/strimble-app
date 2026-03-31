@@ -55,8 +55,9 @@ jobs:
           name: Get previous release + detect changes
           command: |
             sudo apt-get update && sudo apt-get install -y jq
-
-            TAG=$(curl -H "Authorization: Bearer $GITHUB_TOKEN" \
+            curl -H -v "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/releases/latest
+            
+            TAG=$(curl -H -v "Authorization: Bearer $GITHUB_TOKEN" \
               https://api.github.com/repos/$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME/releases/latest \
               | jq -r .tag_name)
 
