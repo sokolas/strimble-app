@@ -65,7 +65,7 @@ end
 
 local function createEventSubFolder(triggerListCtrl)
     local rootTriggerItem = triggerListCtrl:GetRootItem()
-    local eventSubEvents = triggerListCtrl:AppendItem(rootTriggerItem, "Twitch Events", triggerIcons.twitch_eventsub, triggerIcons.twitch_eventsub)
+    local eventSubEvents = triggerListCtrl:AppendItem(rootTriggerItem, "Twitch EventSub", triggerIcons.twitch_eventsub, triggerIcons.twitch_eventsub)
     
     local treeItem = {
         id = eventSubEvents:GetValue(),
