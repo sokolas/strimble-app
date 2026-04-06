@@ -1,7 +1,10 @@
 id: org.sokolas.Strimble
-runtime: org.gnome.Platform
-runtime-version: '50'
-sdk: org.gnome.Sdk
+# runtime: org.gnome.Platform
+# runtime-version: '50'
+# sdk: org.gnome.Sdk
+runtime: "org.freedesktop.Platform"
+runtime-version: "25.08"
+sdk: "org.freedesktop.Sdk"
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.rust-stable
 
@@ -29,7 +32,7 @@ modules:
       - -DCMAKE_BUILD_TYPE=MinSizeRel
       - -DwxBUILD_COMPATIBILITY=3.0
       - -DwxBUILD_MONOLITHIC=ON
-
+      # - -DwxBUILD_SAMPLES=SOME
     sources:
       - type: git
         url: https://github.com/wxWidgets/wxWidgets.git
